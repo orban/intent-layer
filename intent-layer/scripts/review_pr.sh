@@ -61,6 +61,10 @@ while [[ $# -gt 0 ]]; do
             show_version
             ;;
         --pr)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --pr requires a NUMBER argument" >&2
+                exit 1
+            fi
             PR_NUMBER="$2"
             shift 2
             ;;
@@ -85,6 +89,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --output)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --output requires a FILE argument" >&2
+                exit 1
+            fi
             OUTPUT_FILE="$2"
             shift 2
             ;;
@@ -111,6 +119,13 @@ done
 if [ -z "$BASE_REF" ]; then
     BASE_REF="origin/main"
 fi
+
+# Validate git repository
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
+    echo "Error: Not in a git repository" >&2
+    exit 1
+}
+cd "$REPO_ROOT"
 
 echo "PR Review Mode - review_pr.sh v$VERSION"
 echo "Comparing: $BASE_REF..$HEAD_REF"
