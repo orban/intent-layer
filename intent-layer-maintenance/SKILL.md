@@ -122,6 +122,8 @@ These questions surface tribal knowledge that should be documented:
 | New common task | Entry Points |
 | New subsystem | Subsystem Boundaries |
 | Relationship to external | Related Context |
+| New/moved child node | Downlinks |
+| Changed parent/sibling | Navigation |
 
 ## Step 5: Present Update Proposal
 
@@ -151,6 +153,8 @@ Edit the CLAUDE.md file to add new items to appropriate sections.
 - Node still <4k tokens
 - No duplication with ancestor nodes
 - Relative paths for internal links
+- Downlinks point to existing child nodes
+- Navigation links (parent/siblings) are accurate
 
 ## Quick Reference
 

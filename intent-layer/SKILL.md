@@ -185,6 +185,33 @@ For full protocol: `references/capture-protocol.md`
 
 ---
 
+## Capture Order (Leaf-First)
+
+> **TL;DR**: Start at leaves, work up to root. Clarity compounds upward.
+
+Always capture leaf-first, easy-to-hard:
+
+1. **Start with deepest directories** (most concrete)
+   - Leaf nodes compress raw code—patterns are visible
+   - Easier to identify contracts when you see the implementation
+
+2. **Work up to parent nodes** (summarize children)
+   - Parent nodes compress children's Intent Nodes, not raw code
+   - Wait until children are stable before writing parent
+
+3. **Finish with root** (summarize entire hierarchy)
+   - Root references child nodes, provides navigation
+   - Global invariants emerge from seeing all children
+
+**Why this order?**
+- Clarity compounds upward—parent nodes reference stable children
+- Avoids rewriting parents when children change
+- Natural: understand details before summarizing
+
+**Anti-pattern**: Starting at root and working down leads to vague descriptions that need constant revision as you discover what's actually in the code.
+
+---
+
 ## Feedback Flywheel
 
 > **TL;DR**: Agents surface missing context during work → humans review → Intent Layer improves → future agents start better.

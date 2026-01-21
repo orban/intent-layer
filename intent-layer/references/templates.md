@@ -18,6 +18,11 @@ Choose based on project size:
 | [Common task 1] | `path/to/file` |
 | [Common task 2] | `path/to/file` |
 
+### Downlinks
+
+- `src/core/AGENTS.md` - [Brief description]
+- `src/api/AGENTS.md` - [Brief description]
+
 ### Contracts
 
 - [Key invariant 1]
@@ -42,6 +47,14 @@ Choose based on project size:
 | [Area 1] | `path/AGENTS.md` | Brief description |
 | [Area 2] | `path/AGENTS.md` | Brief description |
 | [Area 3] | `path/AGENTS.md` | Brief description |
+
+### Downlinks
+
+| Area | Node | Description |
+|------|------|-------------|
+| API | `src/api/AGENTS.md` | REST endpoints |
+| Core | `src/core/AGENTS.md` | Business logic |
+| Data | `src/data/AGENTS.md` | Database layer |
 
 ### Entry Points
 
@@ -85,6 +98,15 @@ Choose based on project size:
 | Component | Location |
 |-----------|----------|
 | [Infra 1] | `infra/AGENTS.md` |
+
+### Downlinks
+
+| Area | Node | Description |
+|------|------|-------------|
+| API Gateway | `services/gateway/AGENTS.md` | Request routing, rate limiting |
+| User Service | `services/users/AGENTS.md` | Authentication, profiles |
+| Payment Service | `services/payments/AGENTS.md` | Billing, transactions |
+| Shared Utils | `packages/shared/AGENTS.md` | Common utilities |
 
 ### Cross-Cutting Concerns
 
@@ -160,6 +182,14 @@ To add a new endpoint:
 ## Related Context
 - Database layer: `./db/AGENTS.md`
 - Shared utilities: `../shared/AGENTS.md`
+
+## Navigation
+- **Parent**: `../AGENTS.md`
+- **Siblings**: `../other-area/AGENTS.md`, `../shared/AGENTS.md`
+
+## Downlinks
+- `./handlers/AGENTS.md` - Request handlers
+- `./db/AGENTS.md` - Database layer
 ```
 
 ## Measurements Table Format

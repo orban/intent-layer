@@ -14,6 +14,35 @@ How to achieve 100:1 compression (200k tokens of code → 2k token node).
 | Replace explanations with links | "We use eventual consistency because..." | "Why eventual consistency: `docs/adr/004.md`" |
 | Merge similar items | 5 similar anti-patterns | 1 pattern + "similarly for X, Y, Z" |
 
+## Fractal Compression
+
+Compression stacks at each level of the hierarchy:
+
+```
+Raw Code (200k tokens)
+    ↓ leaf nodes compress raw code (100:1)
+Leaf AGENTS.md files (2k tokens each)
+    ↓ parent nodes compress children's nodes
+Parent AGENTS.md (1k tokens)
+    ↓ root compresses entire hierarchy
+Root CLAUDE.md (500 tokens)
+```
+
+**Key insight**: Each level compresses the level below it, not raw code:
+- **Leaf nodes** compress raw code → contracts, patterns, pitfalls
+- **Parent nodes** compress child Intent Nodes → relationships, cross-cutting concerns
+- **Root node** compresses the entire hierarchy → navigation, global invariants
+
+### Example: 200k Token Codebase
+
+| Level | Input | Output | What It Does |
+|-------|-------|--------|--------------|
+| Leaf | 40k tokens of code | 2k token node | Extracts contracts, patterns |
+| Parent | 5 × 2k child nodes | 1.5k token node | Summarizes children, adds relationships |
+| Root | 3 × 1.5k parent nodes | 800 token node | Navigation, global rules |
+
+Result: An agent reading the root sees the entire codebase summarized in ~800 tokens, with drill-down paths to any area.
+
 ## The Three-Pass Method
 
 ### Pass 1: Delete
