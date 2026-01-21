@@ -198,5 +198,106 @@ done <<< "$CHANGED_FILES"
 AFFECTED_NODE_COUNT=${#NODE_FILES[@]}
 echo "Affected Intent Nodes: $AFFECTED_NODE_COUNT"
 
+# Semantic signal patterns
+SECURITY_PATTERNS="auth|password|token|secret|permission|encrypt|credential|login|session"
+DATA_PATTERNS="migration|schema|DELETE|DROP|transaction|database|sql|query"
+API_PATTERNS="/api/|endpoint|route|breaking|deprecated|version"
+
+# Calculate risk score
+calculate_risk_score() {
+    local score=0
+    local factors=""
+
+    # Files changed: 1 point per 5 files
+    local file_points=$((FILE_COUNT / 5))
+    if [ $file_points -gt 0 ]; then
+        score=$((score + file_points))
+        factors="${factors}Files changed: +${file_points}\n"
+    fi
+
+    # Count contracts and pitfalls in affected nodes
+    local contract_count=0
+    local pitfall_count=0
+    local critical_count=0
+
+    for node in "${!NODE_CONTENT[@]}"; do
+        local content="${NODE_CONTENT[$node]}"
+
+        # Count items in Contracts section
+        local in_contracts
+        in_contracts=$(echo "$content" | grep -c -iE "^- .*(must|never|always|require)" 2>/dev/null || true)
+        in_contracts=${in_contracts:-0}
+        in_contracts=$(echo "$in_contracts" | tr -d '[:space:]')
+        contract_count=$((contract_count + in_contracts))
+
+        # Count items in Pitfalls section
+        local in_pitfalls
+        in_pitfalls=$(echo "$content" | grep -c -iE "^- .*(pitfall|silently|unexpected|surprising)" 2>/dev/null || true)
+        in_pitfalls=${in_pitfalls:-0}
+        in_pitfalls=$(echo "$in_pitfalls" | tr -d '[:space:]')
+        pitfall_count=$((pitfall_count + in_pitfalls))
+
+        # Count critical items
+        local critical
+        critical=$(echo "$content" | grep -c -E "^- (⚠️|CRITICAL:)" 2>/dev/null || true)
+        critical=${critical:-0}
+        critical=$(echo "$critical" | tr -d '[:space:]')
+        critical_count=$((critical_count + critical))
+    done
+
+    # Contracts: 2 points each
+    if [ $contract_count -gt 0 ]; then
+        local contract_points=$((contract_count * 2))
+        score=$((score + contract_points))
+        factors="${factors}Contracts ($contract_count): +${contract_points}\n"
+    fi
+
+    # Pitfalls: 3 points each
+    if [ $pitfall_count -gt 0 ]; then
+        local pitfall_points=$((pitfall_count * 3))
+        score=$((score + pitfall_points))
+        factors="${factors}Pitfalls ($pitfall_count): +${pitfall_points}\n"
+    fi
+
+    # Critical items: 5 points each
+    if [ $critical_count -gt 0 ]; then
+        local critical_points=$((critical_count * 5))
+        score=$((score + critical_points))
+        factors="${factors}Critical items ($critical_count): +${critical_points}\n"
+    fi
+
+    # Semantic signals in changed files
+    local diff_content=$(git diff "$BASE_REF" "$HEAD_REF" 2>/dev/null || echo "")
+
+    if echo "$diff_content" | grep -qiE "$SECURITY_PATTERNS"; then
+        score=$((score + 10))
+        factors="${factors}Security patterns: +10\n"
+    fi
+
+    if echo "$diff_content" | grep -qiE "$DATA_PATTERNS"; then
+        score=$((score + 10))
+        factors="${factors}Data patterns: +10\n"
+    fi
+
+    if echo "$diff_content" | grep -qiE "$API_PATTERNS"; then
+        score=$((score + 5))
+        factors="${factors}API patterns: +5\n"
+    fi
+
+    # Output
+    RISK_SCORE=$score
+    RISK_FACTORS="$factors"
+
+    if [ $score -le 15 ]; then
+        RISK_LEVEL="Low"
+    elif [ $score -le 35 ]; then
+        RISK_LEVEL="Medium"
+    else
+        RISK_LEVEL="High"
+    fi
+}
+
+calculate_risk_score
+
 echo "PR Review Mode - review_pr.sh v$VERSION"
 echo "Comparing: $BASE_REF..$HEAD_REF"
