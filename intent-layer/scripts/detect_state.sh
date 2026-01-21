@@ -73,11 +73,11 @@ if [ -f "$TARGET_PATH/CLAUDE.md" ]; then
     ROOT_FILE="CLAUDE.md"
     # Check if AGENTS.md also exists at root
     if [ -f "$TARGET_PATH/AGENTS.md" ]; then
-        # Check if it's a symlink (expected for cross-tool compatibility)
-        if [ -L "$TARGET_PATH/AGENTS.md" ]; then
+        # Check if either is a symlink to the other (expected for cross-tool compatibility)
+        if [ -L "$TARGET_PATH/AGENTS.md" ] || [ -L "$TARGET_PATH/CLAUDE.md" ]; then
             : # Symlink is fine - this is the recommended setup
         else
-            WARNINGS+=("Both CLAUDE.md and AGENTS.md exist at root (not symlinked). Consider: ln -sf CLAUDE.md AGENTS.md")
+            WARNINGS+=("Both CLAUDE.md and AGENTS.md exist at root (not symlinked). Consider symlinking one to the other.")
         fi
     fi
 elif [ -f "$TARGET_PATH/AGENTS.md" ]; then
