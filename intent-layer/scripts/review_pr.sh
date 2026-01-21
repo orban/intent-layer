@@ -299,5 +299,47 @@ calculate_risk_score() {
 
 calculate_risk_score
 
+# Extract checklist items from nodes
+generate_checklist() {
+    CRITICAL_ITEMS=""
+    RELEVANT_ITEMS=""
+    PITFALL_ITEMS=""
+
+    for node in "${!NODE_CONTENT[@]}"; do
+        local content="${NODE_CONTENT[$node]}"
+        local files="${NODE_FILES[$node]}"
+
+        # Extract critical items (always include)
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            CRITICAL_ITEMS="${CRITICAL_ITEMS}- [ ] ${line} (${node})\n"
+        done < <(echo "$content" | grep -E "^- (⚠️|CRITICAL:)" | sed 's/^- //' || true)
+
+        # Extract contracts that match changed file keywords
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            # Check if any changed file keyword appears in the contract
+            local is_relevant=false
+            while IFS= read -r file; do
+                [ -z "$file" ] && continue
+                local filename=$(basename "$file" | sed 's/\.[^.]*$//')
+                if echo "$line" | grep -qi "$filename"; then
+                    is_relevant=true
+                    RELEVANT_ITEMS="${RELEVANT_ITEMS}- [ ] ${line} (${node})\n      Changed: ${file}\n"
+                    break
+                fi
+            done <<< "$files"
+        done < <(echo "$content" | grep -E "^- .*(must|never|always|require)" | grep -vE "^- (⚠️|CRITICAL:)" | sed 's/^- //' || true)
+
+        # Extract pitfalls
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            PITFALL_ITEMS="${PITFALL_ITEMS}- [ ] ${line} (${node})\n"
+        done < <(echo "$content" | grep -iE "^- .*(pitfall|silently|unexpected|surprising)" | sed 's/^- //' || true)
+    done
+}
+
+generate_checklist
+
 echo "PR Review Mode - review_pr.sh v$VERSION"
 echo "Comparing: $BASE_REF..$HEAD_REF"
