@@ -5,6 +5,7 @@ description: >
   Use when initializing a new project, adding context infrastructure to an existing repo,
   user asks to set up AGENTS.md, add intent layer, make agents understand the codebase,
   or scaffolding AI-friendly project documentation.
+argument-hint: "[/path/to/project]"
 ---
 
 # Intent Layer

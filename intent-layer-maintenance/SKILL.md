@@ -4,6 +4,7 @@ description: >
   Use when maintaining an existing Intent Layer, during quarterly reviews,
   after significant code changes, when something confused you, or when
   user asks to audit/update CLAUDE.md or AGENTS.md files.
+argument-hint: "[/path/to/project] [--post-incident | --post-refactor | --quarterly]"
 ---
 
 # Intent Layer Maintenance

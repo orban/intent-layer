@@ -9,17 +9,59 @@
 #
 # Output: List of affected Intent Nodes in leaf-first order for review
 
-set -e
+set -euo pipefail
+
+# Help message
+show_help() {
+    cat << 'EOF'
+detect_changes.sh - Find Intent Nodes affected by code changes
+
+USAGE:
+    detect_changes.sh [OPTIONS] [BASE_REF] [HEAD_REF]
+
+ARGUMENTS:
+    BASE_REF    Git ref to compare from (default: uncommitted changes)
+    HEAD_REF    Git ref to compare to (default: HEAD)
+
+OPTIONS:
+    -h, --help    Show this help message
+
+MODES:
+    No arguments:           Show uncommitted changes (staged + unstaged)
+    BASE_REF only:          Compare BASE_REF to HEAD
+    BASE_REF and HEAD_REF:  Compare BASE_REF to HEAD_REF
+
+OUTPUT:
+    List of affected Intent Nodes in leaf-first order, suitable for
+    systematic review after merges or PRs.
+
+EXAMPLES:
+    detect_changes.sh                    # Uncommitted changes
+    detect_changes.sh main HEAD          # Current branch vs main
+    detect_changes.sh HEAD~5 HEAD        # Last 5 commits
+    detect_changes.sh v1.0.0 v2.0.0      # Between tags
+EOF
+    exit 0
+}
+
+# Parse arguments
+case "${1:-}" in
+    -h|--help)
+        show_help
+        ;;
+esac
 
 BASE_REF="${1:-}"
 HEAD_REF="${2:-HEAD}"
 
 # Get repo root
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -z "$REPO_ROOT" ]; then
-    echo "Error: Not in a git repository"
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
+    echo "❌ Error: Not in a git repository" >&2
+    echo "" >&2
+    echo "   This script requires a git repository to detect changes." >&2
+    echo "   Run from within a git repo or initialize one with: git init" >&2
     exit 1
-fi
+}
 
 cd "$REPO_ROOT"
 
@@ -30,10 +72,33 @@ echo ""
 if [ -z "$BASE_REF" ]; then
     # No base ref - show uncommitted changes
     echo "Mode: Uncommitted changes"
-    CHANGED_FILES=$(git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null)
+    CHANGED_FILES=$(git diff --name-only HEAD 2>/dev/null || true; git diff --name-only --cached 2>/dev/null || true)
 else
+    # Validate refs exist
+    if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+        echo "❌ Error: Invalid git ref: $BASE_REF" >&2
+        echo "" >&2
+        echo "   Please check:" >&2
+        echo "     • The branch/tag/commit exists" >&2
+        echo "     • The spelling is correct" >&2
+        echo "" >&2
+        echo "   Examples of valid refs:" >&2
+        echo "     • main, master (branches)" >&2
+        echo "     • HEAD~5 (5 commits ago)" >&2
+        echo "     • v1.0.0 (tags)" >&2
+        echo "     • abc1234 (commit hash)" >&2
+        exit 1
+    fi
+    if ! git rev-parse --verify "$HEAD_REF" >/dev/null 2>&1; then
+        echo "❌ Error: Invalid git ref: $HEAD_REF" >&2
+        exit 1
+    fi
+
     echo "Mode: $BASE_REF..$HEAD_REF"
-    CHANGED_FILES=$(git diff --name-only "$BASE_REF" "$HEAD_REF" 2>/dev/null)
+    CHANGED_FILES=$(git diff --name-only "$BASE_REF" "$HEAD_REF" 2>/dev/null) || {
+        echo "❌ Error: Failed to get diff between $BASE_REF and $HEAD_REF" >&2
+        exit 1
+    }
 fi
 
 if [ -z "$CHANGED_FILES" ]; then
@@ -48,11 +113,11 @@ echo "Changed files: $FILE_COUNT"
 echo ""
 
 # Find all Intent Nodes in repo
-INTENT_NODES=$(find . -name "AGENTS.md" -o -name "CLAUDE.md" 2>/dev/null | sed 's|^\./||' | sort)
+INTENT_NODES=$(find . -name "AGENTS.md" -o -name "CLAUDE.md" 2>/dev/null | sed 's|^\./||' | sort) || true
 
 if [ -z "$INTENT_NODES" ]; then
-    echo "No Intent Nodes found in repository."
-    echo "Run intent-layer skill to set up Intent Layer."
+    echo "⚠️  No Intent Nodes found in repository."
+    echo "   Run intent-layer skill to set up Intent Layer."
     exit 0
 fi
 
@@ -99,7 +164,7 @@ while IFS= read -r file; do
     node=$(find_covering_node "$file")
     if [ -n "$node" ]; then
         # Track files per node
-        if [ -z "${NODE_FILES[$node]}" ]; then
+        if [ -z "${NODE_FILES[$node]:-}" ]; then
             NODE_FILES[$node]="$file"
             # Calculate depth (number of slashes)
             NODE_DEPTH[$node]=$(echo "$node" | tr -cd '/' | wc -c | tr -d ' ')
@@ -150,14 +215,14 @@ echo ""
 # Sort by depth descending
 REVIEW_ORDER=""
 for node in "${!NODE_FILES[@]}"; do
-    depth="${NODE_DEPTH[$node]}"
+    depth="${NODE_DEPTH[$node]:-0}"
     REVIEW_ORDER="$REVIEW_ORDER$depth $node"$'\n'
 done
 
 COUNTER=1
 echo "$REVIEW_ORDER" | sort -rn | while read -r depth node; do
     [ -z "$node" ] && continue
-    file_count=$(echo "${NODE_FILES[$node]}" | grep -v '^$' | wc -l | tr -d ' ')
+    file_count=$(echo "${NODE_FILES[$node]:-}" | grep -v '^$' | wc -l | tr -d ' ')
     echo "$COUNTER. $node ($file_count files)"
     COUNTER=$((COUNTER + 1))
 done

@@ -5,13 +5,57 @@
 # Automatically discovers semantic boundaries (src, lib, api, etc.)
 # and produces a consolidated table with recommendations.
 
-set -e
+set -euo pipefail
+
+# Help message
+show_help() {
+    cat << 'EOF'
+estimate_all_candidates.sh - Analyze token distribution across project
+
+USAGE:
+    estimate_all_candidates.sh [OPTIONS] [PATH]
+
+ARGUMENTS:
+    PATH    Directory to analyze (default: current directory)
+
+OPTIONS:
+    -h, --help    Show this help message
+
+OUTPUT:
+    Table of directories with token estimates and recommendations:
+    - <20k tokens: No Intent Node needed
+    - 20-64k tokens: Good candidate for AGENTS.md
+    - >64k tokens: Consider splitting into child nodes
+
+EXAMPLES:
+    estimate_all_candidates.sh                    # Analyze current directory
+    estimate_all_candidates.sh /path/to/project   # Analyze specific project
+    estimate_all_candidates.sh ~/my-monorepo      # Analyze monorepo
+EOF
+    exit 0
+}
+
+# Parse arguments
+case "${1:-}" in
+    -h|--help)
+        show_help
+        ;;
+esac
 
 TARGET_PATH="${1:-.}"
 
 # Validate path
 if [ ! -d "$TARGET_PATH" ]; then
-    echo "Error: Path not found: $TARGET_PATH"
+    echo "❌ Error: Directory not found: $TARGET_PATH" >&2
+    echo "" >&2
+    echo "   Please check:" >&2
+    echo "     • The path is spelled correctly" >&2
+    echo "     • The directory exists" >&2
+    exit 1
+fi
+
+if [ ! -r "$TARGET_PATH" ]; then
+    echo "❌ Error: Permission denied reading: $TARGET_PATH" >&2
     exit 1
 fi
 
@@ -51,17 +95,21 @@ FILE_PATTERNS="\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \
 estimate_dir() {
     local dir="$1"
     local bytes
-    bytes=$(eval "find \"$dir\" -type f $FILE_PATTERNS $FIND_EXCLUDES -exec cat {} + 2>/dev/null" | wc -c | tr -d ' ')
+    bytes=$(eval "find \"$dir\" -type f $FILE_PATTERNS $FIND_EXCLUDES -exec cat {} + 2>/dev/null" | wc -c | tr -d ' ') || bytes=0
     echo $((bytes / 4))
 }
 
 # Function to format token count
 format_tokens() {
     local tokens="$1"
+    if ! [[ "$tokens" =~ ^[0-9]+$ ]]; then
+        echo "0"
+        return
+    fi
     if [ "$tokens" -ge 1000000 ]; then
-        echo "$(echo "scale=1; $tokens/1000000" | bc)M"
+        echo "$(echo "scale=1; $tokens/1000000" | bc 2>/dev/null || echo "$tokens")M"
     elif [ "$tokens" -ge 1000 ]; then
-        echo "$(echo "scale=1; $tokens/1000" | bc)k"
+        echo "$(echo "scale=1; $tokens/1000" | bc 2>/dev/null || echo "$tokens")k"
     else
         echo "$tokens"
     fi
@@ -101,12 +149,12 @@ while IFS= read -r pkg_file; do
             fi
         fi
     fi
-done < <(eval "find \"$TARGET_PATH\" -maxdepth 3 \( -name \"package.json\" -o -name \"Cargo.toml\" -o -name \"go.mod\" -o -name \"pyproject.toml\" \) $FIND_EXCLUDES 2>/dev/null")
+done < <(eval "find \"$TARGET_PATH\" -maxdepth 3 \( -name \"package.json\" -o -name \"Cargo.toml\" -o -name \"go.mod\" -o -name \"pyproject.toml\" \) $FIND_EXCLUDES 2>/dev/null" || true)
 
 # Find large directories (>50 files)
 while IFS= read -r dir; do
     if [ -n "$dir" ] && [ "$dir" != "$TARGET_PATH" ]; then
-        count=$(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')
+        count=$(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ') || count=0
         if [ "$count" -gt 50 ]; then
             found=0
             for c in "${CANDIDATES[@]}"; do
@@ -120,7 +168,7 @@ while IFS= read -r dir; do
             fi
         fi
     fi
-done < <(eval "find \"$TARGET_PATH\" -type d -maxdepth 2 $FIND_EXCLUDES 2>/dev/null")
+done < <(eval "find \"$TARGET_PATH\" -type d -maxdepth 2 $FIND_EXCLUDES 2>/dev/null" || true)
 
 echo "## Token Estimates"
 echo ""
@@ -168,7 +216,7 @@ echo ""
 create_count=0
 split_count=0
 for dir in "${CANDIDATES[@]}"; do
-    case "${DECISIONS[$dir]}" in
+    case "${DECISIONS[$dir]:-}" in
         create) create_count=$((create_count + 1)) ;;
         split) split_count=$((split_count + 1)) ;;
     esac
@@ -189,7 +237,7 @@ if [ $create_count -gt 0 ] || [ $split_count -gt 0 ]; then
             short_path="(root)"
         fi
 
-        case "${DECISIONS[$dir]}" in
+        case "${DECISIONS[$dir]:-}" in
             create)
                 if [ "$short_path" = "(root)" ]; then
                     echo "- Root: Ensure Intent Layer section exists in CLAUDE.md/AGENTS.md"

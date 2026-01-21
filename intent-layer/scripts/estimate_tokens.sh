@@ -11,18 +11,63 @@
 #     20-64k tokens: Good candidate for 2-3k token node
 #     >64k tokens: Consider splitting into child nodes
 
-set -e
+set -euo pipefail
+
+# Help message
+show_help() {
+    cat << 'EOF'
+estimate_tokens.sh - Estimate token count for a directory
+
+USAGE:
+    estimate_tokens.sh [OPTIONS] [PATH]
+
+ARGUMENTS:
+    PATH    Directory to analyze (default: current directory)
+
+OPTIONS:
+    -h, --help    Show this help message
+
+OUTPUT:
+    Token estimate with ±20% margin, file count, top contributors,
+    and recommendation for Intent Node creation.
+
+THRESHOLDS:
+    <20k tokens:    No dedicated node needed
+    20-64k tokens:  Good candidate for 2-3k token node
+    >64k tokens:    Consider splitting into child nodes
+
+EXAMPLES:
+    estimate_tokens.sh                    # Analyze current directory
+    estimate_tokens.sh src/               # Analyze src directory
+    estimate_tokens.sh ~/project/api      # Analyze specific path
+EOF
+    exit 0
+}
+
+# Parse arguments
+case "${1:-}" in
+    -h|--help)
+        show_help
+        ;;
+esac
 
 TARGET_PATH="${1:-.}"
 
-# Validate path exists and is readable
+# Validate path exists
 if [ ! -d "$TARGET_PATH" ]; then
-    echo "Error: Path not found: $TARGET_PATH"
+    echo "❌ Error: Directory not found: $TARGET_PATH" >&2
+    echo "" >&2
+    echo "   Please check:" >&2
+    echo "     • The path is spelled correctly" >&2
+    echo "     • The directory exists" >&2
     exit 1
 fi
 
+# Validate path is readable
 if [ ! -r "$TARGET_PATH" ]; then
-    echo "Error: Permission denied reading: $TARGET_PATH"
+    echo "❌ Error: Permission denied reading: $TARGET_PATH" >&2
+    echo "" >&2
+    echo "   Try: chmod +r \"$TARGET_PATH\"" >&2
     exit 1
 fi
 
@@ -72,11 +117,11 @@ FILE_PATTERNS="\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \
     -o -name \"*.proto\" \)"
 
 # Count bytes and estimate tokens
-BYTES=$(eval "find \"$TARGET_PATH\" -type f $FILE_PATTERNS $FIND_EXCLUDES -exec cat {} + 2>/dev/null" | wc -c | tr -d ' ')
+BYTES=$(eval "find \"$TARGET_PATH\" -type f $FILE_PATTERNS $FIND_EXCLUDES -exec cat {} + 2>/dev/null" | wc -c | tr -d ' ') || BYTES=0
 
 # Handle case where no files matched
 if [ "$BYTES" -eq 0 ]; then
-    echo "Warning: No matching source files found."
+    echo "⚠️  Warning: No matching source files found."
     echo ""
     echo "Checked extensions: ts, tsx, js, jsx, cjs, mjs, py, go, rs, java,"
     echo "                    rb, php, swift, kt, c, cpp, h, cs, vue, svelte,"
@@ -87,20 +132,20 @@ if [ "$BYTES" -eq 0 ]; then
     echo "                resources/_gen, .turbo, coverage, vendor, venv, .cache, out"
     echo ""
     echo "This may indicate:"
-    echo "  - Directory contains only unsupported file types"
-    echo "  - All files are in excluded directories"
-    echo "  - Permission issues reading files"
+    echo "  • Directory contains only unsupported file types"
+    echo "  • All files are in excluded directories"
+    echo "  • Permission issues reading files"
     exit 0
 fi
 
 TOKENS=$((BYTES / 4))
-FILE_COUNT=$(eval "find \"$TARGET_PATH\" -type f $FILE_PATTERNS $FIND_EXCLUDES 2>/dev/null" | wc -l | tr -d ' ')
+FILE_COUNT=$(eval "find \"$TARGET_PATH\" -type f $FILE_PATTERNS $FIND_EXCLUDES 2>/dev/null" | wc -l | tr -d ' ') || FILE_COUNT=0
 
 # Format tokens with human-readable suffix
 if [ "$TOKENS" -ge 1000000 ]; then
-    FORMATTED=$(echo "scale=1; $TOKENS/1000000" | bc)M
+    FORMATTED=$(echo "scale=1; $TOKENS/1000000" | bc 2>/dev/null || echo "$TOKENS")M
 elif [ "$TOKENS" -ge 1000 ]; then
-    FORMATTED=$(echo "scale=1; $TOKENS/1000" | bc)k
+    FORMATTED=$(echo "scale=1; $TOKENS/1000" | bc 2>/dev/null || echo "$TOKENS")k
 else
     FORMATTED=$TOKENS
 fi
@@ -122,15 +167,17 @@ if [ "$FILE_COUNT" -gt 10 ]; then
         | head -6 \
         | tail -5 \
         | while read -r bytes file; do
-            tokens=$((bytes / 4))
-            if [ "$tokens" -ge 1000 ]; then
-                formatted=$(echo "scale=1; $tokens/1000" | bc)k
-            else
-                formatted=$tokens
+            if [ -n "$bytes" ] && [ -n "$file" ] && [[ "$bytes" =~ ^[0-9]+$ ]]; then
+                tokens=$((bytes / 4))
+                if [ "$tokens" -ge 1000 ]; then
+                    formatted=$(echo "scale=1; $tokens/1000" | bc 2>/dev/null || echo "$tokens")k
+                else
+                    formatted=$tokens
+                fi
+                # Shorten path for display
+                short_file="${file#$TARGET_PATH/}"
+                echo "  ~${formatted}: $short_file"
             fi
-            # Shorten path for display
-            short_file="${file#$TARGET_PATH/}"
-            echo "  ~${formatted}: $short_file"
         done
     echo ""
 fi

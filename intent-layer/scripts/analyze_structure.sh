@@ -2,9 +2,60 @@
 # Analyze codebase structure for Intent Layer placement
 # Usage: ./analyze_structure.sh [path]
 
-set -e
+set -euo pipefail
+
+# Help message
+show_help() {
+    cat << 'EOF'
+analyze_structure.sh - Analyze codebase structure for Intent Layer placement
+
+USAGE:
+    analyze_structure.sh [OPTIONS] [PATH]
+
+ARGUMENTS:
+    PATH    Directory to analyze (default: current directory)
+
+OPTIONS:
+    -h, --help    Show this help message
+
+OUTPUT:
+    - Directory structure (depth 3)
+    - Existing Intent Nodes
+    - Large directories (potential semantic boundaries)
+    - Package/config files (standalone subsystems)
+    - Suggested Intent Node locations
+
+EXAMPLES:
+    analyze_structure.sh                    # Analyze current directory
+    analyze_structure.sh /path/to/project   # Analyze specific project
+    analyze_structure.sh ~/monorepo         # Analyze monorepo
+EOF
+    exit 0
+}
+
+# Parse arguments
+case "${1:-}" in
+    -h|--help)
+        show_help
+        ;;
+esac
 
 TARGET_PATH="${1:-.}"
+
+# Validate path exists
+if [ ! -d "$TARGET_PATH" ]; then
+    echo "❌ Error: Directory not found: $TARGET_PATH" >&2
+    echo "" >&2
+    echo "   Please check:" >&2
+    echo "     • The path is spelled correctly" >&2
+    echo "     • The directory exists" >&2
+    exit 1
+fi
+
+if [ ! -r "$TARGET_PATH" ]; then
+    echo "❌ Error: Permission denied reading: $TARGET_PATH" >&2
+    exit 1
+fi
 
 # Resolve to absolute path for cleaner output
 TARGET_PATH=$(cd "$TARGET_PATH" && pwd)
@@ -40,11 +91,11 @@ for pattern in "${EXCLUSIONS[@]}"; do
 done
 
 echo "## Directory Structure (depth 3)"
-eval "find \"$TARGET_PATH\" -type d -maxdepth 3 $FIND_EXCLUDES" 2>/dev/null | head -50
+eval "find \"$TARGET_PATH\" -type d -maxdepth 3 $FIND_EXCLUDES" 2>/dev/null | head -50 || true
 
 echo ""
 echo "## Existing Intent Nodes"
-EXISTING_NODES=$(find "$TARGET_PATH" \( -name "AGENTS.md" -o -name "CLAUDE.md" \) 2>/dev/null | head -20)
+EXISTING_NODES=$(find "$TARGET_PATH" \( -name "AGENTS.md" -o -name "CLAUDE.md" \) 2>/dev/null | head -20) || true
 if [ -n "$EXISTING_NODES" ]; then
   echo "$EXISTING_NODES"
 else
@@ -63,16 +114,16 @@ echo ""
 echo "## Large Directories (potential boundaries)"
 echo "(Directories with >20 files, excluding generated paths)"
 eval "find \"$TARGET_PATH\" -type d $FIND_EXCLUDES" 2>/dev/null | while read -r dir; do
-  count=$(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')
+  count=$(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ') || count=0
   if [ "$count" -gt 20 ]; then
     echo "$count files: $dir"
   fi
-done | sort -rn | head -15
+done | sort -rn | head -15 || true
 
 echo ""
 echo "## Package/Config Files (semantic boundaries)"
 echo "(Standalone subsystems with their own package manager)"
-eval "find \"$TARGET_PATH\" -maxdepth 4 \( -name \"package.json\" -o -name \"Cargo.toml\" -o -name \"go.mod\" -o -name \"pyproject.toml\" \) $FIND_EXCLUDES" 2>/dev/null | head -20
+eval "find \"$TARGET_PATH\" -maxdepth 4 \( -name \"package.json\" -o -name \"Cargo.toml\" -o -name \"go.mod\" -o -name \"pyproject.toml\" \) $FIND_EXCLUDES" 2>/dev/null | head -20 || true
 
 echo ""
 echo "## Suggested Intent Node Locations"
