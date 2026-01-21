@@ -151,5 +151,52 @@ fi
 FILE_COUNT=$(echo "$CHANGED_FILES" | grep -v '^$' | wc -l | tr -d ' ')
 echo "Changed files: $FILE_COUNT"
 
+# Find covering Intent Node for a file
+find_covering_node() {
+    local file="$1"
+    local dir=$(dirname "$file")
+
+    while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+        if [ -f "$dir/AGENTS.md" ]; then
+            echo "$dir/AGENTS.md"
+            return
+        fi
+        if [ -f "$dir/CLAUDE.md" ]; then
+            echo "$dir/CLAUDE.md"
+            return
+        fi
+        dir=$(dirname "$dir")
+    done
+
+    # Check root
+    if [ -f "AGENTS.md" ]; then
+        echo "AGENTS.md"
+    elif [ -f "CLAUDE.md" ]; then
+        echo "CLAUDE.md"
+    fi
+}
+
+# Map changed files to covering nodes
+declare -A NODE_FILES
+declare -A NODE_CONTENT
+
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    [[ "$file" == *"AGENTS.md" ]] || [[ "$file" == *"CLAUDE.md" ]] && continue
+
+    node=$(find_covering_node "$file")
+    if [ -n "$node" ]; then
+        if [ -z "${NODE_FILES[$node]:-}" ]; then
+            NODE_FILES[$node]="$file"
+            NODE_CONTENT[$node]=$(cat "$node" 2>/dev/null || echo "")
+        else
+            NODE_FILES[$node]="${NODE_FILES[$node]}"$'\n'"$file"
+        fi
+    fi
+done <<< "$CHANGED_FILES"
+
+AFFECTED_NODE_COUNT=${#NODE_FILES[@]}
+echo "Affected Intent Nodes: $AFFECTED_NODE_COUNT"
+
 echo "PR Review Mode - review_pr.sh v$VERSION"
 echo "Comparing: $BASE_REF..$HEAD_REF"
