@@ -210,3 +210,125 @@ Before finalizing a node:
 | Child (focused module) | 300-800 | 1.5k |
 
 Remember: If you're struggling to compress, the scope might be too broad. Consider splitting into child nodes instead.
+
+---
+
+## LCA (Lowest Common Ancestor) Placement
+
+When a fact applies to multiple areas, place it at the shallowest node that covers all relevant paths. This prevents duplication and drift.
+
+### The Problem
+
+A fact about "all API endpoints require auth tokens" could go:
+- In each endpoint's AGENTS.md → Wasteful, will drift out of sync
+- In root CLAUDE.md → Loads everywhere, even for CLI tools
+- In `src/api/AGENTS.md` → Loads exactly when working on API ✓
+
+### Finding the LCA
+
+1. List all paths where the fact is relevant
+2. Walk up from each path until paths converge
+3. That convergence point is the LCA
+
+```
+src/api/v1/users/
+src/api/v1/orders/        → LCA: src/api/v1/AGENTS.md
+src/api/v1/products/
+
+src/users/
+src/orders/               → LCA: src/AGENTS.md (or root)
+src/inventory/
+```
+
+### Examples
+
+| Fact | Relevant Paths | LCA |
+|------|---------------|-----|
+| "All DB calls via repository layer" | `src/users/`, `src/orders/`, `src/inventory/` | `src/AGENTS.md` |
+| "API v2 requires trace headers" | `src/api/v2/*` | `src/api/v2/AGENTS.md` |
+| "Never commit .env files" | All paths | Root `CLAUDE.md` |
+| "Payments use idempotency keys" | `src/payments/`, `src/billing/` | LCA of both paths |
+
+### Anti-Pattern: Duplication
+
+If you find yourself writing the same fact in multiple nodes:
+
+1. **Stop** - You're about to create drift
+2. **Find the LCA** - Walk up until paths converge
+3. **Move fact there** - Single source of truth
+4. **Delete duplicates** - From child nodes
+
+### When to Duplicate (Rare)
+
+Only duplicate if:
+- The fact has different implications in different contexts
+- The nodes have different audiences who need different framing
+- Performance requires avoiding parent loading (very rare)
+
+---
+
+## Fractal Compression: Parent Nodes
+
+Parent nodes compress their children, not raw code. Different technique than leaf compression.
+
+### Leaf vs Parent Compression
+
+| Aspect | Leaf Node | Parent Node |
+|--------|-----------|-------------|
+| **Input** | 20-64k tokens of raw code | 2-5 child Intent Nodes |
+| **Output** | 2-3k token node | 1-2k token node |
+| **Technique** | Extract contracts, patterns from implementation | Summarize children + add cross-cutting context |
+| **Focus** | What this code does | How children relate |
+
+### What Parent Nodes Add
+
+1. **Relationships**: "payments/ initiates, billing/ invoices, ledger/ reconciles"
+2. **Cross-cutting patterns**: "All services publish events to message queue"
+3. **Shared contracts**: "JWT auth required for all service-to-service calls"
+4. **Navigation**: "Start in payments/ for transaction issues, billing/ for invoice issues"
+
+### What Parent Nodes Don't Do
+
+- **Repeat child content** - Wasteful, that's what children are for
+- **Implementation detail** - Children own that
+- **List every child contract** - Only shared ones at LCA
+
+### Process
+
+1. Read all child nodes (not raw code)
+2. Identify shared patterns/contracts → candidates for LCA lift
+3. Write relationship descriptions
+4. Add cross-cutting context not in any child
+5. **Validate**: Parent should be shorter than any single child
+
+### Example
+
+**Children** (each 2-3k tokens):
+- `payments/AGENTS.md` - Payment processing
+- `billing/AGENTS.md` - Invoice generation
+- `ledger/AGENTS.md` - Transaction reconciliation
+
+**Parent** (`financial/AGENTS.md`, ~1k tokens):
+```markdown
+## Purpose
+Financial subsystem: payments initiate, billing invoices, ledger reconciles.
+
+## Relationships
+payments/ → billing/ (on successful charge)
+billing/ → ledger/ (on invoice finalization)
+ledger/ ← all (for reconciliation queries)
+
+## Cross-Cutting
+- All services use idempotency keys for external calls
+- All amounts stored as cents (integer), never floating point
+- Audit log required for any money movement
+
+## Entry Points
+| Task | Start Here |
+|------|------------|
+| New payment method | payments/AGENTS.md |
+| Invoice templates | billing/AGENTS.md |
+| Reconciliation issues | ledger/AGENTS.md |
+```
+
+The parent adds value by showing relationships and shared concerns, not by repeating what children already document.

@@ -169,6 +169,32 @@ Edit the CLAUDE.md file to add new items to appropriate sections.
 | Not measuring before asking | Always measure first - growth data informs questions |
 | Updating without proposal | Show changes, get approval, then apply |
 
+## On Merge/PR: Detect Affected Nodes
+
+When code changes (e.g., after merge), identify which Intent Nodes need review:
+
+```bash
+scripts/detect_changes.sh main HEAD
+```
+
+This outputs affected nodes in leaf-first order. Check each for behavior changes.
+
+---
+
+## Agent-Driven Capture (Alternative)
+
+For complex areas where template-based capture (`capture_pain_points.sh`) feels insufficient, use agent-driven capture:
+
+1. Agent examines code, proposes descriptions, asks questions
+2. Human corrects, answers, adds historical context
+3. Iterate until description matches mental model
+
+See `references/capture-workflow-agent.md` for the full three-phase process.
+
+Use `scripts/capture_state.sh` to generate a tracking template for open questions during capture.
+
+---
+
 ## Scripts Location
 
 This skill uses scripts from the `intent-layer` skill:
@@ -179,11 +205,15 @@ This skill uses scripts from the `intent-layer` skill:
 | `estimate_tokens.sh` | Measure single directory |
 | `estimate_all_candidates.sh` | Measure all candidates at once |
 | `capture_pain_points.sh` | Generate pain points template |
+| `capture_state.sh` | Track open questions during capture |
+| `detect_changes.sh` | Find affected nodes on merge/PR |
 | `analyze_structure.sh` | Find semantic boundaries |
 | `validate_node.sh` | Check node quality after updates |
 
 **References:**
 - `references/templates.md` - Templates (S/M/L), three-tier boundaries
-- `references/compression-techniques.md` - How to compress nodes effectively
+- `references/compression-techniques.md` - Compression techniques, LCA placement, parent node compression
+- `references/capture-workflow-agent.md` - Agent-driven capture workflow
+- `references/agent-feedback-protocol.md` - How agents surface missing context
 
 All paths: `~/.claude/skills/intent-layer/`

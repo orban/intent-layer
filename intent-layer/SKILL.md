@@ -142,6 +142,7 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `estimate_all_candidates.sh` | Measure all candidates at once |
 | `validate_node.sh` | Check node quality before committing |
 | `capture_pain_points.sh` | Generate maintenance capture template |
+| `detect_changes.sh` | Find affected nodes on merge/PR |
 
 ### References
 
@@ -150,7 +151,8 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `templates.md` | Root (S/M/L) and child templates, three-tier boundaries |
 | `node-examples.md` | Real-world examples |
 | `capture-protocol.md` | SME interview questions |
-| `compression-techniques.md` | How to achieve 100:1 compression |
+| `compression-techniques.md` | How to achieve 100:1 compression, LCA placement |
+| `agent-feedback-protocol.md` | Continuous improvement loop |
 
 ---
 
@@ -182,13 +184,53 @@ For full protocol: `references/capture-protocol.md`
 
 ---
 
+## Feedback Flywheel
+
+> **TL;DR**: Agents surface missing context during work → humans review → Intent Layer improves → future agents start better.
+
+### Continuous Improvement Loop
+
+```
+Agent works → Finds gap → Surfaces finding → Human reviews → Node updated → Future agents benefit
+```
+
+### During Normal Work
+
+When you encounter gaps while working, surface them using the format in `references/agent-feedback-protocol.md`:
+
+```markdown
+### Intent Layer Feedback
+| Type | Location | Finding |
+|------|----------|---------|
+| Missing pitfall | `src/api/AGENTS.md` | Rate limiter fails silently when Redis down |
+```
+
+### On Merge/PR
+
+Run change detection to identify which nodes need review:
+
+```bash
+scripts/detect_changes.sh main HEAD
+```
+
+This outputs affected nodes in leaf-first order for systematic review.
+
+### Full Protocol
+
+See `references/agent-feedback-protocol.md` for:
+- When to surface findings
+- Structured feedback format
+- Human review workflow (Accept/Reject/Defer)
+
+---
+
 ## Maintenance Flywheel
 
 > **TL;DR**: Update nodes when behavior changes, not just when code changes.
 
 When files change (e.g., on merge):
 
-1. **Identify affected nodes** - Which Intent Nodes cover the changed paths?
+1. **Identify affected nodes** - Run `scripts/detect_changes.sh base head`
 2. **Check behavior change** - Did contracts/invariants change, or just formatting?
 3. **Update if needed** - Behavior change → update affected node
 4. **Consider new nodes** - Patterns emerging → new node or LCA update?
