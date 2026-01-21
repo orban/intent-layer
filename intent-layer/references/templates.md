@@ -192,6 +192,136 @@ To add a new endpoint:
 - `./db/AGENTS.md` - Database layer
 ```
 
+## Spec Templates (Greenfield)
+
+Use these when NO code exists yet. Specs become documentation as code is built.
+
+### Spec Root Template
+
+```markdown
+## Intent Layer (Spec)
+
+> **Vision**: [What this project will become - one sentence]
+
+### Planned Subsystems
+
+| Subsystem | Responsibility | Priority |
+|-----------|---------------|----------|
+| [Name] | [What it will own] | P0/P1/P2 |
+
+### Design Constraints
+
+These MUST be true in the final implementation:
+- [Constraint 1 - e.g., "All API responses under 100ms"]
+- [Constraint 2 - e.g., "No direct database access from handlers"]
+
+### Implementation Targets
+
+Where to start building:
+| Order | Target | Why First |
+|-------|--------|-----------|
+| 1 | [Component] | [Reason - e.g., "unblocks other work"] |
+| 2 | [Component] | [Reason] |
+
+### Open Questions
+
+Resolve before building:
+- [ ] [Question 1]
+- [ ] [Question 2]
+
+### Boundaries
+
+#### Always
+- [Required practice - e.g., "Test coverage >80%"]
+
+#### Never
+- [Prohibited approach - e.g., "No ORM, raw SQL only"]
+```
+
+### Spec Component Template
+
+```markdown
+# {Component Name} (Spec)
+
+## Responsibility Charter
+
+This component WILL own:
+- [Responsibility 1]
+- [Responsibility 2]
+
+This component will NOT own:
+- [Explicitly excluded responsibility]
+
+## Interface Contracts
+
+Other components will interact via:
+```typescript
+// Expected interface shape
+interface {ComponentName}Service {
+  method(input: Type): Promise<Result>
+}
+```
+
+## Dependencies
+
+This will depend on:
+- [Dependency 1] - for [purpose]
+
+## Acceptance Criteria
+
+Done when:
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+
+## Implementation Hints
+
+For AI scaffolding:
+- Directory structure: `src/{component}/`
+- Key files: `index.ts`, `types.ts`, `service.ts`
+- Test pattern: Co-located `*.test.ts` files
+
+## Boundaries
+
+### Always
+- [Component-specific required practice]
+
+### Never
+- [Component-specific prohibition]
+```
+
+## Scaffolding Protocol
+
+When AI encounters spec nodes (marked with "(Spec)" in title), it should:
+
+### 1. Generate Structure
+```
+Planned Subsystems table → Create directories
+├── src/
+│   ├── {subsystem-1}/
+│   ├── {subsystem-2}/
+```
+
+### 2. Create Interfaces First
+Interface Contracts sections → TypeScript interfaces/types
+
+### 3. Add Implementation Breadcrumbs
+```typescript
+// TODO: Implement per spec in src/api/AGENTS.md
+// Contract: All responses must include requestId
+export async function handler() {
+  throw new Error('Not implemented')
+}
+```
+
+### 4. Generate Test Fixtures
+Acceptance Criteria → Test file stubs
+
+### 5. Report Gaps
+Surface any specs that can't be scaffolded:
+- Missing dependency information
+- Ambiguous interface definitions
+- Conflicting constraints
+
 ## Measurements Table Format
 
 ```

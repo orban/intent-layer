@@ -74,6 +74,92 @@ ln -s CLAUDE.md AGENTS.md  # If CLAUDE.md is primary
 
 ---
 
+## Interactive Wizard
+
+Step-by-step guided setup with prompts at each decision point.
+
+### Step 1: Detect State
+
+Run `scripts/detect_state.sh`, then based on result:
+
+| State | Action |
+|-------|--------|
+| `none` | Ask user: "Create CLAUDE.md or AGENTS.md as root?" |
+| `partial` | Ask user: "What's the one-line TL;DR for this project?" |
+| `complete` | Redirect to `intent-layer-maintenance` skill |
+
+### Step 2: Measure & Decide
+
+Run `scripts/estimate_all_candidates.sh`, then:
+- Present candidates table to user
+- Ask: "Which directories should get their own AGENTS.md?"
+
+### Step 3: Create Nodes
+
+For root node:
+- Ask user about project purpose
+- Select template by size (Small/Medium/Large from `references/templates.md`)
+
+For each child node:
+- Ask user about directory's responsibility
+- Use child template from `references/templates.md`
+
+### Step 4: Validate
+
+Run `scripts/validate_node.sh` on all created nodes:
+- Show validation results
+- Offer to fix warnings/errors
+
+### Step 5: Symlink
+
+Ask user: "Create symlink for cross-tool compatibility? (AGENTS.md → CLAUDE.md)"
+
+If yes: `ln -s CLAUDE.md AGENTS.md`
+
+---
+
+## Spec-First Workflow (Greenfield)
+
+For projects WITHOUT existing code. Write Intent Nodes as specs, then scaffold.
+
+### Step 1: Define Scope
+- What's the project vision?
+- What are the major planned subsystems?
+- Who are the stakeholders?
+
+### Step 2: Create Spec Root
+Use "Spec Root Template" from `references/templates.md`:
+- Vision statement (not TL;DR of existing code)
+- Planned Subsystems (not discovered from code)
+- Design Constraints (not extracted contracts)
+- Implementation Targets (where to build first)
+
+### Step 3: Create Component Specs
+For each planned subsystem, create AGENTS.md with:
+- Responsibility Charter (what it will own)
+- Interface Contracts (how others will call it)
+- Acceptance Criteria (how we know it's done)
+
+### Step 4: AI Scaffolding
+Ask Claude to scaffold against the specs:
+- "Create directory structure matching the Planned Subsystems"
+- "Generate interface stubs for the contracts defined"
+- "Set up test fixtures based on acceptance criteria"
+
+### Step 5: Implementation Loop
+Build incrementally:
+1. Implement against spec
+2. Update spec as requirements clarify
+3. Spec nodes evolve into documentation nodes
+
+### Step 6: Transition to Maintenance
+When implementation complete:
+- Fill in discovered Pitfalls
+- Add actual Entry Points
+- Run `validate_node.sh` and transition to maintenance skill
+
+---
+
 ## Concepts
 
 <details>
@@ -144,6 +230,8 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `validate_node.sh` | Check node quality before committing |
 | `capture_pain_points.sh` | Generate maintenance capture template |
 | `detect_changes.sh` | Find affected nodes on merge/PR |
+| `show_status.sh` | Health dashboard with metrics and recommendations |
+| `show_hierarchy.sh` | Visual tree display of all nodes |
 
 ### References
 
