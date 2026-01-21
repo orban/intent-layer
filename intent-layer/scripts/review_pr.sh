@@ -341,5 +341,58 @@ generate_checklist() {
 
 generate_checklist
 
+# AI-generated code specific checks
+run_ai_checks() {
+    [ "$AI_GENERATED" = false ] && return
+
+    AI_DRIFT_WARNINGS=""
+    AI_OVERENGINEERING=""
+    AI_PATTERN_ISSUES=""
+    AI_PITFALL_ALERTS=""
+
+    local diff_content=$(git diff "$BASE_REF" "$HEAD_REF" 2>/dev/null || echo "")
+
+    # Over-engineering detection
+    # New files in utils/helpers/common
+    local new_files=$(git diff --name-only --diff-filter=A "$BASE_REF" "$HEAD_REF" 2>/dev/null || echo "")
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        if [[ "$file" == *"/utils/"* ]] || [[ "$file" == *"/helpers/"* ]] || [[ "$file" == *"/common/"* ]]; then
+            AI_OVERENGINEERING="${AI_OVERENGINEERING}- New abstraction: ${file}\n  Is this necessary or could existing patterns handle it?\n"
+        fi
+    done <<< "$new_files"
+
+    # Excessive try/catch (more than 3 new try blocks)
+    local try_count
+    try_count=$(echo "$diff_content" | grep -c "^+.*try {" || echo "0")
+    try_count=$(echo "$try_count" | tr -d '[:space:]')
+    if [ "$try_count" -gt 3 ]; then
+        AI_OVERENGINEERING="${AI_OVERENGINEERING}- Excessive error handling: ${try_count} new try/catch blocks\n  Check if all error handling adds value\n"
+    fi
+
+    # New interfaces with single implementation pattern
+    local new_interfaces
+    new_interfaces=$(echo "$diff_content" | grep -c "^+.*interface " || echo "0")
+    new_interfaces=$(echo "$new_interfaces" | tr -d '[:space:]')
+    if [ "$new_interfaces" -gt 2 ]; then
+        AI_OVERENGINEERING="${AI_OVERENGINEERING}- Multiple new interfaces: ${new_interfaces}\n  Verify these aren't premature abstractions\n"
+    fi
+
+    # Pitfall proximity - check if changes touch files near documented pitfalls
+    for node in "${!NODE_CONTENT[@]}"; do
+        local content="${NODE_CONTENT[$node]}"
+        local files="${NODE_FILES[$node]}"
+        local node_dir=$(dirname "$node")
+
+        # Extract pitfalls
+        while IFS= read -r pitfall; do
+            [ -z "$pitfall" ] && continue
+            AI_PITFALL_ALERTS="${AI_PITFALL_ALERTS}- ${node_dir}: ${pitfall}\n  Verify: Does new code handle this edge case?\n"
+        done < <(echo "$content" | grep -iE "^- .*(silently|fails|unexpected)" | sed 's/^- //' | head -3 || true)
+    done
+}
+
+run_ai_checks
+
 echo "PR Review Mode - review_pr.sh v$VERSION"
 echo "Comparing: $BASE_REF..$HEAD_REF"
