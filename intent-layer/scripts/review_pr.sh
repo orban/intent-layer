@@ -127,5 +127,29 @@ REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
 }
 cd "$REPO_ROOT"
 
+# Validate refs
+if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+    echo "Error: Invalid git ref: $BASE_REF" >&2
+    exit 1
+fi
+if ! git rev-parse --verify "$HEAD_REF" >/dev/null 2>&1; then
+    echo "Error: Invalid git ref: $HEAD_REF" >&2
+    exit 1
+fi
+
+# Get changed files
+CHANGED_FILES=$(git diff --name-only "$BASE_REF" "$HEAD_REF" 2>/dev/null) || {
+    echo "Error: Failed to get diff" >&2
+    exit 1
+}
+
+if [ -z "$CHANGED_FILES" ]; then
+    echo "No changed files detected."
+    exit 0
+fi
+
+FILE_COUNT=$(echo "$CHANGED_FILES" | grep -v '^$' | wc -l | tr -d ' ')
+echo "Changed files: $FILE_COUNT"
+
 echo "PR Review Mode - review_pr.sh v$VERSION"
 echo "Comparing: $BASE_REF..$HEAD_REF"
