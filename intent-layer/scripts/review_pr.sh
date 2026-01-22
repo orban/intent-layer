@@ -525,15 +525,15 @@ generate_output() {
         # Show relevant sections from node
         local content="${NODE_CONTENT[$node]}"
 
-        # Extract Contracts section
-        local contracts=$(echo "$content" | sed -n '/## Contracts/,/^## /p' | head -20 || echo "")
+        # Extract Contracts section (match any heading level, strip headers)
+        local contracts=$(echo "$content" | sed -n '/^#\{2,3\} Contracts/,/^#\{2,3\} /p' | grep -v '^#' | head -20 || echo "")
         if [ -n "$contracts" ]; then
             output+="#### Contracts\n\n"
             output+="${contracts}\n\n"
         fi
 
-        # Extract Pitfalls section
-        local pitfalls=$(echo "$content" | sed -n '/## Pitfalls/,/^## /p' | head -20 || echo "")
+        # Extract Pitfalls section (match any heading level, strip headers)
+        local pitfalls=$(echo "$content" | sed -n '/^#\{2,3\} Pitfalls/,/^#\{2,3\} /p' | grep -v '^#' | head -20 || echo "")
         if [ -n "$pitfalls" ]; then
             output+="#### Pitfalls\n\n"
             output+="${pitfalls}\n\n"
