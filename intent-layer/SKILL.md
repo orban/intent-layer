@@ -146,25 +146,26 @@ Run `scripts/estimate_all_candidates.sh`, then:
 
 ### Step 3: Mine History (Auto-Invoked)
 
-**Before creating each node**, automatically analyze both git history AND PR discussions:
+**Before creating each node**, automatically analyze both git history AND PR discussions using the mining scripts:
 
 ```bash
-# Check for git history
-git log --oneline --since="1 year ago" -- [directory] | wc -l
-# If >50 commits, run git-history analysis
+# Git commit analysis (extracts pitfalls, anti-patterns, decisions, contracts)
+~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory]
 
-# Check for merged PRs
-gh pr list --state merged --search "[directory]" --limit 1
-# If PRs exist, run pr-review-mining analysis
+# GitHub PR analysis (requires gh CLI)
+~/.claude/skills/intent-layer/scripts/mine_pr_reviews.sh --limit 50
+
+# Check for stale nodes (during maintenance)
+~/.claude/skills/intent-layer/scripts/detect_staleness.sh --code-changes [directory]
 ```
 
-Extract from `git-history/SKILL.md`:
+**mine_git_history.sh** extracts from commits:
 1. Bug fixes → Pre-populate Pitfalls
 2. Reverts → Pre-populate Anti-patterns
 3. Refactors → Pre-populate Architecture Decisions
 4. Breaking changes → Pre-populate Contracts
 
-Extract from `pr-review-mining/SKILL.md`:
+**mine_pr_reviews.sh** extracts from PRs:
 1. Risks sections → Pre-populate Pitfalls
 2. Review warnings → Pre-populate Pitfalls
 3. Breaking Changes → Pre-populate Contracts
