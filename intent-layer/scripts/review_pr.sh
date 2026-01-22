@@ -394,5 +394,117 @@ run_ai_checks() {
 
 run_ai_checks
 
-echo "PR Review Mode - review_pr.sh v$VERSION"
-echo "Comparing: $BASE_REF..$HEAD_REF"
+# Generate output
+generate_output() {
+    local output=""
+
+    # Layer 1: Risk Summary
+    output+="# PR Review Summary\n\n"
+    output+="## Risk Assessment\n\n"
+    output+="**Score: ${RISK_SCORE} (${RISK_LEVEL})**\n\n"
+    output+="Contributing factors:\n"
+    output+="${RISK_FACTORS}\n"
+
+    case $RISK_LEVEL in
+        "Low")
+            output+="Recommendation: Standard review\n\n"
+            ;;
+        "Medium")
+            output+="Recommendation: Careful review recommended\n\n"
+            ;;
+        "High")
+            output+="Recommendation: Thorough review required\n\n"
+            ;;
+    esac
+
+    [ "$OUTPUT_MODE" = "summary" ] && { echo -e "$output"; return; }
+
+    # Layer 2: Checklist
+    output+="---\n\n"
+    output+="## Review Checklist\n\n"
+
+    if [ -n "$CRITICAL_ITEMS" ]; then
+        output+="### Critical (always verify)\n\n"
+        output+="${CRITICAL_ITEMS}\n"
+    fi
+
+    if [ -n "$RELEVANT_ITEMS" ]; then
+        output+="### Relevant to this PR\n\n"
+        output+="${RELEVANT_ITEMS}\n"
+    fi
+
+    if [ -n "$PITFALL_ITEMS" ]; then
+        output+="### Pitfalls in affected areas\n\n"
+        output+="${PITFALL_ITEMS}\n"
+    fi
+
+    # AI-specific sections
+    if [ "$AI_GENERATED" = true ]; then
+        output+="---\n\n"
+        output+="## AI-Generated Code Checks\n\n"
+
+        if [ -n "$AI_OVERENGINEERING" ]; then
+            output+="### Complexity Check\n\n"
+            output+="Potential over-engineering detected:\n\n"
+            output+="${AI_OVERENGINEERING}\n"
+        fi
+
+        if [ -n "$AI_PITFALL_ALERTS" ]; then
+            output+="### Pitfall Proximity Alerts\n\n"
+            output+="AI modified code adjacent to known sharp edges:\n\n"
+            output+="${AI_PITFALL_ALERTS}\n"
+        fi
+    fi
+
+    [ "$OUTPUT_MODE" = "checklist" ] && { echo -e "$output"; return; }
+
+    # Layer 3: Detailed Context
+    output+="---\n\n"
+    output+="## Detailed Context\n\n"
+
+    for node in "${!NODE_FILES[@]}"; do
+        local files="${NODE_FILES[$node]}"
+        local file_count=$(echo "$files" | grep -v '^$' | wc -l | tr -d ' ')
+
+        output+="### ${node}\n\n"
+        output+="**Covers:** ${file_count} changed files\n\n"
+
+        # Show relevant sections from node
+        local content="${NODE_CONTENT[$node]}"
+
+        # Extract Contracts section
+        local contracts=$(echo "$content" | sed -n '/## Contracts/,/^## /p' | head -20 || echo "")
+        if [ -n "$contracts" ]; then
+            output+="#### Contracts\n\n"
+            output+="${contracts}\n\n"
+        fi
+
+        # Extract Pitfalls section
+        local pitfalls=$(echo "$content" | sed -n '/## Pitfalls/,/^## /p' | head -20 || echo "")
+        if [ -n "$pitfalls" ]; then
+            output+="#### Pitfalls\n\n"
+            output+="${pitfalls}\n\n"
+        fi
+
+        output+="---\n\n"
+    done
+
+    echo -e "$output"
+}
+
+# Output
+if [ -n "$OUTPUT_FILE" ]; then
+    generate_output > "$OUTPUT_FILE"
+    echo "Output written to: $OUTPUT_FILE"
+else
+    generate_output
+fi
+
+# Exit code mode
+if [ "$EXIT_CODE_MODE" = true ]; then
+    case $RISK_LEVEL in
+        "Low") exit 0 ;;
+        "Medium") exit 1 ;;
+        "High") exit 2 ;;
+    esac
+fi
