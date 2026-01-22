@@ -23,6 +23,7 @@ This skill includes specialized sub-skills that are **automatically invoked** wh
 | Sub-Skill | Location | Auto-Invoke When |
 |-----------|----------|------------------|
 | `git-history` | `git-history/SKILL.md` | Creating nodes for existing code (extracts pitfalls from commits) |
+| `pr-review-mining` | `pr-review-mining/SKILL.md` | Creating nodes for existing code (extracts pitfalls from PR discussions) |
 | `pr-review` | `pr-review/SKILL.md` | Reviewing PRs that touch Intent Layer nodes |
 
 ### git-history (Auto-Invoked During Setup)
@@ -36,6 +37,19 @@ When creating nodes for directories with git history, **automatically run git-hi
 ```
 Trigger: Creating AGENTS.md for directory with >50 commits
 Action: Run git-history analysis before writing node
+```
+
+### pr-review-mining (Auto-Invoked During Setup)
+
+When creating nodes for directories with merged PRs, **automatically run PR mining** to pre-populate:
+- **Pitfalls** from PR Risks sections and review warnings
+- **Contracts** from Breaking Changes sections
+- **Architecture Decisions** from Why sections and Alternatives Considered
+- **Anti-patterns** from rejected approaches in reviews
+
+```
+Trigger: Creating AGENTS.md for directory with merged PRs
+Action: Run pr-review-mining alongside git-history, merge findings
 ```
 
 ### pr-review (Auto-Invoked for PRs)
@@ -130,14 +144,18 @@ Run `scripts/estimate_all_candidates.sh`, then:
 - Present candidates table to user
 - Ask: "Which directories should get their own AGENTS.md?"
 
-### Step 3: Mine Git History (Auto-Invoked)
+### Step 3: Mine History (Auto-Invoked)
 
-**Before creating each node**, automatically analyze git history:
+**Before creating each node**, automatically analyze both git history AND PR discussions:
 
 ```bash
-# For each candidate directory with git history
+# Check for git history
 git log --oneline --since="1 year ago" -- [directory] | wc -l
 # If >50 commits, run git-history analysis
+
+# Check for merged PRs
+gh pr list --state merged --search "[directory]" --limit 1
+# If PRs exist, run pr-review-mining analysis
 ```
 
 Extract from `git-history/SKILL.md`:
@@ -146,7 +164,13 @@ Extract from `git-history/SKILL.md`:
 3. Refactors → Pre-populate Architecture Decisions
 4. Breaking changes → Pre-populate Contracts
 
-Present findings to user: "Git history suggests these pitfalls: [list]. Include them?"
+Extract from `pr-review-mining/SKILL.md`:
+1. Risks sections → Pre-populate Pitfalls
+2. Review warnings → Pre-populate Pitfalls
+3. Breaking Changes → Pre-populate Contracts
+4. Why/Alternatives → Pre-populate Architecture Decisions
+
+Present merged findings to user: "History suggests these pitfalls: [list]. Include them?"
 
 ### Step 4: Create Nodes
 
@@ -195,9 +219,9 @@ scripts/analyze_structure.sh /path/to/project
 
 Identify 3-6 major subsystems from the output (e.g., `src/api/`, `src/core/`, `src/db/`).
 
-### Step 2: Parallel Exploration + Git History
+### Step 2: Parallel Exploration + History Mining
 
-Spawn subagents for **both code exploration AND git history analysis** in parallel:
+Spawn subagents for **code exploration, git history, AND PR mining** in parallel:
 
 ```
 # Code exploration (one per subsystem)
@@ -222,6 +246,19 @@ Task 5: "Run git-history analysis on src/core/. Find bug fixes, reverts,
 
 Task 6: "Run git-history analysis on src/db/. Find bug fixes, reverts,
          refactors, and breaking changes. Return as Intent Layer findings."
+
+# PR review mining (parallel with above)
+Task 7: "Run pr-review-mining on src/api/. Extract from PR descriptions
+         and review comments: pitfalls, contracts, architecture decisions.
+         Return as Intent Layer findings with PR numbers."
+
+Task 8: "Run pr-review-mining on src/core/. Extract from PR descriptions
+         and review comments: pitfalls, contracts, architecture decisions.
+         Return as Intent Layer findings with PR numbers."
+
+Task 9: "Run pr-review-mining on src/db/. Extract from PR descriptions
+         and review comments: pitfalls, contracts, architecture decisions.
+         Return as Intent Layer findings with PR numbers."
 ```
 
 **Critical**: Launch all agents in parallel (single message with multiple Task calls).
@@ -229,13 +266,15 @@ Task 6: "Run git-history analysis on src/db/. Find bug fixes, reverts,
 ### Step 3: Synthesize Results
 
 Once all agents complete:
-1. **Merge code exploration + git history** findings per subsystem
+1. **Merge code exploration + git history + PR mining** findings per subsystem
 2. Identify cross-cutting concerns (appear in multiple findings)
 3. Place cross-cutting items in root node
 4. Create child AGENTS.md for each subsystem with:
    - Code-derived contracts and entry points
    - Git-history-derived pitfalls and architecture decisions
-5. **Deduplicate** where code and history found the same insight
+   - PR-mining-derived pitfalls, contracts, and rationale
+5. **Deduplicate** where multiple sources found the same insight
+6. **Prefer PR-sourced rationale** when available (richer "why" context)
 
 ### Step 4: Parallel Validation
 
@@ -404,6 +443,7 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | Sub-Skill | Location | Purpose |
 |-----------|----------|---------|
 | `git-history` | `git-history/SKILL.md` | Extract pitfalls/contracts from commit history |
+| `pr-review-mining` | `pr-review-mining/SKILL.md` | Extract pitfalls/contracts from PR discussions |
 | `pr-review` | `pr-review/SKILL.md` | Review PRs against Intent Layer contracts |
 
 ### References
@@ -579,4 +619,5 @@ The `pr-review` sub-skill will:
 | `intent-layer-query` | Asking questions about the codebase |
 | `intent-layer-onboarding` | Orienting newcomers |
 | `git-history` (sub-skill) | Mining commit history for insights |
+| `pr-review-mining` (sub-skill) | Mining PR discussions for insights |
 | `pr-review` (sub-skill) | Reviewing PRs against Intent Layer |
