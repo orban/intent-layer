@@ -186,6 +186,98 @@ This outputs affected nodes in leaf-first order. Check each for behavior changes
 
 ---
 
+## Parallel Audit (Large Intent Layers)
+
+For Intent Layers with 4+ nodes, use parallel subagents to speed up audits.
+
+### When to Use Parallel Audit
+
+| Node Count | Approach |
+|------------|----------|
+| 1-3 nodes | Sequential (standard workflow) |
+| 4-8 nodes | Parallel validation + gap detection |
+| 9+ nodes | Full parallel mode |
+
+### Parallel Validation
+
+Validate all nodes simultaneously with multiple Task calls in a single message:
+
+```
+Task 1 (Explore): "Validate CLAUDE.md against the codebase. Check:
+                   - Are Entry Points still accurate?
+                   - Are Contracts still enforced?
+                   - Are Pitfalls still relevant?
+                   - Any new patterns not documented?
+                   Return: list of stale items + missing items"
+
+Task 2 (Explore): "Validate src/api/AGENTS.md against src/api/. Check:
+                   - Are Entry Points still accurate?
+                   - Are Contracts still enforced?
+                   - Are Pitfalls still relevant?
+                   Return: list of stale items + missing items"
+
+Task 3 (Explore): "Validate src/core/AGENTS.md against src/core/. Check:
+                   [same questions]"
+```
+
+### Parallel Gap Detection
+
+Find undocumented areas across the codebase:
+
+```
+Task 1 (Explore): "Search for error handling patterns in src/. Find:
+                   - try/catch patterns that aren't documented
+                   - Silent failures that should be Pitfalls
+                   - Error contracts not in any AGENTS.md"
+
+Task 2 (Explore): "Search for API contracts in src/. Find:
+                   - Input validation rules not documented
+                   - Response shapes not in Contracts
+                   - Auth/permissions not documented"
+
+Task 3 (Explore): "Search for integration points in src/. Find:
+                   - External service calls
+                   - Database access patterns
+                   - Message queue usage
+                   Check if documented in nearest AGENTS.md"
+```
+
+### Parallel Post-Incident Review
+
+After an incident, audit relevant nodes in parallel:
+
+```
+Task 1 (Explore): "Review [incident area] for Pitfalls. Find:
+                   - What assumption was violated?
+                   - What would have prevented this?
+                   - What should be added to Pitfalls?"
+
+Task 2 (Explore): "Review [incident area] for Contract gaps. Find:
+                   - What invariant was broken?
+                   - What constraint should be documented?
+                   - What boundary was crossed?"
+```
+
+### Synthesizing Parallel Results
+
+After parallel agents complete:
+
+1. **Collect all findings** into a unified list
+2. **Deduplicate** items found by multiple agents
+3. **Categorize** by target section (Pitfalls, Contracts, Entry Points)
+4. **Prioritize** by impact (incident-related > gaps > stale items)
+5. **Present proposal** to user for approval
+
+### Parallel Audit Benefits
+
+| Metric | Sequential | Parallel |
+|--------|------------|----------|
+| 5-node audit | ~20 min | ~7 min |
+| 10-node audit | ~40 min | ~10 min |
+| Coverage consistency | Variable | Uniform |
+
+---
+
 ## Agent-Driven Capture (Alternative)
 
 For complex areas where template-based capture (`capture_pain_points.sh`) feels insufficient, use agent-driven capture:

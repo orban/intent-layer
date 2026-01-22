@@ -118,6 +118,101 @@ If yes: `ln -s CLAUDE.md AGENTS.md`
 
 ---
 
+## Parallel Setup (Large Codebases)
+
+For codebases >200k tokens, use parallel subagents to dramatically speed up exploration.
+
+### When to Use Parallel Mode
+
+| Codebase Size | Approach |
+|---------------|----------|
+| <100k tokens | Sequential (standard workflow) |
+| 100-500k tokens | Parallel exploration, sequential synthesis |
+| >500k tokens | Full parallel mode (explore + validate) |
+
+### Step 1: Identify Subsystems
+
+Run structure analysis first:
+```bash
+scripts/analyze_structure.sh /path/to/project
+```
+
+Identify 3-6 major subsystems from the output (e.g., `src/api/`, `src/core/`, `src/db/`).
+
+### Step 2: Parallel Exploration
+
+Spawn one Explore subagent per subsystem **in a single message** with multiple Task tool calls:
+
+```
+Task 1: "Analyze src/api/ for Intent Layer setup. Find: contracts/invariants,
+         entry points for common tasks, pitfalls/surprising behaviors,
+         patterns that must be followed. Return structured findings."
+
+Task 2: "Analyze src/core/ for Intent Layer setup. Find: contracts/invariants,
+         entry points for common tasks, pitfalls/surprising behaviors,
+         patterns that must be followed. Return structured findings."
+
+Task 3: "Analyze src/db/ for Intent Layer setup. Find: contracts/invariants,
+         entry points for common tasks, pitfalls/surprising behaviors,
+         patterns that must be followed. Return structured findings."
+```
+
+**Critical**: Launch all agents in parallel (single message with multiple Task calls).
+
+### Step 3: Synthesize Results
+
+Once all agents complete:
+1. Collect findings from each subsystem
+2. Identify cross-cutting concerns (appear in multiple findings)
+3. Place cross-cutting items in root node
+4. Create child AGENTS.md for each subsystem with local findings
+
+### Step 4: Parallel Validation
+
+Validate all nodes in parallel:
+```
+Task 1: "Run validate_node.sh on CLAUDE.md, report results"
+Task 2: "Run validate_node.sh on src/api/AGENTS.md, report results"
+Task 3: "Run validate_node.sh on src/core/AGENTS.md, report results"
+```
+
+### Example Parallel Exploration Prompt
+
+For each subsystem, use this structured prompt:
+
+```markdown
+Explore [DIRECTORY] for Intent Layer documentation. Return:
+
+## Contracts & Invariants
+- What must always be true?
+- What dependencies exist?
+
+## Entry Points
+| Task | Start Here |
+|------|------------|
+| [common task] | [file] |
+
+## Pitfalls
+- What surprises newcomers?
+- What looks wrong but isn't?
+
+## Patterns
+- Required patterns for new code
+- Anti-patterns to avoid
+
+Keep findings specific to this directory. Note cross-cutting concerns separately.
+```
+
+### Parallel Mode Benefits
+
+| Metric | Sequential | Parallel |
+|--------|------------|----------|
+| 500k token codebase | ~30 min | ~10 min |
+| 1M+ token codebase | ~60 min | ~15 min |
+| Subsystem coverage | Variable | Consistent |
+
+---
+
 ## Spec-First Workflow (Greenfield)
 
 For projects WITHOUT existing code. Write Intent Nodes as specs, then scaffold.

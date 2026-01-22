@@ -399,6 +399,130 @@ Feed this back via `intent-layer-maintenance` skill.
 
 ---
 
+## Parallel Onboarding (Teams & Multiple Roles)
+
+For onboarding multiple people or generating comprehensive multi-role documentation, use parallel subagents.
+
+### When to Use Parallel Onboarding
+
+| Scenario | Approach |
+|----------|----------|
+| Single person, known role | Sequential (standard 15-min workflow) |
+| Single person, exploring roles | Parallel role summaries |
+| Multiple new team members | Parallel per-person paths |
+| Comprehensive onboarding docs | Parallel section generation |
+
+### Parallel Role Summaries
+
+Generate role-specific orientations simultaneously:
+
+```
+Task 1 (Explore): "Generate frontend engineer orientation from Intent Layer.
+                   Focus on: UI components, state management, styling patterns.
+                   Return: relevant nodes, key contracts, entry points, pitfalls"
+
+Task 2 (Explore): "Generate backend engineer orientation from Intent Layer.
+                   Focus on: API layer, database, services, integrations.
+                   Return: relevant nodes, key contracts, entry points, pitfalls"
+
+Task 3 (Explore): "Generate DevOps/platform orientation from Intent Layer.
+                   Focus on: infrastructure, CI/CD, deployment, monitoring.
+                   Return: relevant nodes, key contracts, entry points, pitfalls"
+```
+
+**Output**: Three role-specific onboarding guides generated in parallel.
+
+### Parallel Comprehensive Documentation
+
+Generate full onboarding documentation in parallel sections:
+
+```
+Task 1 (Explore): "Extract project overview from Intent Layer root.
+                   Return: TL;DR, architecture overview, subsystem map"
+
+Task 2 (Explore): "Extract all global contracts and pitfalls from Intent Layer.
+                   Return: merged constraints list, common mistakes to avoid"
+
+Task 3 (Explore): "Extract all entry points across Intent Layer nodes.
+                   Return: task → starting point mapping for common tasks"
+
+Task 4 (Explore): "Identify complexity hotspots from Intent Layer.
+                   Return: areas with most contracts/pitfalls (need careful reading)"
+```
+
+**Synthesis**: Combine into comprehensive onboarding document.
+
+### Parallel Task-Context Generation
+
+When newcomer has multiple potential first tasks:
+
+```
+Task 1 (Explore): "Generate context for 'fix login bug' task.
+                   Find: relevant node, constraints, pitfalls, entry point"
+
+Task 2 (Explore): "Generate context for 'add new API endpoint' task.
+                   Find: relevant node, constraints, pitfalls, entry point"
+
+Task 3 (Explore): "Generate context for 'update dashboard component' task.
+                   Find: relevant node, constraints, pitfalls, entry point"
+```
+
+**Output**: Three task-context summaries, let newcomer pick their starting point.
+
+### Parallel Codebase Exploration
+
+For AI agents needing to understand unfamiliar codebase quickly:
+
+```
+Task 1 (Explore): "Read CLAUDE.md root node. Extract: purpose, subsystems,
+                   global constraints, and identify which child nodes exist"
+
+Task 2 (Explore): "For each child AGENTS.md, extract: ownership scope,
+                   key contracts, main pitfalls. Return summary table"
+
+Task 3 (Explore): "Map data flow through system using Intent Layer.
+                   How does data move between subsystems?"
+```
+
+**Synthesis**: Complete mental model of codebase in ~5 minutes vs ~15 minutes sequential.
+
+### Example: Parallel Team Onboarding
+
+**Scenario**: 3 new engineers joining (1 frontend, 1 backend, 1 fullstack)
+
+**Parallel execution**:
+```
+Task 1: "Create onboarding path for frontend engineer.
+         - Identify UI-related AGENTS.md nodes
+         - Extract frontend-specific contracts and pitfalls
+         - List frontend entry points for common tasks
+         - Generate Day 1 and Week 1 checklist"
+
+Task 2: "Create onboarding path for backend engineer.
+         - Identify API/service AGENTS.md nodes
+         - Extract backend-specific contracts and pitfalls
+         - List backend entry points for common tasks
+         - Generate Day 1 and Week 1 checklist"
+
+Task 3: "Create onboarding path for fullstack engineer.
+         - Identify cross-cutting AGENTS.md nodes
+         - Extract integration contracts and pitfalls
+         - List full-stack entry points
+         - Generate Day 1 and Week 1 checklist"
+```
+
+**Output**: Three personalized onboarding documents in parallel.
+
+### Parallel Onboarding Benefits
+
+| Scenario | Sequential | Parallel |
+|----------|------------|----------|
+| 3-role documentation | ~30 min | ~10 min |
+| 5-person team onboarding | ~75 min | ~15 min |
+| Comprehensive docs (4 sections) | ~40 min | ~12 min |
+
+---
+
 ## Scripts Reference
 
 | Script | Purpose |

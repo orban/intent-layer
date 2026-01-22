@@ -325,6 +325,121 @@ If multiple gaps found, suggest running `intent-layer-maintenance` skill.
 
 ---
 
+## Parallel Queries (Large Intent Layers)
+
+For Intent Layers with 5+ nodes or complex multi-faceted queries, use parallel subagents.
+
+### When to Use Parallel Queries
+
+| Scenario | Approach |
+|----------|----------|
+| Single concept, small Intent Layer | Sequential search |
+| Single concept, large Intent Layer (5+ nodes) | Parallel node search |
+| Multi-faceted query (ownership + constraints + pitfalls) | Parallel aspect search |
+| Cross-cutting concern investigation | Parallel subsystem search |
+
+### Parallel Node Search
+
+Search all nodes simultaneously for a concept:
+
+```
+Task 1 (Explore): "Search CLAUDE.md for references to [concept].
+                   Return: any mentions, ownership claims, constraints, pitfalls"
+
+Task 2 (Explore): "Search src/api/AGENTS.md for references to [concept].
+                   Return: any mentions, ownership claims, constraints, pitfalls"
+
+Task 3 (Explore): "Search src/core/AGENTS.md for references to [concept].
+                   Return: any mentions, ownership claims, constraints, pitfalls"
+```
+
+**Synthesis**: Combine results, identify primary owner (most specific claim), collect all constraints.
+
+### Parallel Aspect Search
+
+For complex queries needing multiple perspectives:
+
+```
+Q: "What do I need to know to add a new payment provider?"
+
+Task 1 (Explore): "Search Intent Layer for ownership of payments.
+                   Who owns payment logic? What's in scope/out of scope?"
+
+Task 2 (Explore): "Search Intent Layer for payment-related contracts.
+                   What invariants apply? What patterns are required?"
+
+Task 3 (Explore): "Search Intent Layer for payment-related pitfalls.
+                   What surprises exist? What has broken before?"
+
+Task 4 (Explore): "Search Intent Layer for payment entry points.
+                   How do I add new payment functionality?"
+```
+
+**Synthesis**: Combine into comprehensive answer covering ownership, constraints, warnings, and starting point.
+
+### Parallel Cross-Cutting Search
+
+For concepts that span multiple subsystems:
+
+```
+Q: "How is authentication handled across the system?"
+
+Task 1 (Explore): "Search src/api/AGENTS.md for auth mentions.
+                   How does API layer handle auth?"
+
+Task 2 (Explore): "Search src/core/AGENTS.md for auth mentions.
+                   How does core layer handle auth?"
+
+Task 3 (Explore): "Search src/db/AGENTS.md for auth mentions.
+                   How does data layer handle auth?"
+```
+
+**Synthesis**: Map auth flow across subsystems, identify gaps in documentation.
+
+### Parallel Query Benefits
+
+| Query Type | Sequential | Parallel |
+|------------|------------|----------|
+| Concept in 8 nodes | ~16 reads | ~3 reads (parallel) |
+| Multi-aspect query | ~12 reads | ~4 reads (parallel) |
+| Cross-cutting search | ~10 reads | ~3 reads (parallel) |
+
+### Example: Parallel Constraint Query
+
+**Query**: "What constraints apply to the checkout flow?"
+
+**Parallel execution**:
+```
+Task 1: "Find all constraints in src/checkout/AGENTS.md"
+Task 2: "Find all constraints in src/payments/AGENTS.md"
+Task 3: "Find all global constraints in CLAUDE.md that mention checkout, payment, or transaction"
+```
+
+**Synthesis output**:
+```markdown
+## Constraints: checkout flow
+
+### From `src/checkout/AGENTS.md`
+- Cart must be validated before payment initiation
+- Inventory reserved for 15 minutes during checkout
+
+### From `src/payments/AGENTS.md`
+- All payment calls must be idempotent
+- Failed payments must not leave partial state
+
+### Inherited from `CLAUDE.md`
+- All financial operations must be logged
+- PII never logged in plain text
+
+### Effective rules (merged)
+1. Validate cart → reserve inventory → initiate payment (order matters)
+2. Payment calls must be idempotent
+3. Log all operations, redact PII
+4. 15-minute timeout on reservations
+```
+
+---
+
 ## Common Query Patterns
 
 | Question Pattern | Query Type | Key Sections to Check |
