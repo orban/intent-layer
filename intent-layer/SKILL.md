@@ -185,6 +185,25 @@ For each child node:
 - Use child template from `references/templates.md`
 - **Include git-history findings** for that directory
 
+### Step 4b: Add Pre-flight Checks
+
+For directories with history of mistakes or complex operations:
+
+**Ask**: "What operations in this directory have caused problems before?"
+
+For each risky operation identified:
+1. Ask: "What would you check before doing [operation]?"
+2. Convert answer to verifiable check format
+3. Add to Pre-flight Checks section
+
+**Mine from history**:
+```bash
+# Find reverts and fixes that suggest missing checks
+~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory] | grep -i "fix\|revert"
+```
+
+Present findings: "These commits suggest potential checks: [list]. Add any?"
+
 ### Step 5: Validate
 
 Run `scripts/validate_node.sh` on all created nodes:
@@ -438,6 +457,7 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `show_status.sh` | Health dashboard with metrics and recommendations |
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer |
+| `capture_mistake.sh` | Generate mistake report for check extraction |
 
 ### Sub-Skills
 
@@ -467,6 +487,8 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 2. What invariants must never be violated?
 3. What repeatedly confuses new engineers?
 4. What patterns should always be followed?
+5. What operations require extra care? What do you verify before doing them?
+6. What mistakes have happened before? What check would have caught them?
 
 For full protocol: `references/capture-protocol.md`
 
@@ -484,6 +506,44 @@ For full protocol: `references/capture-protocol.md`
 | Cross-cutting concern | Place at lowest common ancestor |
 
 **Do NOT create for**: every directory, simple utilities, test folders (unless complex).
+
+---
+
+## Pre-flight Checks
+
+> **TL;DR**: Testable verifications before risky operations. Add when mistakes reveal missing checks.
+
+### What They Are
+
+Pre-flight checks are **verifiable assertions** an agent runs before modifying code. They catch "I thought I understood" mistakes.
+
+### When to Add
+
+| Signal | Action |
+|--------|--------|
+| Mistake happened | Write check that would have caught it |
+| PR reviewer flagged missing step | Convert to check |
+| Complex multi-step operation | Add checks for each step |
+| Critical/irreversible operation | Add comprehension + human gate |
+
+### When NOT to Add
+
+- Every operation (over-checking slows agents down)
+- Things covered by Boundaries section (use Always/Never instead)
+- Awareness-only items (use Pitfalls instead)
+
+### Format
+
+See `references/templates.md` → Writing Pre-flight Checks for the standard format.
+
+### Mining Checks from History
+
+```bash
+# Find commits suggesting missing verifications
+scripts/mine_git_history.sh --since "6 months ago" [directory] | grep -E "fix|broke|forgot"
+```
+
+Look for patterns like "forgot to update X" or "broke Y because didn't check Z".
 
 ---
 
@@ -551,6 +611,33 @@ See `references/agent-feedback-protocol.md` for:
 - When to surface findings
 - Structured feedback format
 - Human review workflow (Accept/Reject/Defer)
+
+### Mistake → Check Pipeline
+
+When agents surface mistakes, evaluate for check conversion:
+
+```
+Mistake surfaced → "Would a check have caught this?"
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+             Yes                          No
+              │                           │
+              ▼                           ▼
+    Write Pre-flight Check         Add to Pitfalls
+              │                    (awareness only)
+              ▼
+    Add to AGENTS.md Pre-flight section
+```
+
+**Check conversion template**:
+```markdown
+Mistake: [What happened]
+Operation: [What agent was doing]
+Check: Before [operation] → [verification that would have caught it]
+```
+
+Use `scripts/capture_mistake.sh` to generate structured mistake reports.
 
 ---
 
