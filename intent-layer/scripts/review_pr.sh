@@ -120,6 +120,26 @@ if [ -z "$BASE_REF" ]; then
     BASE_REF="origin/main"
 fi
 
+# Fetch PR metadata if --pr flag used
+PR_TITLE=""
+PR_BODY=""
+PR_AUTHOR=""
+
+if [ -n "$PR_NUMBER" ]; then
+    if ! command -v gh &> /dev/null; then
+        echo "Warning: gh CLI not found, skipping PR metadata" >&2
+    else
+        PR_TITLE=$(gh pr view "$PR_NUMBER" --json title -q '.title' 2>/dev/null || echo "")
+        PR_BODY=$(gh pr view "$PR_NUMBER" --json body -q '.body' 2>/dev/null || echo "")
+        PR_AUTHOR=$(gh pr view "$PR_NUMBER" --json author -q '.author.login' 2>/dev/null || echo "")
+
+        if [ -n "$PR_TITLE" ]; then
+            echo "PR #${PR_NUMBER}: ${PR_TITLE}"
+            echo "Author: ${PR_AUTHOR}"
+        fi
+    fi
+fi
+
 # Validate git repository
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
     echo "Error: Not in a git repository" >&2
@@ -390,6 +410,34 @@ run_ai_checks() {
             AI_PITFALL_ALERTS="${AI_PITFALL_ALERTS}- ${node_dir}: ${pitfall}\n  Verify: Does new code handle this edge case?\n"
         done < <(echo "$content" | grep -iE "^- .*(silently|fails|unexpected)" | sed 's/^- //' | head -3 || true)
     done
+
+    # Intent drift detection (when PR metadata available)
+    if [ -n "$PR_TITLE" ] || [ -n "$PR_BODY" ]; then
+        local pr_text="${PR_TITLE} ${PR_BODY}"
+
+        for node in "${!NODE_CONTENT[@]}"; do
+            local content="${NODE_CONTENT[$node]}"
+
+            # Check for conflicting approaches
+            # JWT vs session tokens
+            if echo "$pr_text" | grep -qi "jwt" && echo "$content" | grep -qi "session.*not.*jwt\|no.*jwt"; then
+                AI_DRIFT_WARNINGS="${AI_DRIFT_WARNINGS}- PR mentions JWT but ${node} says: avoid JWT\n"
+            fi
+
+            # Check architecture decisions
+            while IFS= read -r decision; do
+                [ -z "$decision" ] && continue
+                # Extract the "don't do X" patterns
+                local avoid=$(echo "$decision" | grep -oiE "not|avoid|never|don't" || echo "")
+                if [ -n "$avoid" ]; then
+                    local pattern=$(echo "$decision" | grep -oiE "[a-zA-Z]+" | head -3 | tr '\n' '|' | sed 's/|$//')
+                    if echo "$pr_text" | grep -qiE "$pattern"; then
+                        AI_DRIFT_WARNINGS="${AI_DRIFT_WARNINGS}- Potential conflict: PR may contradict: ${decision}\n"
+                    fi
+                fi
+            done < <(echo "$content" | grep -iE "^- .*(architecture|decision|approach)" | head -5 || true)
+        done
+    fi
 }
 
 run_ai_checks
@@ -453,6 +501,11 @@ generate_output() {
             output+="### Pitfall Proximity Alerts\n\n"
             output+="AI modified code adjacent to known sharp edges:\n\n"
             output+="${AI_PITFALL_ALERTS}\n"
+        fi
+
+        if [ -n "$AI_DRIFT_WARNINGS" ]; then
+            output+="### Intent Drift Warnings\n\n"
+            output+="${AI_DRIFT_WARNINGS}\n"
         fi
     fi
 
