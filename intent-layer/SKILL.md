@@ -16,6 +16,42 @@ Hierarchical AGENTS.md infrastructure so agents navigate codebases like senior e
 
 ---
 
+## Sub-Skills
+
+This skill includes specialized sub-skills that are **automatically invoked** when appropriate:
+
+| Sub-Skill | Location | Auto-Invoke When |
+|-----------|----------|------------------|
+| `git-history` | `git-history/SKILL.md` | Creating nodes for existing code (extracts pitfalls from commits) |
+| `pr-review` | `pr-review/SKILL.md` | Reviewing PRs that touch Intent Layer nodes |
+
+### git-history (Auto-Invoked During Setup)
+
+When creating nodes for directories with git history, **automatically run git-history analysis** to pre-populate:
+- **Pitfalls** from bug fix commits
+- **Anti-patterns** from revert commits
+- **Architecture Decisions** from refactor commits
+- **Contracts** from breaking change commits
+
+```
+Trigger: Creating AGENTS.md for directory with >50 commits
+Action: Run git-history analysis before writing node
+```
+
+### pr-review (Auto-Invoked for PRs)
+
+When reviewing PRs that modify code covered by Intent Layer:
+- Verify contracts are respected
+- Check pitfalls are avoided
+- Flag potential Intent Layer updates needed
+
+```
+Trigger: PR touches files under an AGENTS.md
+Action: Run pr-review with --ai-generated if applicable
+```
+
+---
+
 ## Quick Start
 
 ### Step 0: Check State
@@ -94,23 +130,43 @@ Run `scripts/estimate_all_candidates.sh`, then:
 - Present candidates table to user
 - Ask: "Which directories should get their own AGENTS.md?"
 
-### Step 3: Create Nodes
+### Step 3: Mine Git History (Auto-Invoked)
+
+**Before creating each node**, automatically analyze git history:
+
+```bash
+# For each candidate directory with git history
+git log --oneline --since="1 year ago" -- [directory] | wc -l
+# If >50 commits, run git-history analysis
+```
+
+Extract from `git-history/SKILL.md`:
+1. Bug fixes → Pre-populate Pitfalls
+2. Reverts → Pre-populate Anti-patterns
+3. Refactors → Pre-populate Architecture Decisions
+4. Breaking changes → Pre-populate Contracts
+
+Present findings to user: "Git history suggests these pitfalls: [list]. Include them?"
+
+### Step 4: Create Nodes
 
 For root node:
 - Ask user about project purpose
 - Select template by size (Small/Medium/Large from `references/templates.md`)
+- **Include git-history findings** in appropriate sections
 
 For each child node:
 - Ask user about directory's responsibility
 - Use child template from `references/templates.md`
+- **Include git-history findings** for that directory
 
-### Step 4: Validate
+### Step 5: Validate
 
 Run `scripts/validate_node.sh` on all created nodes:
 - Show validation results
 - Offer to fix warnings/errors
 
-### Step 5: Symlink
+### Step 6: Symlink
 
 Ask user: "Create symlink for cross-tool compatibility? (AGENTS.md → CLAUDE.md)"
 
@@ -139,11 +195,12 @@ scripts/analyze_structure.sh /path/to/project
 
 Identify 3-6 major subsystems from the output (e.g., `src/api/`, `src/core/`, `src/db/`).
 
-### Step 2: Parallel Exploration
+### Step 2: Parallel Exploration + Git History
 
-Spawn one Explore subagent per subsystem **in a single message** with multiple Task tool calls:
+Spawn subagents for **both code exploration AND git history analysis** in parallel:
 
 ```
+# Code exploration (one per subsystem)
 Task 1: "Analyze src/api/ for Intent Layer setup. Find: contracts/invariants,
          entry points for common tasks, pitfalls/surprising behaviors,
          patterns that must be followed. Return structured findings."
@@ -155,6 +212,16 @@ Task 2: "Analyze src/core/ for Intent Layer setup. Find: contracts/invariants,
 Task 3: "Analyze src/db/ for Intent Layer setup. Find: contracts/invariants,
          entry points for common tasks, pitfalls/surprising behaviors,
          patterns that must be followed. Return structured findings."
+
+# Git history analysis (parallel with exploration)
+Task 4: "Run git-history analysis on src/api/. Find bug fixes, reverts,
+         refactors, and breaking changes. Return as Intent Layer findings."
+
+Task 5: "Run git-history analysis on src/core/. Find bug fixes, reverts,
+         refactors, and breaking changes. Return as Intent Layer findings."
+
+Task 6: "Run git-history analysis on src/db/. Find bug fixes, reverts,
+         refactors, and breaking changes. Return as Intent Layer findings."
 ```
 
 **Critical**: Launch all agents in parallel (single message with multiple Task calls).
@@ -162,10 +229,13 @@ Task 3: "Analyze src/db/ for Intent Layer setup. Find: contracts/invariants,
 ### Step 3: Synthesize Results
 
 Once all agents complete:
-1. Collect findings from each subsystem
+1. **Merge code exploration + git history** findings per subsystem
 2. Identify cross-cutting concerns (appear in multiple findings)
 3. Place cross-cutting items in root node
-4. Create child AGENTS.md for each subsystem with local findings
+4. Create child AGENTS.md for each subsystem with:
+   - Code-derived contracts and entry points
+   - Git-history-derived pitfalls and architecture decisions
+5. **Deduplicate** where code and history found the same insight
 
 ### Step 4: Parallel Validation
 
@@ -329,6 +399,13 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer |
 
+### Sub-Skills
+
+| Sub-Skill | Location | Purpose |
+|-----------|----------|---------|
+| `git-history` | `git-history/SKILL.md` | Extract pitfalls/contracts from commit history |
+| `pr-review` | `pr-review/SKILL.md` | Review PRs against Intent Layer contracts |
+
 ### References
 
 | File | Purpose |
@@ -467,13 +544,39 @@ After completing initial setup (state = `complete`):
 | Post-incident | Update Pitfalls + Contracts |
 | After refactor | Update Entry Points + Subsystem Boundaries |
 | After new feature | Update Architecture Decisions + Patterns |
+| **PR Review** | **Auto-invoke `pr-review` sub-skill** |
+
+### PR Review Integration (Auto-Invoked)
+
+When reviewing PRs that touch files covered by Intent Layer nodes:
+
+```bash
+# Automatically run pr-review
+scripts/review_pr.sh main HEAD --ai-generated
+```
+
+The `pr-review` sub-skill will:
+- Check PR against contracts in relevant AGENTS.md
+- Flag if PR approaches documented pitfalls
+- Suggest Intent Layer updates if contracts changed
 
 ### Optional: CI Integration
 
 ```yaml
 - name: Check Intent Layer
   run: ~/.claude/skills/intent-layer/scripts/detect_state.sh .
+
+- name: PR Review (if Intent Layer exists)
+  if: github.event_name == 'pull_request'
+  run: |
+    ~/.claude/skills/intent-layer/scripts/review_pr.sh origin/main HEAD --exit-code
 ```
 
-### Next Skill
-When ready for maintenance: **`intent-layer-maintenance`**
+### Related Skills
+| Skill | Use When |
+|-------|----------|
+| `intent-layer-maintenance` | Quarterly audits, post-incident updates |
+| `intent-layer-query` | Asking questions about the codebase |
+| `intent-layer-onboarding` | Orienting newcomers |
+| `git-history` (sub-skill) | Mining commit history for insights |
+| `pr-review` (sub-skill) | Reviewing PRs against Intent Layer |
