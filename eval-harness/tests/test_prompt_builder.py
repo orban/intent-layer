@@ -1,0 +1,21 @@
+# tests/test_prompt_builder.py
+import pytest
+from lib.prompt_builder import build_prompt_from_commit_message, build_prompt_from_failing_test
+from lib.models import Task
+
+
+def test_build_prompt_from_commit_message():
+    prompt = build_prompt_from_commit_message("fix: handle null pointer in middleware")
+
+    assert "fix: handle null pointer in middleware" in prompt
+    assert "Fix the following bug" in prompt
+    assert "tests pass" in prompt.lower()
+
+
+def test_build_prompt_from_failing_test():
+    test_output = "AssertionError: expected 200 but got 500"
+    prompt = build_prompt_from_failing_test(test_output)
+
+    assert "AssertionError" in prompt
+    assert "failing" in prompt.lower()
+    assert "Do not modify the test" in prompt
