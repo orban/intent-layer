@@ -232,6 +232,7 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `detect_changes.sh` | Find affected nodes on merge/PR |
 | `show_status.sh` | Health dashboard with metrics and recommendations |
 | `show_hierarchy.sh` | Visual tree display of all nodes |
+| `review_pr.sh` | Review PR against Intent Layer |
 
 ### References
 

@@ -50,6 +50,9 @@ Scripts are standalone bash tools in `intent-layer/scripts/`. All support `-h`/`
 | `capture_pain_points.sh` | Generate maintenance capture template |
 | `capture_state.sh` | Track open questions during capture |
 | `detect_changes.sh` | Find affected nodes on merge/PR |
+| `show_status.sh` | Health dashboard with metrics and recommendations |
+| `show_hierarchy.sh` | Visual tree display of all nodes |
+| `review_pr.sh` | Review PR against Intent Layer contracts |
 
 ### Skill Relationship
 
