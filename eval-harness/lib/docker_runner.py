@@ -1,5 +1,6 @@
 # lib/docker_runner.py
 from __future__ import annotations
+import os
 import subprocess
 from dataclasses import dataclass
 
@@ -21,9 +22,11 @@ def run_in_docker(
     cpus: str = "2"
 ) -> DockerResult:
     """Run a command in a Docker container with workspace mounted."""
+    # Docker requires absolute paths for bind mounts
+    abs_workspace = os.path.abspath(workspace)
     cmd = [
         "docker", "run", "--rm",
-        "-v", f"{workspace}:/work",
+        "-v", f"{abs_workspace}:/work",
         "-w", "/work",
         "--network", "host",
         "--memory", memory,
