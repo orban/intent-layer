@@ -23,11 +23,26 @@ class Condition(Enum):
     WITHOUT_SKILL = "without_skill"
 
 
+SKILL_GENERATION_PROMPT = """Create an Intent Layer for this codebase to help with bug fixing.
+
+1. Run scripts/detect_state.sh to check current state
+2. Run scripts/analyze_structure.sh to find semantic boundaries
+3. Create a root CLAUDE.md with:
+   - Entry points for key functionality
+   - Architecture overview (components, data flow)
+   - Pitfalls extracted from git history (use git-history sub-skill)
+   - Contracts that must be maintained
+4. Create AGENTS.md child nodes for directories with distinct responsibilities
+
+Focus on information that would help someone unfamiliar with the codebase navigate and fix bugs safely."""
+
+
 @dataclass
 class SkillGenerationMetrics:
     wall_clock_seconds: float
     input_tokens: int
     output_tokens: int
+    files_created: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -43,6 +58,7 @@ class TaskResult:
     lines_changed: int
     files_touched: list[str]
     skill_generation: SkillGenerationMetrics | None = None
+    agents_files_read: list[str] | None = None
     error: str | None = None
 
 
@@ -71,17 +87,20 @@ class TaskRunner:
             if condition == Condition.WITH_SKILL:
                 skill_result = run_claude(
                     workspace,
-                    "Use the intent-layer skill to create an AGENTS.md for this codebase.",
+                    SKILL_GENERATION_PROMPT,
                     timeout=600
                 )
+                # Find created AGENTS.md/CLAUDE.md files
+                files_created = self._find_agents_files(workspace)
                 skill_metrics = SkillGenerationMetrics(
                     wall_clock_seconds=skill_result.wall_clock_seconds,
                     input_tokens=skill_result.input_tokens,
-                    output_tokens=skill_result.output_tokens
+                    output_tokens=skill_result.output_tokens,
+                    files_created=files_created
                 )
 
-            # Build prompt
-            prompt = self._build_prompt(task, workspace)
+            # Build prompt (with AGENTS.md preamble if skill was generated)
+            prompt = self._build_prompt(task, workspace, condition)
 
             # Run Claude on the task
             claude_result = run_claude(workspace, prompt)
@@ -97,6 +116,11 @@ class TaskRunner:
             # Get diff stats
             diff_stats = get_diff_stats(workspace)
 
+            # Extract which AGENTS.md files were read during the fix
+            agents_files_read = self._extract_agents_files_read(
+                claude_result.stdout, workspace
+            ) if condition == Condition.WITH_SKILL else None
+
             return TaskResult(
                 task_id=task.id,
                 condition=condition,
@@ -108,7 +132,8 @@ class TaskRunner:
                 tool_calls=claude_result.tool_calls,
                 lines_changed=diff_stats.lines_changed,
                 files_touched=diff_stats.files,
-                skill_generation=skill_metrics
+                skill_generation=skill_metrics,
+                agents_files_read=agents_files_read
             )
         except Exception as e:
             return TaskResult(
@@ -137,11 +162,13 @@ class TaskRunner:
 
         return str(workspace)
 
-    def _build_prompt(self, task: Task, workspace: str) -> str:
+    def _build_prompt(self, task: Task, workspace: str, condition: Condition) -> str:
         """Build the appropriate prompt based on task config."""
+        use_preamble = condition == Condition.WITH_SKILL
+
         if task.prompt_source == "commit_message":
             message = get_commit_message(workspace, task.fix_commit)
-            return build_prompt_from_commit_message(message)
+            return build_prompt_from_commit_message(message, with_agents_preamble=use_preamble)
 
         elif task.prompt_source == "failing_test":
             # Run the test to get failure output
@@ -155,7 +182,9 @@ class TaskRunner:
                 test_cmd,
                 timeout=60
             )
-            return build_prompt_from_failing_test(result.stdout + result.stderr)
+            return build_prompt_from_failing_test(
+                result.stdout + result.stderr, with_agents_preamble=use_preamble
+            )
 
         elif task.prompt_source == "issue":
             # TODO: Implement GitHub issue fetching
@@ -163,3 +192,43 @@ class TaskRunner:
 
         else:
             raise ValueError(f"Unknown prompt_source: {task.prompt_source}")
+
+    def _find_agents_files(self, workspace: str) -> list[str]:
+        """Find all AGENTS.md and CLAUDE.md files in workspace."""
+        import glob
+        workspace_path = Path(workspace)
+        files = []
+        for pattern in ["CLAUDE.md", "**/AGENTS.md"]:
+            for match in workspace_path.glob(pattern):
+                # Return path relative to workspace
+                files.append(str(match.relative_to(workspace_path)))
+        return sorted(files)
+
+    def _extract_agents_files_read(self, claude_output: str, workspace: str) -> list[str]:
+        """Extract which AGENTS.md/CLAUDE.md files Claude read from JSON output."""
+        import json
+        import re
+
+        files_read = set()
+        try:
+            data = json.loads(claude_output)
+            # Look for Read tool calls in the messages
+            messages = data.get("messages", [])
+            for msg in messages:
+                if isinstance(msg, dict):
+                    content = msg.get("content", [])
+                    if isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "tool_use":
+                                if block.get("name") == "Read":
+                                    file_path = block.get("input", {}).get("file_path", "")
+                                    # Check if it's an AGENTS.md or CLAUDE.md file
+                                    if re.search(r"(AGENTS|CLAUDE)\.md$", file_path):
+                                        # Make relative to workspace
+                                        if file_path.startswith(workspace):
+                                            file_path = file_path[len(workspace):].lstrip("/")
+                                        files_read.add(file_path)
+        except (json.JSONDecodeError, TypeError, KeyError):
+            pass
+
+        return sorted(files_read)
