@@ -1,7 +1,10 @@
 # lib/cli.py
 from __future__ import annotations
+import sys
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -11,6 +14,25 @@ from lib.task_runner import TaskRunner, Condition
 from lib.reporter import Reporter
 from lib.git_scanner import GitScanner
 from lib.git_ops import clone_repo
+
+
+# Thread-safe print lock for progress output
+_print_lock = threading.Lock()
+
+
+def _make_progress_callback(verbose: bool):
+    """Create a progress callback that prints to stderr if verbose is enabled."""
+    if not verbose:
+        return None
+
+    def callback(task_id: str, condition: str, step: str, message: str):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        # Truncate task_id for readability
+        short_id = task_id[:30] + "..." if len(task_id) > 33 else task_id
+        with _print_lock:
+            click.echo(f"  [{timestamp}] {short_id} ({condition}) [{step}] {message}", err=True)
+
+    return callback
 
 
 @click.group()
@@ -62,7 +84,8 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--keep-workspaces", is_flag=True, help="Don't cleanup workspaces")
 @click.option("--dry-run", is_flag=True, help="Show what would run")
 @click.option("--timeout", default=300, help="Per-task timeout in seconds")
-def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout):
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed progress for each step")
+def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose):
     """Run eval on task files."""
     # Validate task files exist
     for task_path in tasks:
@@ -93,13 +116,16 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout):
         work_queue.append((repo, task, Condition.WITH_SKILL))
 
     click.echo(f"Running {len(work_queue)} task/condition pairs with {parallel} workers")
+    if verbose:
+        click.echo("Verbose mode: showing detailed progress", err=True)
 
     workspaces_dir = Path("workspaces")
     results = []
+    progress_callback = _make_progress_callback(verbose)
 
     def run_single(item):
         repo, task, condition = item
-        runner = TaskRunner(repo, str(workspaces_dir))
+        runner = TaskRunner(repo, str(workspaces_dir), progress_callback=progress_callback)
         return runner.run(task, condition)
 
     with ThreadPoolExecutor(max_workers=parallel) as executor:
@@ -109,7 +135,31 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout):
             result = future.result()
             results.append(result)
             status = "PASS" if result.success else "FAIL"
-            click.echo(f"  {result.task_id} ({result.condition.value}): {status}")
+            # Build the status line with error info if failed
+            line = f"  {result.task_id} ({result.condition.value}): {status}"
+            if not result.success:
+                if result.error:
+                    # Exception during execution - show first line
+                    error_line = result.error.split('\n')[0][:80]
+                    line += f" - {error_line}"
+                elif result.test_output:
+                    # Tests failed - extract last meaningful line from output
+                    lines = [l.strip() for l in result.test_output.strip().split('\n') if l.strip()]
+                    if lines:
+                        last_line = lines[-1][:80]
+                        line += f" - {last_line}"
+            click.echo(line)
+            # In verbose mode, show more error context for failures
+            if verbose and not result.success:
+                if result.error:
+                    click.echo(f"    Error: {result.error}", err=True)
+                elif result.test_output:
+                    # Show last 10 lines of test output
+                    lines = result.test_output.strip().split('\n')
+                    tail = lines[-10:] if len(lines) > 10 else lines
+                    click.echo("    Test output (last 10 lines):", err=True)
+                    for l in tail:
+                        click.echo(f"      {l}", err=True)
 
     # Generate reports
     reporter = Reporter(output)

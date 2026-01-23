@@ -103,3 +103,25 @@ The maintenance skill references scripts from intent-layer via `~/.claude/skills
 - Scripts handle both macOS and Linux `stat` commands automatically
 - `detect_state.sh` distinguishes symlinked AGENTS.md (expected) from duplicate files (warning)
 - `mine_pr_reviews.sh` requires `gh` CLI and `jq` - other scripts only need coreutils + bc
+
+## Learning Loop
+
+When you discover a non-obvious gotcha while working in this codebase:
+
+1. **Identify the right AGENTS.md**: Find the nearest AGENTS.md to where the issue occurred
+2. **Append to Pitfalls section**: Add a brief entry with:
+   - **Problem**: What assumption failed or what was non-obvious
+   - **Symptom**: Error message or unexpected behavior
+   - **Solution**: How to handle it correctly
+3. **Keep it concise**: 2-4 lines per pitfall, code references welcome
+
+Example format:
+```markdown
+### API response format varies
+
+**Problem**: `parse_response()` assumes dict, but API can return list
+**Symptom**: `'list' object has no attribute 'get'`
+**Solution**: Check `isinstance(data, list)` before calling `.get()`
+```
+
+This keeps the Intent Layer alive and useful for future sessions.
