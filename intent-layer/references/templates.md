@@ -137,86 +137,139 @@ If any unchecked → stop and escalate to #releases.
 - [Decision 2]: `docs/adr/002.md`
 ```
 
-## Child Node Template
+## Child Node Template (Agent-Optimized)
 
-Each AGENTS.md in subdirectories:
+Each AGENTS.md in subdirectories. Optimized for AI agent consumption - prioritizes navigability and actionable context.
+
+**Token budget:** <4k tokens total (~3k target)
 
 ```markdown
 # {Area Name}
 
 ## Purpose
-[1-2 sentences: what this area owns, what it explicitly doesn't do]
+Owns: [what this area is responsible for]
+Does not own: [explicitly out of scope - look elsewhere for this]
+
+## Code Map
+
+### Find It Fast
+| Looking for... | Go to |
+|----------------|-------|
+| [common search] | `path/to/file.ts` |
+| [non-obvious location] | `path/file.ts` (not where you'd expect) |
+
+### Key Relationships
+- `layer1/` → `layer2/` → `layer3/` (direction matters, never skip)
+- [Module A] imports from [Module B], never reverse
+
+## Public API
+
+### Key Exports
+| Export | Used By | Change Impact |
+|--------|---------|---------------|
+| `functionName` | `consumer-module` | Breaking if signature changes |
+| `TypeName` | Multiple modules | Widely depended on |
+
+### Core Types
+```typescript
+// The 3-5 types you need to understand to work here
+interface KeyType { ... }
+type ImportantEnum = 'A' | 'B' | 'C'
+```
+
+## External Dependencies
+| Service | Used For | Failure Mode |
+|---------|----------|--------------|
+| [Service name] | [Purpose] | [What happens when down] |
+
+## Data Flow
+```
+Request → [validation] → [business logic] → [data access] → Response
+                ↓ on error
+           [error handler] → [logging] → Error Response
+```
+
+## Decisions
+| Decision | Why | Rejected |
+|----------|-----|----------|
+| [Architectural choice] | [Rationale] | [Alternative and why not] |
+
+## Entry Points
+| Task | Start Here |
+|------|------------|
+| [Common task 1] | `path/to/start.ts` |
+| [Common task 2] | `path/to/other.ts` |
+
+## Contracts
+- [Invariant not enforced by types but must hold]
+- [Non-obvious rule] (reason: inline rationale)
+
+## Patterns
+
+### Adding a [common thing]
+1. [Step with non-obvious detail]
+2. [Step]
+3. [Step - often-missed part]
+
+### Handling Errors
+- Use `[ErrorType]` from `types/errors.ts`
+- [How errors flow up]
 
 ## Pre-flight Checks
 
-<!-- Testable verifications before risky operations. Mine from:
-     past mistakes, PR reviews, onboarding confusion, incidents.
+<!-- Only for genuinely risky operations. Must be verifiable. -->
 
-     Each check must be: verifiable, specific, scoped to operation. -->
+### Before [risky operation]
+- [ ] [Verification - file exists, command passes, content matches]
+- [ ] [Verification]
 
-### [Operation Name]
-Before [triggering action]:
-- [ ] [Verifiable check - file exists, command passes, content matches]
-- [ ] [Verifiable check]
-
-If any unchecked → [ask before proceeding / fix first / stop and escalate].
+If any unchecked → [stop / fix first / ask user]
 
 ## Boundaries
 
 ### Always
-- Run `make test` before committing changes to this area
-- Use TypeScript strict mode for all new files
-- Log errors to the structured logger, never console.log
-
-### Ask First
-- Database schema changes (coordinate with DBA)
-- Changes to public API response shapes
-- Adding new external dependencies
+- [Required practice - with brief why if non-obvious]
 
 ### Never
-- Commit secrets, tokens, or .env files
-- Push directly to main branch
-- Delete user data without soft-delete
+- [Hard prohibition - consequence if violated]
 
-## Entry Points
-- `main_api.ts` - Primary API surface
-- `cli.ts` - CLI commands
-
-## Contracts & Invariants
-- All DB calls go through `./db/client.ts`
-- Never import from `./internal/` outside this directory
-
-## Patterns
-To add a new endpoint:
-1. Create handler in `./handlers/`
-2. Register in `./routes.ts`
-3. Add types to `./types.ts`
-
-## Anti-patterns
-- Never call external APIs directly; use `./clients/`
-- Don't bypass validation layer
+### Verify First
+- [Risky operation] → confirm with user before proceeding
 
 ## Pitfalls
-- `src/legacy/` looks deprecated but handles edge cases for pre-2023 accounts
-- `useCache: true` in `config.ts` is misleading—it's actually required for prod
-- The `async` flag in config is misleading—synchronous mode was removed in v2
-
-## Architecture Decisions
-- Why we use eventual consistency: `/docs/adrs/004-eventual-consistency.md`
-- Payment flow diagram: `/docs/architecture/payment-flow.md`
-
-## Related Context
-- Database layer: `./db/AGENTS.md`
-- Shared utilities: `../shared/AGENTS.md`
-
-## Navigation
-- **Parent**: `../AGENTS.md`
-- **Siblings**: `../other-area/AGENTS.md`, `../shared/AGENTS.md`
+- `looks-wrong` is actually correct because [reason]
+- `looks-fine` will break [what] if you [action]
+- [Config/flag] is misleading - it actually controls [real behavior]
 
 ## Downlinks
-- `./handlers/AGENTS.md` - Request handlers
-- `./db/AGENTS.md` - Database layer
+| Area | Node | What's There |
+|------|------|--------------|
+| [Child area] | `./child/AGENTS.md` | [Brief description] |
 ```
+
+### Section Guidance
+
+When populating sections, focus on **what agents can't infer from code**:
+
+| Section | What to Include | What to Skip |
+|---------|-----------------|--------------|
+| Code Map | Non-obvious locations, semantic groupings | Obvious mappings (routes.ts → routes) |
+| Public API | Exports used by OTHER modules | Internal-only exports |
+| Decisions | Choices someone might question | Obvious decisions |
+| Contracts | Non-type-enforced invariants | Type-enforced rules |
+| Patterns | Sequence + non-obvious steps | "Create file, add imports" |
+| Pitfalls | Looks wrong but right, or vice versa | Obvious gotchas |
+
+### Generation Order
+
+Populate sections in this order (easier → harder):
+
+1. Purpose, Code Map, Public API (file system + imports)
+2. External Dependencies, Entry Points, Downlinks (config + git log)
+3. Data Flow, Contracts (code reading)
+4. Patterns, Boundaries (existing examples + CI)
+5. Decisions, Pitfalls (git/PR mining - needs judgment)
+6. Pre-flight Checks (add over time from mistakes)
 
 ## Spec Templates (Greenfield)
 
