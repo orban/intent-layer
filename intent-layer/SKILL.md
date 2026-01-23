@@ -293,6 +293,7 @@ Once all agents complete:
 2. Identify cross-cutting concerns (appear in multiple findings)
 3. Place cross-cutting items in root node
 4. Create child AGENTS.md for each subsystem with all sections:
+   - Purpose + Design Rationale (the "why")
    - Code Map (find-it-fast + key relationships)
    - Public API (key exports + core types)
    - External Dependencies (services + failure modes)
@@ -319,6 +320,9 @@ For each subsystem, use this structured prompt:
 
 ```markdown
 Explore [DIRECTORY] for Intent Layer documentation. Return:
+
+## Design Rationale
+[Why does this module exist? What problem does it solve? What's the core insight?]
 
 ## Code Map
 ### Find It Fast
@@ -526,18 +530,23 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 ### External Dependencies
 6. What external services does this area use? What happens when they're down?
 
+### Design Rationale (the "why")
+7. What problem drove the creation of this module? What pain point does it solve?
+8. What's the core insight or philosophy? What would you lose if you removed it?
+9. What constraints shaped the design? (performance, compatibility, team size, etc.)
+
 ### Understanding & Debugging
-7. How does data flow through this area? (request → response path)
-8. Why was it built this way? What alternatives were rejected?
+10. How does data flow through this area? (request → response path)
+11. Why were specific technical choices made? What alternatives were rejected?
 
 ### Consistency & Safety
-9. What invariants must hold that aren't enforced by types?
-10. What patterns must be followed for common tasks?
-11. What operations require verification before proceeding?
+12. What invariants must hold that aren't enforced by types?
+13. What patterns must be followed for common tasks?
+14. What operations require verification before proceeding?
 
 ### Pitfalls (highest value)
-12. What repeatedly confuses new engineers?
-13. What looks wrong but is correct? What looks correct but will break?
+15. What repeatedly confuses new engineers?
+16. What looks wrong but is correct? What looks correct but will break?
 
 For full protocol: `references/capture-protocol.md`
 

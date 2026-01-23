@@ -150,6 +150,13 @@ Each AGENTS.md in subdirectories. Optimized for AI agent consumption - prioritiz
 Owns: [what this area is responsible for]
 Does not own: [explicitly out of scope - look elsewhere for this]
 
+## Design Rationale
+[Why this module exists and the philosophy behind it]
+
+- **Problem solved**: [What pain point or need drove creation of this]
+- **Core insight**: [The key idea that makes this work - what you'd lose if you removed it]
+- **Constraints**: [What shaped the design - performance, compatibility, team size, etc.]
+
 ## Code Map
 
 ### Find It Fast
@@ -253,6 +260,7 @@ When populating sections, focus on **what agents can't infer from code**:
 
 | Section | What to Include | What to Skip |
 |---------|-----------------|--------------|
+| Design Rationale | Why this exists, core insight, constraints | Implementation details |
 | Code Map | Non-obvious locations, semantic groupings | Obvious mappings (routes.ts → routes) |
 | Public API | Exports used by OTHER modules | Internal-only exports |
 | Decisions | Choices someone might question | Obvious decisions |
@@ -269,7 +277,8 @@ Populate sections in this order (easier → harder):
 3. Data Flow, Contracts (code reading)
 4. Patterns, Boundaries (existing examples + CI)
 5. Decisions, Pitfalls (git/PR mining - needs judgment)
-6. Pre-flight Checks (add over time from mistakes)
+6. Design Rationale (requires understanding the "why" - often from interviews or deep history)
+7. Pre-flight Checks (add over time from mistakes)
 
 ## Spec Templates (Greenfield)
 

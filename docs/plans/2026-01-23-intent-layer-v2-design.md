@@ -44,6 +44,13 @@ The current Intent Layer captures:
 Owns: [what this area is responsible for]
 Does not own: [explicitly out of scope - look elsewhere]
 
+## Design Rationale
+[Why this module exists and the philosophy behind it]
+
+- **Problem solved**: [What pain point drove creation of this]
+- **Core insight**: [The key idea that makes this work]
+- **Constraints**: [What shaped the design]
+
 ## Code Map
 
 ### Find It Fast
@@ -135,6 +142,7 @@ If any unchecked → [stop / fix first / ask user]
 | Section | Target Tokens |
 |---------|---------------|
 | Purpose | ~50 |
+| Design Rationale | ~200 |
 | Code Map | ~400 |
 | Public API | ~400 |
 | External Dependencies | ~150 |
