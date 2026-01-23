@@ -28,8 +28,8 @@ A skill that verifies whether code complies with Intent Layer contracts (CLAUDE.
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
     ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-    │ discover.sh │   │  Subagent   │   │  Subagent   │
-    │ (bash)      │   │  (haiku)    │   │  (sonnet)   │
+    │ discover_   │   │  Subagent   │   │  Subagent   │
+    │ contracts.sh│   │  (haiku)    │   │  (sonnet)   │
     │ - find nodes│   │  - verify   │   │  - verify   │
     │ - map files │   │    leaf     │   │    complex  │
     │ - estimate  │   │    node     │   │    node     │
@@ -46,14 +46,14 @@ A skill that verifies whether code complies with Intent Layer contracts (CLAUDE.
 ```
 
 **Flow**:
-1. Skill invokes `discover.sh` to find Intent Layer nodes and map files
+1. Skill invokes `discover_contracts.sh` to find Intent Layer nodes and map files
 2. Bash helper estimates complexity per node (contracts × files × ambiguity signals)
 3. Skill dispatches parallel subagents, selecting model per node's complexity
 4. Each subagent reads its node's contracts + covered code, reasons about compliance
 5. Results roll up through the tree hierarchy
 6. Main skill aggregates, categorizes violations, and produces final report
 
-## Bash Helper: discover.sh
+## Bash Helper: discover_contracts.sh
 
 **Purpose**: Mechanical discovery and mapping (no LLM reasoning needed)
 

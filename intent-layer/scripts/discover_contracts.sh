@@ -49,8 +49,9 @@ COMPLEXITY HEURISTICS:
     high:   >6 contracts OR >15 files OR contains "CRITICAL" → recommend "sonnet"
 
 CONTRACT EXTRACTION:
-    Lines matching: ^- .*(must|never|always|require) (case insensitive)
-    from "### Contracts" sections in CLAUDE.md/AGENTS.md files.
+    All bullet points (lines starting with "- ") from "### Contracts"
+    or "## Contracts" sections in CLAUDE.md/AGENTS.md files.
+    Semantic analysis of contract content is delegated to Claude subagents.
 
 EXAMPLES:
     discover_contracts.sh                          # Changed files vs origin/main
@@ -231,6 +232,9 @@ get_files_to_check() {
         # Get changed files vs base ref
         if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
             git diff --name-only "$BASE_REF" HEAD 2>/dev/null || true
+        else
+            echo "Warning: Base ref '$BASE_REF' not found. Using uncommitted changes only." >&2
+            echo "   Hint: Run 'git fetch origin' if comparing to a remote branch." >&2
         fi
         # Also include uncommitted changes (staged, unstaged, and untracked)
         git diff --name-only HEAD 2>/dev/null || true
