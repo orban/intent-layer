@@ -114,6 +114,18 @@ Choose based on project size:
 - **Auth**: JWT via `@org/auth` - never implement custom auth
 - **Config**: Environment vars via `@org/config` - no direct `process.env`
 
+### Global Pre-flight Checks
+
+<!-- Checks that apply regardless of which subsystem is modified -->
+
+#### Deployments
+Before deploying any service:
+- [ ] All tests pass in CI
+- [ ] CHANGELOG.md updated
+- [ ] No open P0 incidents
+
+If any unchecked → stop and escalate to #releases.
+
 ### Global Invariants
 
 - [Invariant 1]
@@ -134,6 +146,20 @@ Each AGENTS.md in subdirectories:
 
 ## Purpose
 [1-2 sentences: what this area owns, what it explicitly doesn't do]
+
+## Pre-flight Checks
+
+<!-- Testable verifications before risky operations. Mine from:
+     past mistakes, PR reviews, onboarding confusion, incidents.
+
+     Each check must be: verifiable, specific, scoped to operation. -->
+
+### [Operation Name]
+Before [triggering action]:
+- [ ] [Verifiable check - file exists, command passes, content matches]
+- [ ] [Verifiable check]
+
+If any unchecked → [ask before proceeding / fix first / stop and escalate].
 
 ## Boundaries
 
@@ -371,6 +397,56 @@ Use this pattern instead of narrative anti-patterns. It's clearer and prevents d
 - **Never**: Hard stops for truly dangerous actions
 
 **Migration from Anti-patterns**: Move "Never do X" items to the `Never` section. Move "Be careful when Y" items to `Ask First`. This is more scannable than prose.
+
+## Writing Pre-flight Checks
+
+Pre-flight checks catch "I thought I understood" mistakes before they happen.
+
+### When to Add a Check
+
+| Signal | Add Check For |
+|--------|---------------|
+| Agent made a mistake | What verification would have caught it? |
+| PR reviewer caught missing step | What should agent have verified? |
+| New person got confused | What confirmation would have helped? |
+| Incident occurred | What validation would have prevented it? |
+
+### Check Quality Criteria
+
+Before adding a check, verify:
+- [ ] **Verifiable**: Agent can confirm pass/fail without human help
+- [ ] **Specific**: Clear what passes vs. fails (no "code is clean")
+- [ ] **Scoped**: Tied to specific operation, not "always do X"
+- [ ] **Actionable**: Clear what to do when check fails
+
+### Check vs. Pitfall
+
+| Use **Pitfall** | Use **Pre-flight Check** |
+|-----------------|--------------------------|
+| Awareness is enough | Verification is needed |
+| No specific trigger | Clear trigger operation |
+| Can't be mechanically verified | Can be verified by command/inspection |
+
+**Example**:
+- Pitfall: "Legacy config looks deprecated but enterprise clients use it"
+- Check: "Before modifying config schema → grep for enterprise references"
+
+## Pre-flight Check Patterns
+
+Use these patterns when writing checks:
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| **File exists** | `[path] exists` | `config/routes.yaml exists` |
+| **Content match** | `grep -q "[pattern]" [file]` | `grep -q "rate_limit" config.yaml` |
+| **Command succeeds** | `[command] passes` | `make lint passes` |
+| **Comprehension** | State the N [items] from [section] | State the 3 invariants from Contracts |
+| **Human gate** | Confirm with [person/channel] | Confirm with #platform before proceeding |
+
+**Failure actions** (pick one per check group):
+- `ask before proceeding` - Uncertainty, need guidance
+- `fix first` - Known remediation, agent can resolve
+- `stop and escalate` - Critical/irreversible, requires human
 
 ## Cross-Tool Compatibility
 

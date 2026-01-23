@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **TL;DR**: Custom skills for Claude Code CLI - markdown files + bash scripts, symlinked to `~/.claude/skills/`.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Overview
@@ -50,9 +52,13 @@ Scripts are standalone bash tools in `intent-layer/scripts/`. All support `-h`/`
 | `capture_pain_points.sh` | Generate maintenance capture template |
 | `capture_state.sh` | Track open questions during capture |
 | `detect_changes.sh` | Find affected nodes on merge/PR |
+| `detect_staleness.sh` | Find nodes that may need updates |
+| `mine_git_history.sh` | Extract insights from git commits |
+| `mine_pr_reviews.sh` | Extract insights from GitHub PRs |
 | `show_status.sh` | Health dashboard with metrics and recommendations |
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer contracts |
+| `capture_mistake.sh` | Record mistakes for learning loop |
 
 ### Skill Relationship
 
@@ -96,3 +102,4 @@ The maintenance skill references scripts from intent-layer via `~/.claude/skills
 - Token estimation uses bytes/4 approximation - not precise for non-ASCII text
 - Scripts handle both macOS and Linux `stat` commands automatically
 - `detect_state.sh` distinguishes symlinked AGENTS.md (expected) from duplicate files (warning)
+- `mine_pr_reviews.sh` requires `gh` CLI and `jq` - other scripts only need coreutils + bc

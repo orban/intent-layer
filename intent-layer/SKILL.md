@@ -23,6 +23,7 @@ This skill includes specialized sub-skills that are **automatically invoked** wh
 | Sub-Skill | Location | Auto-Invoke When |
 |-----------|----------|------------------|
 | `git-history` | `git-history/SKILL.md` | Creating nodes for existing code (extracts pitfalls from commits) |
+| `pr-review-mining` | `pr-review-mining/SKILL.md` | Creating nodes for existing code (extracts pitfalls from PR discussions) |
 | `pr-review` | `pr-review/SKILL.md` | Reviewing PRs that touch Intent Layer nodes |
 
 ### git-history (Auto-Invoked During Setup)
@@ -36,6 +37,19 @@ When creating nodes for directories with git history, **automatically run git-hi
 ```
 Trigger: Creating AGENTS.md for directory with >50 commits
 Action: Run git-history analysis before writing node
+```
+
+### pr-review-mining (Auto-Invoked During Setup)
+
+When creating nodes for directories with merged PRs, **automatically run PR mining** to pre-populate:
+- **Pitfalls** from PR Risks sections and review warnings
+- **Contracts** from Breaking Changes sections
+- **Architecture Decisions** from Why sections and Alternatives Considered
+- **Anti-patterns** from rejected approaches in reviews
+
+```
+Trigger: Creating AGENTS.md for directory with merged PRs
+Action: Run pr-review-mining alongside git-history, merge findings
 ```
 
 ### pr-review (Auto-Invoked for PRs)
@@ -130,23 +144,34 @@ Run `scripts/estimate_all_candidates.sh`, then:
 - Present candidates table to user
 - Ask: "Which directories should get their own AGENTS.md?"
 
-### Step 3: Mine Git History (Auto-Invoked)
+### Step 3: Mine History (Auto-Invoked)
 
-**Before creating each node**, automatically analyze git history:
+**Before creating each node**, automatically analyze both git history AND PR discussions using the mining scripts:
 
 ```bash
-# For each candidate directory with git history
-git log --oneline --since="1 year ago" -- [directory] | wc -l
-# If >50 commits, run git-history analysis
+# Git commit analysis (extracts pitfalls, anti-patterns, decisions, contracts)
+~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory]
+
+# GitHub PR analysis (requires gh CLI)
+~/.claude/skills/intent-layer/scripts/mine_pr_reviews.sh --limit 50
+
+# Check for stale nodes (during maintenance)
+~/.claude/skills/intent-layer/scripts/detect_staleness.sh --code-changes [directory]
 ```
 
-Extract from `git-history/SKILL.md`:
+**mine_git_history.sh** extracts from commits:
 1. Bug fixes → Pre-populate Pitfalls
 2. Reverts → Pre-populate Anti-patterns
 3. Refactors → Pre-populate Architecture Decisions
 4. Breaking changes → Pre-populate Contracts
 
-Present findings to user: "Git history suggests these pitfalls: [list]. Include them?"
+**mine_pr_reviews.sh** extracts from PRs:
+1. Risks sections → Pre-populate Pitfalls
+2. Review warnings → Pre-populate Pitfalls
+3. Breaking Changes → Pre-populate Contracts
+4. Why/Alternatives → Pre-populate Architecture Decisions
+
+Present merged findings to user: "History suggests these pitfalls: [list]. Include them?"
 
 ### Step 4: Create Nodes
 
@@ -159,6 +184,25 @@ For each child node:
 - Ask user about directory's responsibility
 - Use child template from `references/templates.md`
 - **Include git-history findings** for that directory
+
+### Step 4b: Add Pre-flight Checks
+
+For directories with history of mistakes or complex operations:
+
+**Ask**: "What operations in this directory have caused problems before?"
+
+For each risky operation identified:
+1. Ask: "What would you check before doing [operation]?"
+2. Convert answer to verifiable check format
+3. Add to Pre-flight Checks section
+
+**Mine from history**:
+```bash
+# Find reverts and fixes that suggest missing checks
+~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory] | grep -i "fix\|revert"
+```
+
+Present findings: "These commits suggest potential checks: [list]. Add any?"
 
 ### Step 5: Validate
 
@@ -195,9 +239,9 @@ scripts/analyze_structure.sh /path/to/project
 
 Identify 3-6 major subsystems from the output (e.g., `src/api/`, `src/core/`, `src/db/`).
 
-### Step 2: Parallel Exploration + Git History
+### Step 2: Parallel Exploration + History Mining
 
-Spawn subagents for **both code exploration AND git history analysis** in parallel:
+Spawn subagents for **code exploration, git history, AND PR mining** in parallel:
 
 ```
 # Code exploration (one per subsystem)
@@ -222,6 +266,19 @@ Task 5: "Run git-history analysis on src/core/. Find bug fixes, reverts,
 
 Task 6: "Run git-history analysis on src/db/. Find bug fixes, reverts,
          refactors, and breaking changes. Return as Intent Layer findings."
+
+# PR review mining (parallel with above)
+Task 7: "Run pr-review-mining on src/api/. Extract from PR descriptions
+         and review comments: pitfalls, contracts, architecture decisions.
+         Return as Intent Layer findings with PR numbers."
+
+Task 8: "Run pr-review-mining on src/core/. Extract from PR descriptions
+         and review comments: pitfalls, contracts, architecture decisions.
+         Return as Intent Layer findings with PR numbers."
+
+Task 9: "Run pr-review-mining on src/db/. Extract from PR descriptions
+         and review comments: pitfalls, contracts, architecture decisions.
+         Return as Intent Layer findings with PR numbers."
 ```
 
 **Critical**: Launch all agents in parallel (single message with multiple Task calls).
@@ -229,13 +286,15 @@ Task 6: "Run git-history analysis on src/db/. Find bug fixes, reverts,
 ### Step 3: Synthesize Results
 
 Once all agents complete:
-1. **Merge code exploration + git history** findings per subsystem
+1. **Merge code exploration + git history + PR mining** findings per subsystem
 2. Identify cross-cutting concerns (appear in multiple findings)
 3. Place cross-cutting items in root node
 4. Create child AGENTS.md for each subsystem with:
    - Code-derived contracts and entry points
    - Git-history-derived pitfalls and architecture decisions
-5. **Deduplicate** where code and history found the same insight
+   - PR-mining-derived pitfalls, contracts, and rationale
+5. **Deduplicate** where multiple sources found the same insight
+6. **Prefer PR-sourced rationale** when available (richer "why" context)
 
 ### Step 4: Parallel Validation
 
@@ -398,12 +457,14 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 | `show_status.sh` | Health dashboard with metrics and recommendations |
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer |
+| `capture_mistake.sh` | Generate mistake report for check extraction |
 
 ### Sub-Skills
 
 | Sub-Skill | Location | Purpose |
 |-----------|----------|---------|
 | `git-history` | `git-history/SKILL.md` | Extract pitfalls/contracts from commit history |
+| `pr-review-mining` | `pr-review-mining/SKILL.md` | Extract pitfalls/contracts from PR discussions |
 | `pr-review` | `pr-review/SKILL.md` | Review PRs against Intent Layer contracts |
 
 ### References
@@ -426,6 +487,8 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 2. What invariants must never be violated?
 3. What repeatedly confuses new engineers?
 4. What patterns should always be followed?
+5. What operations require extra care? What do you verify before doing them?
+6. What mistakes have happened before? What check would have caught them?
 
 For full protocol: `references/capture-protocol.md`
 
@@ -443,6 +506,44 @@ For full protocol: `references/capture-protocol.md`
 | Cross-cutting concern | Place at lowest common ancestor |
 
 **Do NOT create for**: every directory, simple utilities, test folders (unless complex).
+
+---
+
+## Pre-flight Checks
+
+> **TL;DR**: Testable verifications before risky operations. Add when mistakes reveal missing checks.
+
+### What They Are
+
+Pre-flight checks are **verifiable assertions** an agent runs before modifying code. They catch "I thought I understood" mistakes.
+
+### When to Add
+
+| Signal | Action |
+|--------|--------|
+| Mistake happened | Write check that would have caught it |
+| PR reviewer flagged missing step | Convert to check |
+| Complex multi-step operation | Add checks for each step |
+| Critical/irreversible operation | Add comprehension + human gate |
+
+### When NOT to Add
+
+- Every operation (over-checking slows agents down)
+- Things covered by Boundaries section (use Always/Never instead)
+- Awareness-only items (use Pitfalls instead)
+
+### Format
+
+See `references/templates.md` → Writing Pre-flight Checks for the standard format.
+
+### Mining Checks from History
+
+```bash
+# Find commits suggesting missing verifications
+scripts/mine_git_history.sh --since "6 months ago" [directory] | grep -E "fix|broke|forgot"
+```
+
+Look for patterns like "forgot to update X" or "broke Y because didn't check Z".
 
 ---
 
@@ -510,6 +611,33 @@ See `references/agent-feedback-protocol.md` for:
 - When to surface findings
 - Structured feedback format
 - Human review workflow (Accept/Reject/Defer)
+
+### Mistake → Check Pipeline
+
+When agents surface mistakes, evaluate for check conversion:
+
+```
+Mistake surfaced → "Would a check have caught this?"
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+             Yes                          No
+              │                           │
+              ▼                           ▼
+    Write Pre-flight Check         Add to Pitfalls
+              │                    (awareness only)
+              ▼
+    Add to AGENTS.md Pre-flight section
+```
+
+**Check conversion template**:
+```markdown
+Mistake: [What happened]
+Operation: [What agent was doing]
+Check: Before [operation] → [verification that would have caught it]
+```
+
+Use `scripts/capture_mistake.sh` to generate structured mistake reports.
 
 ---
 
@@ -579,4 +707,5 @@ The `pr-review` sub-skill will:
 | `intent-layer-query` | Asking questions about the codebase |
 | `intent-layer-onboarding` | Orienting newcomers |
 | `git-history` (sub-skill) | Mining commit history for insights |
+| `pr-review-mining` (sub-skill) | Mining PR discussions for insights |
 | `pr-review` (sub-skill) | Reviewing PRs against Intent Layer |

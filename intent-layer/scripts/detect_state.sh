@@ -113,7 +113,7 @@ if [ -n "$ROOT_FILE" ]; then
 fi
 
 # Common exclusions for find
-EXCLUSIONS="-not -path \"*/node_modules/*\" -not -path \"*/.git/*\" -not -path \"*/dist/*\" -not -path \"*/build/*\" -not -path \"*/public/*\" -not -path \"*/target/*\" -not -path \"*/.turbo/*\" -not -path \"*/vendor/*\" -not -path \"*/.venv/*\" -not -path \"*/venv/*\""
+EXCLUSIONS="-not -path \"*/node_modules/*\" -not -path \"*/.git/*\" -not -path \"*/dist/*\" -not -path \"*/build/*\" -not -path \"*/public/*\" -not -path \"*/target/*\" -not -path \"*/.turbo/*\" -not -path \"*/vendor/*\" -not -path \"*/.venv/*\" -not -path \"*/venv/*\" -not -path \"*/.worktrees/*\""
 
 # Find child AGENTS.md files (excluding root)
 while IFS= read -r file; do

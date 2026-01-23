@@ -71,7 +71,7 @@ EXCLUSIONS=(
     "*/node_modules/*" "*/.git/*" "*/dist/*" "*/.next/*" "*/build/*"
     "*/__pycache__/*" "*/public/*" "*/resources/_gen/*" "*/.turbo/*"
     "*/coverage/*" "*/target/*" "*/vendor/*" "*/.venv/*" "*/venv/*"
-    "*/.cache/*" "*/out/*"
+    "*/.cache/*" "*/out/*" "*/.worktrees/*"
 )
 
 FIND_EXCLUDES=""
