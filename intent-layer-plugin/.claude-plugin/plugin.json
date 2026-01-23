@@ -1,0 +1,6 @@
+{
+  "name": "intent-layer",
+  "version": "0.1.0",
+  "description": "Intent Layer with continuous learning loop - captures mistakes and injects learnings",
+  "author": "intent-layer-team"
+}
