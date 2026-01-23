@@ -64,6 +64,32 @@ Trigger: PR touches files under an AGENTS.md
 Action: Run pr-review with --ai-generated if applicable
 ```
 
+### learning-loop (Auto-Invoked on Error Discovery)
+
+When you discover a non-obvious gotcha during any work (not just Intent Layer setup):
+- Find the nearest AGENTS.md to where the issue occurred
+- Append to its Pitfalls section
+- Keep the Intent Layer alive with real lessons
+
+```
+Trigger: Fix error caused by non-obvious behavior (API format, config quirk, etc.)
+Action: Append pitfall to nearest AGENTS.md
+Format:
+  ### Short descriptive title
+  **Problem**: What assumption failed
+  **Symptom**: Error message or unexpected behavior
+  **Solution**: Correct approach with code reference
+```
+
+**Example**: After fixing `'list' object has no attribute 'get'` because Claude CLI output format varies:
+```markdown
+### Claude CLI JSON output format varies
+
+**Problem**: `claude --output-format json` can return dict or list
+**Symptom**: `'list' object has no attribute 'get'`
+**Solution**: Check `isinstance(data, list)` before `.get()`. See `lib/claude_runner.py:parse_claude_output()`
+```
+
 ---
 
 ## Quick Start

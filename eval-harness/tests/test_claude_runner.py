@@ -30,6 +30,42 @@ def test_parse_claude_output_handles_missing_fields():
     assert result["tool_calls"] == 0
 
 
+def test_parse_claude_output_handles_list_format():
+    """Claude CLI can output a list of messages instead of a dict."""
+    output = json.dumps([
+        {
+            "role": "user",
+            "content": [{"type": "text", "text": "Fix the bug"}]
+        },
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "tool_use", "name": "Read", "input": {"file_path": "/foo/bar.js"}},
+                {"type": "tool_use", "name": "Edit", "input": {"file_path": "/foo/bar.js"}}
+            ],
+            "usage": {"input_tokens": 500, "output_tokens": 200}
+        },
+        {
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Done"}],
+            "usage": {"input_tokens": 300, "output_tokens": 100}
+        }
+    ])
+
+    result = parse_claude_output(output)
+    assert result["input_tokens"] == 800  # 500 + 300
+    assert result["output_tokens"] == 300  # 200 + 100
+    assert result["tool_calls"] == 2
+
+
+def test_parse_claude_output_handles_empty_list():
+    output = json.dumps([])
+    result = parse_claude_output(output)
+    assert result["input_tokens"] == 0
+    assert result["output_tokens"] == 0
+    assert result["tool_calls"] == 0
+
+
 def test_claude_result_dataclass():
     result = ClaudeResult(
         exit_code=0,

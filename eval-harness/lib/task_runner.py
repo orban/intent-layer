@@ -3,9 +3,11 @@ from __future__ import annotations
 import os
 import tempfile
 import shutil
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Callable
 
 from lib.models import Task, RepoConfig
 from lib.git_ops import clone_repo, checkout_commit, get_commit_message, get_diff_stats
@@ -16,6 +18,10 @@ from lib.prompt_builder import (
     build_prompt_from_failing_test,
     build_prompt_from_issue
 )
+
+
+# Progress callback type: (task_id, condition, step, message) -> None
+ProgressCallback = Callable[[str, str, str, str], None]
 
 
 class Condition(Enum):
@@ -63,28 +69,40 @@ class TaskResult:
 
 
 class TaskRunner:
-    def __init__(self, repo: RepoConfig, workspaces_dir: str):
+    def __init__(self, repo: RepoConfig, workspaces_dir: str, progress_callback: ProgressCallback | None = None):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
         self.workspaces_dir.mkdir(parents=True, exist_ok=True)
+        self.progress_callback = progress_callback
+
+    def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
+        """Report progress if callback is set."""
+        if self.progress_callback:
+            self.progress_callback(task_id, condition, step, message)
 
     def run(self, task: Task, condition: Condition) -> TaskResult:
         """Execute a single task under the given condition."""
+        cond_str = condition.value
+        self._progress(task.id, cond_str, "setup", "creating workspace")
         workspace = self._setup_workspace(task, condition)
 
         try:
             # Setup: clone and checkout
+            self._progress(task.id, cond_str, "clone", f"cloning {self.repo.url}")
             clone_repo(self.repo.url, workspace, shallow=False)
+            self._progress(task.id, cond_str, "checkout", f"checking out {task.pre_fix_commit[:8]}")
             checkout_commit(workspace, task.pre_fix_commit)
 
             # Run docker setup
-            for setup_cmd in self.repo.docker.setup:
+            for i, setup_cmd in enumerate(self.repo.docker.setup, 1):
+                self._progress(task.id, cond_str, "docker_setup", f"[{i}/{len(self.repo.docker.setup)}] {setup_cmd}")
                 run_in_docker(workspace, self.repo.docker.image, setup_cmd)
 
             skill_metrics = None
 
             # Generate AGENTS.md if with_skill
             if condition == Condition.WITH_SKILL:
+                self._progress(task.id, cond_str, "skill_gen", "generating Intent Layer with Claude...")
                 skill_result = run_claude(
                     workspace,
                     SKILL_GENERATION_PROMPT,
@@ -98,22 +116,30 @@ class TaskRunner:
                     output_tokens=skill_result.output_tokens,
                     files_created=files_created
                 )
+                self._progress(task.id, cond_str, "skill_gen_done", f"created {len(files_created)} file(s) in {skill_result.wall_clock_seconds:.1f}s")
 
             # Build prompt (with AGENTS.md preamble if skill was generated)
+            self._progress(task.id, cond_str, "prompt", "building prompt")
             prompt = self._build_prompt(task, workspace, condition)
 
             # Run Claude on the task
+            self._progress(task.id, cond_str, "claude", "running Claude to fix the bug...")
             claude_result = run_claude(workspace, prompt)
+            self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Run tests
+            self._progress(task.id, cond_str, "test", f"running tests: {self.repo.docker.test_command}")
             test_result = run_in_docker(
                 workspace,
                 self.repo.docker.image,
                 self.repo.docker.test_command,
                 timeout=120
             )
+            test_status = "PASSED" if test_result.exit_code == 0 else "FAILED"
+            self._progress(task.id, cond_str, "test_done", f"tests {test_status}")
 
             # Get diff stats
+            self._progress(task.id, cond_str, "diff", "collecting diff stats")
             diff_stats = get_diff_stats(workspace)
 
             # Extract which AGENTS.md files were read during the fix
@@ -205,15 +231,27 @@ class TaskRunner:
         return sorted(files)
 
     def _extract_agents_files_read(self, claude_output: str, workspace: str) -> list[str]:
-        """Extract which AGENTS.md/CLAUDE.md files Claude read from JSON output."""
+        """Extract which AGENTS.md/CLAUDE.md files Claude read from JSON output.
+
+        Handles both output formats:
+        - List of messages (array at top level)
+        - Dict with "messages" key
+        """
         import json
         import re
 
         files_read = set()
         try:
             data = json.loads(claude_output)
-            # Look for Read tool calls in the messages
-            messages = data.get("messages", [])
+
+            # Determine messages list based on output format
+            if isinstance(data, list):
+                messages = data
+            elif isinstance(data, dict):
+                messages = data.get("messages", [])
+            else:
+                messages = []
+
             for msg in messages:
                 if isinstance(msg, dict):
                     content = msg.get("content", [])
@@ -221,14 +259,15 @@ class TaskRunner:
                         for block in content:
                             if isinstance(block, dict) and block.get("type") == "tool_use":
                                 if block.get("name") == "Read":
-                                    file_path = block.get("input", {}).get("file_path", "")
+                                    inp = block.get("input", {})
+                                    file_path = inp.get("file_path", "") if isinstance(inp, dict) else ""
                                     # Check if it's an AGENTS.md or CLAUDE.md file
                                     if re.search(r"(AGENTS|CLAUDE)\.md$", file_path):
                                         # Make relative to workspace
                                         if file_path.startswith(workspace):
                                             file_path = file_path[len(workspace):].lstrip("/")
                                         files_read.add(file_path)
-        except (json.JSONDecodeError, TypeError, KeyError):
+        except (json.JSONDecodeError, TypeError, KeyError, AttributeError):
             pass
 
         return sorted(files_read)

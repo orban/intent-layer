@@ -1,0 +1,133 @@
+{
+  "eval_id": "2026-01-23-144022",
+  "timestamp": "2026-01-23T14:40:22Z",
+  "results": [
+    {
+      "task_id": "docs-fix-jsdoc-for-reqaccepts-return-value-and",
+      "without_skill": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack (39ms)\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (97ms)\n    \u2714 should not stack overflow with a large sync route stack (61ms)\n  ",
+        "wall_clock_seconds": 91.7484028339386,
+        "input_tokens": 11,
+        "output_tokens": 2483,
+        "tool_calls": 0,
+        "lines_changed": 12,
+        "files_touched": [
+          "lib/request.js"
+        ]
+      },
+      "with_skill": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack (42ms)\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (91ms)\n    \u2714 should not stack overflow with a large sync route stack (69ms)\n  ",
+        "wall_clock_seconds": 116.58688926696777,
+        "input_tokens": 19,
+        "output_tokens": 5591,
+        "tool_calls": 0,
+        "lines_changed": 81,
+        "files_touched": [
+          "lib/request.js"
+        ],
+        "skill_generation": {
+          "wall_clock_seconds": 207.24297189712524,
+          "input_tokens": 2234,
+          "output_tokens": 8881
+        },
+        "total_wall_clock_seconds": 323.829861164093,
+        "total_input_tokens": 2253,
+        "total_output_tokens": 14472
+      },
+      "delta": {
+        "success": "+0",
+        "time_percent": "+253.0%",
+        "tokens_percent": "+570.6%",
+        "tool_calls_percent": "+0.0%",
+        "lines_changed_percent": "+575.0%"
+      }
+    },
+    {
+      "task_id": "fix-enhance-reqacceptscharsets-method-6088",
+      "without_skill": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack (42ms)\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (107ms)\n    \u2714 should not stack overflow with a large sync route stack (59ms)\n ",
+        "wall_clock_seconds": 161.52445483207703,
+        "input_tokens": 13,
+        "output_tokens": 2355,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": []
+      },
+      "with_skill": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack (44ms)\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (96ms)\n    \u2714 should not stack overflow with a large sync route stack (58ms)\n  ",
+        "wall_clock_seconds": 174.06786489486694,
+        "input_tokens": 30,
+        "output_tokens": 4808,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "skill_generation": {
+          "wall_clock_seconds": 209.89644479751587,
+          "input_tokens": 2533,
+          "output_tokens": 8795
+        },
+        "total_wall_clock_seconds": 383.9643096923828,
+        "total_input_tokens": 2563,
+        "total_output_tokens": 13603
+      },
+      "delta": {
+        "success": "+0",
+        "time_percent": "+137.7%",
+        "tokens_percent": "+582.7%",
+        "tool_calls_percent": "+0.0%",
+        "lines_changed_percent": "+0.0%"
+      }
+    },
+    {
+      "task_id": "doc-fix-securitymd-link-to-point-to-security-tab",
+      "without_skill": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack (47ms)\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (110ms)\n    \u2714 should not stack overflow with a large sync route stack (65ms)\n ",
+        "wall_clock_seconds": 53.81118583679199,
+        "input_tokens": 5248,
+        "output_tokens": 1869,
+        "tool_calls": 0,
+        "lines_changed": 2,
+        "files_touched": [
+          "Readme.md"
+        ]
+      },
+      "with_skill": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack (38ms)\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (90ms)\n    \u2714 should not stack overflow with a large sync route stack (59ms)\n  ",
+        "wall_clock_seconds": 94.81523513793945,
+        "input_tokens": 18,
+        "output_tokens": 3157,
+        "tool_calls": 0,
+        "lines_changed": 2,
+        "files_touched": [
+          "Readme.md"
+        ],
+        "skill_generation": {
+          "wall_clock_seconds": 178.79270792007446,
+          "input_tokens": 1610,
+          "output_tokens": 8008
+        },
+        "total_wall_clock_seconds": 273.6079430580139,
+        "total_input_tokens": 1628,
+        "total_output_tokens": 11165
+      },
+      "delta": {
+        "success": "+0",
+        "time_percent": "+408.5%",
+        "tokens_percent": "+79.8%",
+        "tool_calls_percent": "+0.0%",
+        "lines_changed_percent": "+0.0%"
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 3,
+    "without_skill_success_rate": 1.0,
+    "with_skill_success_rate": 1.0
+  }
+}
