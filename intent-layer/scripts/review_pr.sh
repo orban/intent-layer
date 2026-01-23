@@ -196,32 +196,38 @@ find_covering_node() {
     fi
 }
 
-# Map changed files to covering nodes
-declare -A NODE_FILES
-declare -A NODE_CONTENT
+# Create temp dir for mapping
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf "$WORK_DIR"' EXIT
 
+# Map changed files to covering nodes
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     [[ "$file" == *"AGENTS.md" ]] || [[ "$file" == *"CLAUDE.md" ]] && continue
 
     node=$(find_covering_node "$file")
     if [ -n "$node" ]; then
-        if [ -z "${NODE_FILES[$node]:-}" ]; then
-            NODE_FILES[$node]="$file"
-            NODE_CONTENT[$node]=$(cat "$node" 2>/dev/null || echo "")
-        else
-            NODE_FILES[$node]="${NODE_FILES[$node]}"$'\n'"$file"
-        fi
+        echo "${node}|${file}" >> "$WORK_DIR/node_map"
     fi
 done <<< "$CHANGED_FILES"
 
-AFFECTED_NODE_COUNT=${#NODE_FILES[@]}
+AFFECTED_NODE_COUNT=0
+if [ -f "$WORK_DIR/node_map" ]; then
+    AFFECTED_NODE_COUNT=$(cut -d'|' -f1 "$WORK_DIR/node_map" | sort | uniq | wc -l | tr -d ' ')
+fi
 echo "Affected Intent Nodes: $AFFECTED_NODE_COUNT"
 
 # Semantic signal patterns
 SECURITY_PATTERNS="auth|password|token|secret|permission|encrypt|credential|login|session"
 DATA_PATTERNS="migration|schema|DELETE|DROP|transaction|database|sql|query"
 API_PATTERNS="/api/|endpoint|route|breaking|deprecated|version"
+
+# Get unique nodes list
+get_nodes() {
+    if [ -f "$WORK_DIR/node_map" ]; then
+        cut -d'|' -f1 "$WORK_DIR/node_map" | sort | uniq
+    fi
+}
 
 # Calculate risk score
 calculate_risk_score() {
@@ -235,13 +241,14 @@ calculate_risk_score() {
         factors="${factors}Files changed: +${file_points}\n"
     fi
 
-    # Count contracts and pitfalls in affected nodes
     local contract_count=0
     local pitfall_count=0
     local critical_count=0
 
-    for node in "${!NODE_CONTENT[@]}"; do
-        local content="${NODE_CONTENT[$node]}"
+    # Iterate over affected nodes
+    for node in $(get_nodes); do
+        local content
+        content=$(cat "$node" 2>/dev/null || echo "")
 
         # Count items in Contracts section
         local in_contracts
@@ -325,9 +332,13 @@ generate_checklist() {
     RELEVANT_ITEMS=""
     PITFALL_ITEMS=""
 
-    for node in "${!NODE_CONTENT[@]}"; do
-        local content="${NODE_CONTENT[$node]}"
-        local files="${NODE_FILES[$node]}"
+    for node in $(get_nodes); do
+        local content
+        content=$(cat "$node" 2>/dev/null || echo "")
+        local files=""
+        if [ -f "$WORK_DIR/node_map" ]; then
+             files=$(grep "^$node|" "$WORK_DIR/node_map" | cut -d'|' -f2)
+        fi
 
         # Extract critical items (always include)
         while IFS= read -r line; do
@@ -398,10 +409,10 @@ run_ai_checks() {
         AI_OVERENGINEERING="${AI_OVERENGINEERING}- Multiple new interfaces: ${new_interfaces}\n  Verify these aren't premature abstractions\n"
     fi
 
-    # Pitfall proximity - check if changes touch files near documented pitfalls
-    for node in "${!NODE_CONTENT[@]}"; do
-        local content="${NODE_CONTENT[$node]}"
-        local files="${NODE_FILES[$node]}"
+    # Pitfall proximity
+    for node in $(get_nodes); do
+        local content
+        content=$(cat "$node" 2>/dev/null || echo "")
         local node_dir=$(dirname "$node")
 
         # Extract pitfalls
@@ -411,15 +422,15 @@ run_ai_checks() {
         done < <(echo "$content" | grep -iE "^- .*(silently|fails|unexpected)" | sed 's/^- //' | head -3 || true)
     done
 
-    # Intent drift detection (when PR metadata available)
+    # Intent drift detection
     if [ -n "$PR_TITLE" ] || [ -n "$PR_BODY" ]; then
         local pr_text="${PR_TITLE} ${PR_BODY}"
 
-        for node in "${!NODE_CONTENT[@]}"; do
-            local content="${NODE_CONTENT[$node]}"
+        for node in $(get_nodes); do
+            local content
+            content=$(cat "$node" 2>/dev/null || echo "")
 
             # Check for conflicting approaches
-            # JWT vs session tokens
             if echo "$pr_text" | grep -qi "jwt" && echo "$content" | grep -qi "session.*not.*jwt\|no.*jwt"; then
                 AI_DRIFT_WARNINGS="${AI_DRIFT_WARNINGS}- PR mentions JWT but ${node} says: avoid JWT\n"
             fi
@@ -427,7 +438,6 @@ run_ai_checks() {
             # Check architecture decisions
             while IFS= read -r decision; do
                 [ -z "$decision" ] && continue
-                # Extract the "don't do X" patterns
                 local avoid=$(echo "$decision" | grep -oiE "not|avoid|never|don't" || echo "")
                 if [ -n "$avoid" ]; then
                     local pattern=$(echo "$decision" | grep -oiE "[a-zA-Z]+" | head -3 | tr '\n' '|' | sed 's/|$//')
@@ -515,24 +525,27 @@ generate_output() {
     output+="---\n\n"
     output+="## Detailed Context\n\n"
 
-    for node in "${!NODE_FILES[@]}"; do
-        local files="${NODE_FILES[$node]}"
+    for node in $(get_nodes); do
+        local files=""
+        if [ -f "$WORK_DIR/node_map" ]; then
+             files=$(grep "^$node|" "$WORK_DIR/node_map" | cut -d'|' -f2)
+        fi
         local file_count=$(echo "$files" | grep -v '^$' | wc -l | tr -d ' ')
 
         output+="### ${node}\n\n"
         output+="**Covers:** ${file_count} changed files\n\n"
 
-        # Show relevant sections from node
-        local content="${NODE_CONTENT[$node]}"
+        local content
+        content=$(cat "$node" 2>/dev/null || echo "")
 
-        # Extract Contracts section (match any heading level, strip headers)
+        # Extract Contracts section
         local contracts=$(echo "$content" | sed -n '/^#\{2,3\} Contracts/,/^#\{2,3\} /p' | grep -v '^#' | head -20 || echo "")
         if [ -n "$contracts" ]; then
             output+="#### Contracts\n\n"
             output+="${contracts}\n\n"
         fi
 
-        # Extract Pitfalls section (match any heading level, strip headers)
+        # Extract Pitfalls section
         local pitfalls=$(echo "$content" | sed -n '/^#\{2,3\} Pitfalls/,/^#\{2,3\} /p' | grep -v '^#' | head -20 || echo "")
         if [ -n "$pitfalls" ]; then
             output+="#### Pitfalls\n\n"

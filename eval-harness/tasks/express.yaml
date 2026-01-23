@@ -1,0 +1,41 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/expressjs/express
+# Tasks found: 3
+
+repo:
+  url: https://github.com/expressjs/express
+  default_branch: main
+  docker:
+    image: node:20-slim
+    setup:
+    - npm install
+    test_command: npm test
+tasks:
+- id: docs-fix-jsdoc-for-reqaccepts-return-value-and
+  category: simple_fix
+  pre_fix_commit: 9a3f7ff4120d7920a2d13809ff5ae78648c8a3d6
+  fix_commit: ae265a90c7f6534231b621a846be6c60c54658f5
+  prompt_source: commit_message
+  _commit_message: 'docs: fix JSDoc for req.accepts() return value and parameter format
+    (#6936)'
+  _lines_changed: 12
+  _files_changed: 1
+  issue_number: 6936
+- id: fix-enhance-reqacceptscharsets-method-6088
+  category: simple_fix
+  pre_fix_commit: 3e81873b52e107898ed7ba45874959fb0546df3f
+  fix_commit: 6cd404eb28ff861180f435b3015f8d0c8c0b44d4
+  prompt_source: failing_test
+  _commit_message: 'fix: enhance req.acceptsCharsets method (#6088)'
+  _lines_changed: 44
+  _files_changed: 2
+  test_file: test/req.acceptsCharsets.js
+  issue_number: 6088
+- id: doc-fix-securitymd-link-to-point-to-security-tab
+  category: simple_fix
+  pre_fix_commit: b8fc000f3116237b2bcc0df41b5b999f95da37ae
+  fix_commit: b5aae87594502d543e8ac393847a6f091e9b8321
+  prompt_source: commit_message
+  _commit_message: 'doc: fix security.md link to point to security tab'
+  _lines_changed: 2
+  _files_changed: 1
