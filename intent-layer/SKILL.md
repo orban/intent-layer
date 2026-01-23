@@ -642,15 +642,28 @@ Always capture leaf-first, easy-to-hard:
 Agent works → Finds gap → Surfaces finding → Human reviews → Node updated → Future agents benefit
 ```
 
-### During Normal Work
+### Automatic Surfacing (Required)
 
-When you encounter gaps while working, surface them using the format in `references/agent-feedback-protocol.md`:
+**At end of every task**, pause and ask: "Did I encounter Intent Layer gaps?"
+
+| If you experienced... | Surface as |
+|-----------------------|------------|
+| Navigation struggle (had to search) | Missing code map |
+| Surprising behavior | Missing pitfall |
+| External service failure | Missing external dependency |
+| Debugging difficulty | Missing data flow |
+| Design confusion ("why is it this way?") | Missing design rationale |
+| Proposed change rejected | **Design rationale violation** (highest value) |
+
+### Surfacing Format
 
 ```markdown
 ### Intent Layer Feedback
 | Type | Location | Finding |
 |------|----------|---------|
 | Missing pitfall | `src/api/AGENTS.md` | Rate limiter fails silently when Redis down |
+| Missing rationale | `src/core/AGENTS.md` | Why LocalProxy? Had to read Werkzeug docs |
+| Rationale violation | `src/core/AGENTS.md` | Proposed global state, rejected: thread-safety |
 ```
 
 ### On Merge/PR
@@ -666,9 +679,10 @@ This outputs affected nodes in leaf-first order for systematic review.
 ### Full Protocol
 
 See `references/agent-feedback-protocol.md` for:
-- When to surface findings
+- Complete list of finding types (v2)
 - Structured feedback format
 - Human review workflow (Accept/Reject/Defer)
+- Metrics tracking
 
 ### Mistake → Check Pipeline
 

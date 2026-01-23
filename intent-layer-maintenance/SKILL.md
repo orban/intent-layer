@@ -54,6 +54,40 @@ digraph maintenance {
 }
 ```
 
+## Step 0: Process Pending Findings
+
+Before starting maintenance, process any accumulated agent feedback:
+
+```bash
+# Check for pending findings
+ls -la .intent-layer/mistakes/pending/ 2>/dev/null || echo "No pending findings"
+
+# Check staleness
+scripts/detect_staleness.sh --code-changes /path/to/project
+```
+
+### Process Each Pending Finding
+
+For each file in `.intent-layer/mistakes/pending/`:
+
+1. **Review finding** - Is it accurate?
+2. **Decide disposition**:
+   - Accept → Update node, move to `accepted/`
+   - Reject → Document why, move to `rejected/`
+   - Defer → Keep in `pending/` with note
+3. **Update metrics** in `.intent-layer/metrics.json`
+
+### Staleness Report
+
+If `detect_staleness.sh` flags nodes:
+
+| Signal | Action |
+|--------|--------|
+| Node >90 days old, code changed | Review for stale content |
+| High git activity in directory | Check if Entry Points changed |
+| New files added | Check if Code Map needs updates |
+| Deleted files | Check for broken Downlinks |
+
 ## Step 1: Verify State
 
 ```bash
@@ -113,17 +147,30 @@ These questions surface tribal knowledge that should be documented:
 
 ## Step 4: Map Findings to Sections
 
+### From Pain Point Questions
 | Finding Type | Target Section |
 |--------------|----------------|
 | Surprising behavior | Pitfalls |
-| "Never do X" rule | Anti-patterns |
-| Must-be-true constraint | Contracts & Invariants |
-| Technical decision rationale | Architecture Decisions |
+| "Never do X" rule | Boundaries (Never) |
+| Must-be-true constraint | Contracts |
+| Technical decision rationale | Decisions |
 | New common task | Entry Points |
-| New subsystem | Subsystem Boundaries |
-| Relationship to external | Related Context |
-| New/moved child node | Downlinks |
-| Changed parent/sibling | Navigation |
+| New subsystem | Downlinks |
+
+### From Agent Feedback (v2 Types)
+| Finding Type | Target Section | Priority |
+|--------------|----------------|----------|
+| Missing pitfall | Pitfalls | High |
+| Stale contract | Contracts | High |
+| Missing code map | Code Map → Find It Fast | Medium |
+| Missing ext dep | External Dependencies | High |
+| Missing data flow | Data Flow | Medium |
+| Missing rationale | Design Rationale | High |
+| **Rationale violation** | **Design Rationale** | **Critical** |
+| Missing pattern | Patterns | Medium |
+| Suspected dead | (verify, then Pitfalls or remove) | Low |
+
+**Note**: "Rationale violation" is the highest priority. It indicates strategic knowledge that prevents repeated mistakes. Always process these first.
 
 ## Step 5: Present Update Proposal
 
@@ -155,6 +202,35 @@ Edit the CLAUDE.md file to add new items to appropriate sections.
 - Relative paths for internal links
 - Downlinks point to existing child nodes
 - Navigation links (parent/siblings) are accurate
+
+## Step 7: Verify Loop Closure
+
+After updates, verify the learning loop is closed:
+
+### For Pre-flight Checks
+Re-run the scenario that caused the original mistake:
+1. Simulate the agent task that failed
+2. Verify the new check would have caught the mistake
+3. If not → refine the check
+
+### For Pitfalls
+Verify the pitfall is now discoverable:
+1. Would an agent reading this section now understand?
+2. Is the "why" clear, not just the "what"?
+
+### For Design Rationale
+Verify the rationale prevents future violations:
+1. If someone proposed the rejected alternative, would they understand why not?
+2. Is the constraint clearly stated?
+
+### Update Metrics
+
+After processing findings, update `.intent-layer/metrics.json`:
+
+```bash
+# Example: increment accepted count
+jq '.findings.accepted += 1' .intent-layer/metrics.json > tmp.json && mv tmp.json .intent-layer/metrics.json
+```
 
 ## Quick Reference
 
