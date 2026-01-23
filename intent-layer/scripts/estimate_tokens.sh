@@ -96,6 +96,7 @@ EXCLUSIONS=(
   "*/venv/*"             # Python virtual env
   "*/.cache/*"           # Various caches
   "*/out/*"              # Next.js output
+  "*/.worktrees/*"       # Git worktrees
 )
 
 # Build exclusion arguments for find
