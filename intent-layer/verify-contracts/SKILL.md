@@ -123,7 +123,7 @@ Summary: X violations (Y code fixes, Z stale contracts, W human decisions)
 ## Integration Points
 
 - **Pre-commit**: Run with default scope (changed files)
-- **PR review**: Integrate with `/pr-review` workflow
+- **PR review**: Integrate with `/review-pr` workflow
 - **CI pipeline**: Run with `--full` on main branch merges
 
 ## Related
@@ -132,5 +132,5 @@ Summary: X violations (Y code fixes, Z stale contracts, W human decisions)
 |----------|---------|
 | `../scripts/discover_contracts.sh` | Mechanical discovery (bash) |
 | `./references/subagent-prompt.md` | Verification prompt template |
-| `/pr-review` | PR review workflow (uses this skill) |
+| `/review-pr` | PR review workflow (uses this skill) |
 | `validate_node.sh` | Node quality validation |

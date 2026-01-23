@@ -194,9 +194,10 @@ extract_contracts() {
         if [[ "$in_contracts" == "true" ]] && [[ "$line" =~ ^##[#]? ]]; then
             break
         fi
-        # Extract lines matching contract pattern while in Contracts section
+        # Extract all bullet points from Contracts section
+        # (Let Claude subagents do semantic analysis of what constitutes a contract)
         if [[ "$in_contracts" == "true" ]]; then
-            if echo "$line" | grep -iE '^- .*(must|never|always|require)' >/dev/null 2>&1; then
+            if [[ "$line" =~ ^-[[:space:]] ]]; then
                 echo "$line"
             fi
         fi
