@@ -59,6 +59,7 @@ Scripts are standalone bash tools in `intent-layer/scripts/`. All support `-h`/`
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer contracts |
 | `capture_mistake.sh` | Record mistakes for learning loop |
+| `discover_contracts.sh` | Map Intent Layer nodes and extract contracts |
 
 ### Skill Relationship
 
