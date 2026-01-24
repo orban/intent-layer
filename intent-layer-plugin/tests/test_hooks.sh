@@ -56,9 +56,14 @@ fi
 
 # Test 5: PreToolUse handles Edit
 echo "Test 5: PreToolUse handles Edit"
-output=$(echo '{"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "nonexistent/file.py"}}' | \
-    "$PLUGIN_DIR/hooks/scripts/pre-edit-check.sh" 2>&1 || true)
-pass "PreToolUse handles Edit without crashing"
+exit_code=0
+echo '{"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "nonexistent/file.py"}}' | \
+    "$PLUGIN_DIR/hooks/scripts/pre-edit-check.sh" >/dev/null 2>&1 || exit_code=$?
+if [[ $exit_code -le 1 ]]; then
+    pass "PreToolUse handles Edit without crashing"
+else
+    fail "PreToolUse crashed with exit code $exit_code"
+fi
 
 # Test 6: PreToolUse filters Read
 echo "Test 6: PreToolUse filters Read"
@@ -99,17 +104,19 @@ fi
 
 # Test 10: All lib scripts have --help
 echo "Test 10: Library scripts have --help"
-all_have_help=true
+failed_help=0
+checked=0
 for script in "$PLUGIN_DIR/lib"/*.sh; do
     if [[ -f "$script" && -x "$script" && "$(basename "$script")" != "common.sh" ]]; then
+        checked=$((checked + 1))
         if ! "$script" --help >/dev/null 2>&1; then
             fail "Script missing --help: $(basename "$script")"
-            all_have_help=false
+            failed_help=$((failed_help + 1))
         fi
     fi
 done
-if $all_have_help; then
-    pass "All lib scripts support --help"
+if [[ $failed_help -eq 0 && $checked -gt 0 ]]; then
+    pass "All lib scripts support --help ($checked checked)"
 fi
 
 # Summary
