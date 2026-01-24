@@ -13,7 +13,7 @@
     "codebase-navigation",
     "ai-infrastructure"
   ],
-  "repository": "https://github.com/your-org/intent-layer-plugin",
+  "repository": "https://github.com/orban/intent-layer",
   "license": "MIT",
   "hooks": "hooks/hooks.json"
 }

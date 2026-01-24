@@ -11,11 +11,12 @@ Claude Code plugin providing tools for creating and maintaining Intent Layer inf
 ## Installation
 
 ```bash
-# Install the plugin
-claude plugin install ./path/to/intent-layer-plugin
+# Add the marketplace and install from GitHub
+/plugin marketplace add orban/intent-layer
+/plugin install intent-layer@orban
 
-# Or from a marketplace
-claude plugin install intent-layer@marketplace-name
+# Or from local directory
+claude plugin install ./path/to/intent-layer-plugin
 ```
 
 ## Development

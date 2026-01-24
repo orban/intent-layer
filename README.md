@@ -23,12 +23,31 @@ Intent Layers compress this knowledge into high-signal AGENTS.md/CLAUDE.md files
 
 ## Installation
 
-```bash
-# Install from local directory
-claude plugin install ./path/to/intent-layer-plugin
+### From GitHub (recommended)
 
-# Or from a marketplace
-claude plugin install intent-layer@marketplace-name
+```bash
+# Add the marketplace
+/plugin marketplace add orban/intent-layer
+
+# Install the plugin
+/plugin install intent-layer@orban
+```
+
+Or using the CLI:
+
+```bash
+claude plugin marketplace add orban/intent-layer
+claude plugin install intent-layer@orban
+```
+
+### From local directory
+
+```bash
+# Clone the repository
+git clone https://github.com/orban/intent-layer.git
+
+# Install from local path
+claude plugin install ./intent-layer
 ```
 
 ## Components
