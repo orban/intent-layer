@@ -107,6 +107,7 @@ Internal scripts used by hooks and other scripts:
 - `intent-layer-maintenance` → Ongoing updates (state = complete)
 - `intent-layer-onboarding` → Orientation for new developers
 - `intent-layer-query` → Answer questions using Intent Layer
+- `intent-layer:clean` → Remove Intent Layer from a repo
 
 All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 
