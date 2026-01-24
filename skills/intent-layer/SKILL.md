@@ -176,13 +176,13 @@ Run `scripts/estimate_all_candidates.sh`, then:
 
 ```bash
 # Git commit analysis (extracts pitfalls, anti-patterns, decisions, contracts)
-~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory]
+${CLAUDE_PLUGIN_ROOT}/scripts/mine_git_history.sh [directory]
 
 # GitHub PR analysis (requires gh CLI)
-~/.claude/skills/intent-layer/scripts/mine_pr_reviews.sh --limit 50
+${CLAUDE_PLUGIN_ROOT}/scripts/mine_pr_reviews.sh --limit 50
 
 # Check for stale nodes (during maintenance)
-~/.claude/skills/intent-layer/scripts/detect_staleness.sh --code-changes [directory]
+${CLAUDE_PLUGIN_ROOT}/scripts/detect_staleness.sh --code-changes [directory]
 ```
 
 **mine_git_history.sh** extracts from commits:
@@ -225,7 +225,7 @@ For each risky operation identified:
 **Mine from history**:
 ```bash
 # Find reverts and fixes that suggest missing checks
-~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory] | grep -i "fix\|revert"
+${CLAUDE_PLUGIN_ROOT}/scripts/mine_git_history.sh [directory] | grep -i "fix\|revert"
 ```
 
 Present findings: "These commits suggest potential checks: [list]. Add any?"
@@ -271,17 +271,20 @@ Spawn subagents for **code exploration, git history, AND PR mining** in parallel
 
 ```
 # Code exploration (one per subsystem)
-Task 1: "Analyze src/api/ for Intent Layer setup. Find: contracts/invariants,
-         entry points for common tasks, pitfalls/surprising behaviors,
-         patterns that must be followed. Return structured findings."
+Task 1: "Analyze src/api/ for Intent Layer setup. Find: code map (find-it-fast
+         + key relationships), public API (exports used by others + core types),
+         external dependencies, data flow, entry points, contracts, patterns,
+         pitfalls. Return structured findings per section."
 
-Task 2: "Analyze src/core/ for Intent Layer setup. Find: contracts/invariants,
-         entry points for common tasks, pitfalls/surprising behaviors,
-         patterns that must be followed. Return structured findings."
+Task 2: "Analyze src/core/ for Intent Layer setup. Find: code map (find-it-fast
+         + key relationships), public API (exports used by others + core types),
+         external dependencies, data flow, entry points, contracts, patterns,
+         pitfalls. Return structured findings per section."
 
-Task 3: "Analyze src/db/ for Intent Layer setup. Find: contracts/invariants,
-         entry points for common tasks, pitfalls/surprising behaviors,
-         patterns that must be followed. Return structured findings."
+Task 3: "Analyze src/db/ for Intent Layer setup. Find: code map (find-it-fast
+         + key relationships), public API (exports used by others + core types),
+         external dependencies, data flow, entry points, contracts, patterns,
+         pitfalls. Return structured findings per section."
 
 # Git history analysis (parallel with exploration)
 Task 4: "Run git-history analysis on src/api/. Find bug fixes, reverts,
@@ -315,12 +318,18 @@ Once all agents complete:
 1. **Merge code exploration + git history + PR mining** findings per subsystem
 2. Identify cross-cutting concerns (appear in multiple findings)
 3. Place cross-cutting items in root node
-4. Create child AGENTS.md for each subsystem with:
-   - Code-derived contracts and entry points
-   - Git-history-derived pitfalls and architecture decisions
-   - PR-mining-derived pitfalls, contracts, and rationale
+4. Create child AGENTS.md for each subsystem with all sections:
+   - Purpose + Design Rationale (the "why")
+   - Code Map (find-it-fast + key relationships)
+   - Public API (key exports + core types)
+   - External Dependencies (services + failure modes)
+   - Data Flow (request path)
+   - Decisions (from git history + PR mining)
+   - Entry Points, Contracts, Patterns
+   - Pitfalls (from all sources)
+   - Boundaries, Pre-flight Checks
 5. **Deduplicate** where multiple sources found the same insight
-6. **Prefer PR-sourced rationale** when available (richer "why" context)
+6. **Prefer PR-sourced rationale** for Decisions (richer "why" context)
 
 ### Step 4: Parallel Validation
 
@@ -338,22 +347,48 @@ For each subsystem, use this structured prompt:
 ```markdown
 Explore [DIRECTORY] for Intent Layer documentation. Return:
 
-## Contracts & Invariants
-- What must always be true?
-- What dependencies exist?
+## Design Rationale
+[Why does this module exist? What problem does it solve? What's the core insight?]
+
+## Code Map
+### Find It Fast
+| Looking for... | Go to |
+[What common searches map to which files? Focus on non-obvious locations.]
+
+### Key Relationships
+[Import direction, layer rules, what depends on what]
+
+## Public API
+### Key Exports
+| Export | Used By | Change Impact |
+[What do OTHER modules import from here?]
+
+### Core Types
+[The 3-5 types needed to understand this area]
+
+## External Dependencies
+| Service | Used For | Failure Mode |
+[External services and what happens when down]
+
+## Data Flow
+[How requests/data move through this area - simple diagram]
+
+## Decisions
+| Decision | Why | Rejected |
+[Architectural choices with rationale]
 
 ## Entry Points
 | Task | Start Here |
-|------|------------|
-| [common task] | [file] |
+[Common tasks and where to start]
 
-## Pitfalls
-- What surprises newcomers?
-- What looks wrong but isn't?
+## Contracts
+[Non-type-enforced invariants]
 
 ## Patterns
-- Required patterns for new code
-- Anti-patterns to avoid
+[How to do common tasks - sequence and non-obvious steps]
+
+## Pitfalls
+[What looks wrong but isn't? What looks fine but breaks?]
 
 Keep findings specific to this directory. Note cross-cutting concerns separately.
 ```
@@ -447,8 +482,8 @@ Subdirectory nodes should be `AGENTS.md` (not CLAUDE.md) for cross-tool compatib
 - If you can't compress, scope is too broad → split
 
 ### What to Document
-Keep: contracts, invariants, surprising behaviors, entry points, non-obvious patterns
-Delete: tech stack lists, standard patterns, obvious file purposes
+Keep: code map (non-obvious locations), public API (what others depend on), external dependencies, data flow, decisions with rationale, contracts, patterns (non-obvious steps), pitfalls
+Delete: obvious mappings (routes.ts → routes), type-enforced invariants, internal exports, standard patterns, tech stack lists
 
 </details>
 
@@ -507,14 +542,37 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 
 ## Capture Questions
 
-> **TL;DR**: Ask these when documenting existing code.
+> **TL;DR**: Ask these when documenting existing code. Focus on what agents can't infer from code itself.
 
+### Scope & Navigation
 1. What does this area own? What's explicitly out of scope?
-2. What invariants must never be violated?
-3. What repeatedly confuses new engineers?
-4. What patterns should always be followed?
-5. What operations require extra care? What do you verify before doing them?
-6. What mistakes have happened before? What check would have caught them?
+2. Where do developers commonly search? What's in non-obvious locations?
+3. What are the key relationships between modules? (import direction, layers)
+
+### Public Interface
+4. What exports do OTHER modules actually depend on?
+5. What 3-5 types must someone understand to work here?
+
+### External Dependencies
+6. What external services does this area use? What happens when they're down?
+
+### Design Rationale (the "why")
+7. What problem drove the creation of this module? What pain point does it solve?
+8. What's the core insight or philosophy? What would you lose if you removed it?
+9. What constraints shaped the design? (performance, compatibility, team size, etc.)
+
+### Understanding & Debugging
+10. How does data flow through this area? (request → response path)
+11. Why were specific technical choices made? What alternatives were rejected?
+
+### Consistency & Safety
+12. What invariants must hold that aren't enforced by types?
+13. What patterns must be followed for common tasks?
+14. What operations require verification before proceeding?
+
+### Pitfalls (highest value)
+15. What repeatedly confuses new engineers?
+16. What looks wrong but is correct? What looks correct but will break?
 
 For full protocol: `references/capture-protocol.md`
 
@@ -718,12 +776,12 @@ The `pr-review` sub-skill will:
 
 ```yaml
 - name: Check Intent Layer
-  run: ~/.claude/skills/intent-layer/scripts/detect_state.sh .
+  run: ${CLAUDE_PLUGIN_ROOT}/scripts/detect_state.sh .
 
 - name: PR Review (if Intent Layer exists)
   if: github.event_name == 'pull_request'
   run: |
-    ~/.claude/skills/intent-layer/scripts/review_pr.sh origin/main HEAD --exit-code
+    ${CLAUDE_PLUGIN_ROOT}/scripts/review_pr.sh origin/main HEAD --exit-code
 ```
 
 ### Related Skills

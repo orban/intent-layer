@@ -313,4 +313,4 @@ This skill uses scripts from the `intent-layer` skill:
 - `references/capture-workflow-agent.md` - Agent-driven capture workflow
 - `references/agent-feedback-protocol.md` - How agents surface missing context
 
-All paths: `~/.claude/skills/intent-layer/`
+All paths: `${CLAUDE_PLUGIN_ROOT}/`
