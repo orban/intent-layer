@@ -64,6 +64,7 @@ Scripts are standalone bash tools in `intent-layer/scripts/`. All support `-h`/`
 
 `intent-layer` handles initial setup (state = none/partial).
 `intent-layer-maintenance` handles ongoing maintenance (state = complete).
+`intent-layer:clean` removes Intent Layer from a repo (deletes child AGENTS.md, strips section from root).
 
 The maintenance skill references scripts from intent-layer via `~/.claude/skills/intent-layer/scripts/`.
 
