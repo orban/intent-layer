@@ -63,7 +63,7 @@ if [[ -d "$PENDING_DIR" ]]; then
             [[ -n "$f" ]] && echo "- \`$(basename "$f")\`"
         done)
 
-        CONTEXT_PARTS+=("## Intent Layer: Pending Mistake Reports
+        CONTEXT_PARTS+=("## Intent Layer: Pending Learning Reports
 
 There are **$PENDING_COUNT pending report(s)** awaiting review:
 
@@ -72,13 +72,16 @@ $FILE_LIST
 **Agent: Offer to help the user review these interactively.**
 
 When the user agrees, for each report:
-1. **Read** the file and present a summary (directory, operation, what happened)
-2. **Analyze** whether it's a genuine mistake or exploratory failure
-3. **Ask** the user: Accept (add pitfall), Reject (not useful), or Discard (exploratory)?
+1. **Read** the file and present a summary (type, directory, what was learned)
+2. **Analyze** whether it's worth documenting
+3. **Ask** the user: Accept, Reject, or Discard?
 4. **Execute** based on choice:
-   - **Accept**: Run \`${CLAUDE_PLUGIN_ROOT}/lib/integrate_pitfall.sh <file>\` to auto-add pitfall
-   - **Reject**: Ask for reason, then \`mv <file> $PROJECT_ROOT/.intent-layer/mistakes/rejected/\`
-   - **Discard**: \`rm <file>\` (skeleton was exploratory, not a real mistake)
+   - **Accept**: Run \`${CLAUDE_PLUGIN_ROOT}/lib/integrate_pitfall.sh <file>\`
+   - **Reject**: Ask for reason, move to \`$PROJECT_ROOT/.intent-layer/mistakes/rejected/\`
+   - **Discard**: \`rm <file>\`
+
+**Proactive capture**: If you discover something worth documenting during this session, use:
+\`${CLAUDE_PLUGIN_ROOT}/scripts/capture_mistake.sh --type [pitfall|check|pattern|insight]\`
 
 Pending directory: \`$PENDING_DIR\`")
     fi

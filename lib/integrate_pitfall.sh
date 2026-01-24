@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Integrate an accepted mistake into the covering AGENTS.md
-# Usage: integrate_pitfall.sh <mistake_file>
+# Integrate an accepted learning into the covering AGENTS.md
+# Usage: integrate_pitfall.sh <learning_file>
+# Note: Name kept for backwards compatibility - handles all learning types
 
 set -euo pipefail
 
@@ -9,64 +10,77 @@ source "$SCRIPT_DIR/common.sh"
 
 show_help() {
     cat << 'EOF'
-integrate_pitfall.sh - Add pitfall from accepted mistake to AGENTS.md
+integrate_pitfall.sh - Add learning to appropriate AGENTS.md section
 
 USAGE:
-    integrate_pitfall.sh <mistake_file> [OPTIONS]
+    integrate_pitfall.sh <learning_file> [OPTIONS]
 
 ARGUMENTS:
-    mistake_file    Path to accepted MISTAKE-*.md file
+    learning_file   Path to accepted learning report (PITFALL-*.md, CHECK-*.md, etc.)
 
 OPTIONS:
     -h, --help           Show this help
     -n, --dry-run        Show what would be done without modifying files
-    -f, --force          Overwrite even if pitfall seems to exist
+    -f, --force          Overwrite even if entry seems to exist
+    -s, --section NAME   Override target section (Pitfalls, Checks, Patterns, Context)
+
+LEARNING TYPES → TARGET SECTIONS:
+    pitfall  → ## Pitfalls
+    check    → ## Checks
+    pattern  → ## Patterns
+    insight  → ## Context
 
 WORKFLOW:
-    1. Reads the accepted mistake report
-    2. Finds the covering AGENTS.md using find_covering_node.sh
-    3. Extracts/generates a pitfall entry
-    4. Appends to the ## Pitfalls section
-    5. Moves mistake to .intent-layer/mistakes/integrated/
+    1. Reads the accepted learning report
+    2. Detects learning type from report
+    3. Finds the covering AGENTS.md using find_covering_node.sh
+    4. Extracts/generates an entry for the appropriate section
+    5. Appends to the target section (creates if missing)
+    6. Moves report to .intent-layer/mistakes/integrated/
 
 EXIT CODES:
-    0    Pitfall integrated successfully
+    0    Learning integrated successfully
     1    Error (file not found, no covering node, etc.)
-    2    Pitfall already exists (use --force to override)
+    2    Entry already exists (use --force to override)
 EOF
     exit 0
 }
 
-MISTAKE_FILE=""
+LEARNING_FILE=""
 DRY_RUN=false
 FORCE=false
+OVERRIDE_SECTION=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help ;;
         -n|--dry-run) DRY_RUN=true; shift ;;
         -f|--force) FORCE=true; shift ;;
+        -s|--section) OVERRIDE_SECTION="$2"; shift 2 ;;
         -*)
             echo "Error: Unknown option: $1" >&2
             exit 1
             ;;
         *)
-            MISTAKE_FILE="$1"
+            LEARNING_FILE="$1"
             shift
             ;;
     esac
 done
 
-if [[ -z "$MISTAKE_FILE" ]]; then
-    echo "Error: Mistake file required" >&2
-    echo "Usage: integrate_pitfall.sh <mistake_file>" >&2
+if [[ -z "$LEARNING_FILE" ]]; then
+    echo "Error: Learning file required" >&2
+    echo "Usage: integrate_pitfall.sh <learning_file>" >&2
     exit 1
 fi
 
-if [[ ! -f "$MISTAKE_FILE" ]]; then
-    echo "Error: File not found: $MISTAKE_FILE" >&2
+if [[ ! -f "$LEARNING_FILE" ]]; then
+    echo "Error: File not found: $LEARNING_FILE" >&2
     exit 1
 fi
+
+# Backwards compatibility alias
+MISTAKE_FILE="$LEARNING_FILE"
 
 # Extract fields from mistake report
 extract_field() {
@@ -88,11 +102,56 @@ extract_section() {
     ' "$file" | sed '/^$/d' | head -10
 }
 
-DIRECTORY=$(extract_field "$MISTAKE_FILE" '^\*\*Directory\*\*')
-OPERATION=$(extract_field "$MISTAKE_FILE" '^\*\*Operation\*\*')
-WHAT_HAPPENED=$(extract_section "$MISTAKE_FILE" "What Happened")
-ROOT_CAUSE=$(extract_section "$MISTAKE_FILE" "Root Cause")
-SUGGESTED_FIX=$(extract_section "$MISTAKE_FILE" "Suggested Fix")
+# Detect learning type from filename or content
+LEARNING_TYPE=""
+FILENAME=$(basename "$LEARNING_FILE")
+case "$FILENAME" in
+    PITFALL-*|MISTAKE-*|SKELETON-*) LEARNING_TYPE="pitfall" ;;
+    CHECK-*)    LEARNING_TYPE="check" ;;
+    PATTERN-*)  LEARNING_TYPE="pattern" ;;
+    INSIGHT-*)  LEARNING_TYPE="insight" ;;
+    *)
+        # Try to extract from file content
+        LEARNING_TYPE=$(extract_field "$LEARNING_FILE" '^\*\*Type\*\*')
+        LEARNING_TYPE=${LEARNING_TYPE:-pitfall}
+        ;;
+esac
+
+echo "Detected learning type: $LEARNING_TYPE"
+
+# Map learning type to target section
+if [[ -n "$OVERRIDE_SECTION" ]]; then
+    TARGET_SECTION="$OVERRIDE_SECTION"
+else
+    case "$LEARNING_TYPE" in
+        pitfall) TARGET_SECTION="Pitfalls" ;;
+        check)   TARGET_SECTION="Checks" ;;
+        pattern) TARGET_SECTION="Patterns" ;;
+        insight) TARGET_SECTION="Context" ;;
+        *)       TARGET_SECTION="Pitfalls" ;;
+    esac
+fi
+
+echo "Target section: ## $TARGET_SECTION"
+
+DIRECTORY=$(extract_field "$LEARNING_FILE" '^\*\*Directory\*\*')
+OPERATION=$(extract_field "$LEARNING_FILE" '^\*\*Operation\*\*')
+
+# Extract content based on learning type - try multiple section names
+WHAT_HAPPENED=$(extract_section "$LEARNING_FILE" "What Happened")
+[[ -z "$WHAT_HAPPENED" ]] && WHAT_HAPPENED=$(extract_section "$LEARNING_FILE" "What Went Wrong")
+[[ -z "$WHAT_HAPPENED" ]] && WHAT_HAPPENED=$(extract_section "$LEARNING_FILE" "Check Needed")
+[[ -z "$WHAT_HAPPENED" ]] && WHAT_HAPPENED=$(extract_section "$LEARNING_FILE" "Better Approach")
+[[ -z "$WHAT_HAPPENED" ]] && WHAT_HAPPENED=$(extract_section "$LEARNING_FILE" "Key Insight")
+
+ROOT_CAUSE=$(extract_section "$LEARNING_FILE" "Root Cause")
+[[ -z "$ROOT_CAUSE" ]] && ROOT_CAUSE=$(extract_section "$LEARNING_FILE" "Why This Matters")
+
+SUGGESTED_FIX=$(extract_section "$LEARNING_FILE" "Suggested Fix")
+[[ -z "$SUGGESTED_FIX" ]] && SUGGESTED_FIX=$(extract_section "$LEARNING_FILE" "Suggested Pitfall Entry")
+[[ -z "$SUGGESTED_FIX" ]] && SUGGESTED_FIX=$(extract_section "$LEARNING_FILE" "Suggested Check Entry")
+[[ -z "$SUGGESTED_FIX" ]] && SUGGESTED_FIX=$(extract_section "$LEARNING_FILE" "Suggested Pattern Entry")
+[[ -z "$SUGGESTED_FIX" ]] && SUGGESTED_FIX=$(extract_section "$LEARNING_FILE" "Suggested Context Entry")
 
 if [[ -z "$DIRECTORY" || "$DIRECTORY" == "unknown" ]]; then
     echo "Error: Cannot determine directory from mistake report" >&2
@@ -116,117 +175,143 @@ fi
 
 echo "Found covering node: $COVERING_NODE"
 
-# Generate pitfall entry
-# Try to extract from Suggested Fix, otherwise generate from What Happened
-PITFALL_TITLE=""
-PITFALL_BODY=""
+# Generate entry based on learning type
+ENTRY_TITLE=""
+ENTRY_BODY=""
 
 if [[ -n "$SUGGESTED_FIX" && "$SUGGESTED_FIX" != "_Awaiting analysis_" ]]; then
-    # Try to extract a meaningful pitfall from the suggested fix
-    PITFALL_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
-    PITFALL_BODY="$ROOT_CAUSE"
+    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
+    ENTRY_BODY="$ROOT_CAUSE"
 elif [[ -n "$ROOT_CAUSE" && "$ROOT_CAUSE" != "_Awaiting analysis_" ]]; then
-    PITFALL_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
-    PITFALL_BODY="$ROOT_CAUSE"
+    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
+    ENTRY_BODY="$ROOT_CAUSE"
 else
-    PITFALL_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
-    PITFALL_BODY="$WHAT_HAPPENED"
+    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
+    ENTRY_BODY="$WHAT_HAPPENED"
 fi
 
-# Clean up the pitfall
-PITFALL_TITLE=$(echo "$PITFALL_TITLE" | sed 's/^ *//;s/ *$//')
-PITFALL_BODY=$(echo "$PITFALL_BODY" | tr '\n' ' ' | sed 's/  */ /g;s/^ *//;s/ *$//' | head -c 200)
+# Clean up the entry
+ENTRY_TITLE=$(echo "$ENTRY_TITLE" | sed 's/^ *//;s/ *$//')
+ENTRY_BODY=$(echo "$ENTRY_BODY" | tr '\n' ' ' | sed 's/  */ /g;s/^ *//;s/ *$//' | head -c 200)
 
-if [[ -z "$PITFALL_TITLE" ]]; then
-    PITFALL_TITLE="Untitled pitfall"
+if [[ -z "$ENTRY_TITLE" ]]; then
+    ENTRY_TITLE="Untitled $LEARNING_TYPE"
 fi
 
-# Format the pitfall entry
-PITFALL_ENTRY="### $PITFALL_TITLE
+# Format entry based on learning type
+case "$LEARNING_TYPE" in
+    check)
+        # Checks are formatted as checklists
+        LEARNING_ENTRY="### Before $ENTRY_TITLE
+- [ ] $ENTRY_BODY
 
-$PITFALL_BODY
+_Source: $(basename "$LEARNING_FILE")_"
+        ;;
+    pattern)
+        # Patterns show the preferred approach
+        LEARNING_ENTRY="### $ENTRY_TITLE
 
-_Source: $(basename "$MISTAKE_FILE")_"
+**Preferred**: $ENTRY_BODY
+
+_Source: $(basename "$LEARNING_FILE")_"
+        ;;
+    insight)
+        # Insights are contextual notes
+        LEARNING_ENTRY="### $ENTRY_TITLE
+
+$ENTRY_BODY
+
+_Source: $(basename "$LEARNING_FILE")_"
+        ;;
+    *)
+        # Default pitfall format
+        LEARNING_ENTRY="### $ENTRY_TITLE
+
+$ENTRY_BODY
+
+_Source: $(basename "$LEARNING_FILE")_"
+        ;;
+esac
 
 echo ""
-echo "Generated pitfall entry:"
+echo "Generated $LEARNING_TYPE entry:"
 echo "---"
-echo "$PITFALL_ENTRY"
+echo "$LEARNING_ENTRY"
 echo "---"
 echo ""
 
-# Check if similar pitfall already exists
+# Check if similar entry already exists
 if ! $FORCE; then
-    if grep -qi "$(echo "$PITFALL_TITLE" | head -c 20)" "$COVERING_NODE" 2>/dev/null; then
-        echo "Warning: Similar pitfall may already exist in $COVERING_NODE" >&2
+    if grep -qi "$(echo "$ENTRY_TITLE" | head -c 20)" "$COVERING_NODE" 2>/dev/null; then
+        echo "Warning: Similar entry may already exist in $COVERING_NODE" >&2
         echo "Use --force to add anyway" >&2
         exit 2
     fi
 fi
 
 if $DRY_RUN; then
-    echo "[DRY RUN] Would append pitfall to: $COVERING_NODE"
-    echo "[DRY RUN] Would move $MISTAKE_FILE to integrated/"
+    echo "[DRY RUN] Would append to ## $TARGET_SECTION in: $COVERING_NODE"
+    echo "[DRY RUN] Would move $LEARNING_FILE to integrated/"
     exit 0
 fi
 
-# Check if Pitfalls section exists
-if ! grep -q '^## Pitfalls' "$COVERING_NODE"; then
-    echo "Adding ## Pitfalls section to $COVERING_NODE"
+# Check if target section exists, create if not
+if ! grep -q "^## $TARGET_SECTION" "$COVERING_NODE"; then
+    echo "Adding ## $TARGET_SECTION section to $COVERING_NODE"
     echo "" >> "$COVERING_NODE"
-    echo "## Pitfalls" >> "$COVERING_NODE"
+    echo "## $TARGET_SECTION" >> "$COVERING_NODE"
     echo "" >> "$COVERING_NODE"
 fi
 
-# Append pitfall entry after the ## Pitfalls header
-# We write the pitfall to a temp file and use sed to insert it
+# Append entry after the target section header
 TEMP_FILE=$(mktemp)
-PITFALL_FILE=$(mktemp)
+ENTRY_FILE=$(mktemp)
 
-# Write pitfall to temp file (preserves newlines properly)
-printf '%s\n\n' "$PITFALL_ENTRY" > "$PITFALL_FILE"
+# Write entry to temp file (preserves newlines properly)
+printf '%s\n\n' "$LEARNING_ENTRY" > "$ENTRY_FILE"
 
-# Find the line number of "## Pitfalls"
-PITFALL_LINE=$(grep -n '^## Pitfalls' "$COVERING_NODE" | head -1 | cut -d: -f1)
+# Find the line number of the target section
+SECTION_LINE=$(grep -n "^## $TARGET_SECTION" "$COVERING_NODE" | head -1 | cut -d: -f1)
 
-if [[ -z "$PITFALL_LINE" ]]; then
-    echo "Error: Could not find ## Pitfalls section" >&2
-    rm -f "$PITFALL_FILE"
+if [[ -z "$SECTION_LINE" ]]; then
+    echo "Error: Could not find ## $TARGET_SECTION section" >&2
+    rm -f "$ENTRY_FILE"
     exit 1
 fi
 
-# Insert after the Pitfalls header (skip one blank line if present)
-# Strategy: head to get lines up to and including header + 1, cat pitfall, tail for rest
-NEXT_LINE=$((PITFALL_LINE + 1))
+# Insert after the section header (skip one blank line if present)
+NEXT_LINE=$((SECTION_LINE + 1))
 TOTAL_LINES=$(wc -l < "$COVERING_NODE" | tr -d ' ')
 
-# Get everything up to the line after ## Pitfalls
+# Get everything up to the line after the section header
 head -n "$NEXT_LINE" "$COVERING_NODE" > "$TEMP_FILE"
 # Add blank line if not already present
 [[ $(tail -c 1 "$TEMP_FILE" | wc -l) -eq 0 ]] && echo "" >> "$TEMP_FILE"
-# Add the pitfall
-cat "$PITFALL_FILE" >> "$TEMP_FILE"
+# Add the entry
+cat "$ENTRY_FILE" >> "$TEMP_FILE"
 # Add the rest of the file (if any)
 if [[ "$NEXT_LINE" -lt "$TOTAL_LINES" ]]; then
     tail -n "+$((NEXT_LINE + 1))" "$COVERING_NODE" >> "$TEMP_FILE"
 fi
 
-rm -f "$PITFALL_FILE"
+rm -f "$ENTRY_FILE"
 mv "$TEMP_FILE" "$COVERING_NODE"
-echo "✓ Pitfall added to $COVERING_NODE"
+echo "✓ $LEARNING_TYPE added to ## $TARGET_SECTION in $COVERING_NODE"
 
-# Move mistake to integrated
-MISTAKE_DIR=$(dirname "$MISTAKE_FILE")
-INTEGRATED_DIR="${MISTAKE_DIR%/pending}/integrated"
+# Move learning to integrated
+LEARNING_DIR=$(dirname "$LEARNING_FILE")
+INTEGRATED_DIR="${LEARNING_DIR%/pending}/integrated"
 mkdir -p "$INTEGRATED_DIR"
 
-# Mark as integrated in the file
-sed -i.bak 's/- \[ \] Pitfall added/- [x] Pitfall added/' "$MISTAKE_FILE" 2>/dev/null || \
-    sed -i '' 's/- \[ \] Pitfall added/- [x] Pitfall added/' "$MISTAKE_FILE"
-rm -f "$MISTAKE_FILE.bak"
+# Mark as integrated in the file (try various formats)
+sed -i.bak 's/- \[ \] Pitfall added/- [x] Pitfall added/' "$LEARNING_FILE" 2>/dev/null || \
+    sed -i '' 's/- \[ \] Pitfall added/- [x] Pitfall added/' "$LEARNING_FILE" 2>/dev/null || true
+sed -i.bak 's/- \[ \] Added to AGENTS.md/- [x] Added to AGENTS.md/' "$LEARNING_FILE" 2>/dev/null || \
+    sed -i '' 's/- \[ \] Added to AGENTS.md/- [x] Added to AGENTS.md/' "$LEARNING_FILE" 2>/dev/null || true
+rm -f "$LEARNING_FILE.bak"
 
-mv "$MISTAKE_FILE" "$INTEGRATED_DIR/"
+mv "$LEARNING_FILE" "$INTEGRATED_DIR/"
 echo "✓ Moved to $INTEGRATED_DIR/"
 
 echo ""
-echo "Integration complete!"
+echo "Integration complete! ($LEARNING_TYPE → ## $TARGET_SECTION)"
