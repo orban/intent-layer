@@ -25,7 +25,7 @@ EOF
 
 # Escape regex special chars: . * [ ] ^ $ \ + ? { } | ( )
 escape_regex() {
-    printf '%s\n' "$1" | sed 's/[.[\*^$()+?{|\\]/\\&/g'
+    printf '%s\n' "$1" | sed 's/[].[*^$()+?{|\\]/\\&/g'
 }
 
 DIRECTORY=""
@@ -111,7 +111,7 @@ if [[ "$JSON_OUTPUT" == true ]]; then
         jq -n \
             --arg dir "$DIRECTORY" \
             --argjson count "$COUNT" \
-            --argjson high_risk "$($HIGH_RISK && echo true || echo false)" \
+            --argjson high_risk "$([[ $HIGH_RISK == true ]] && echo true || echo false)" \
             '{directory: $dir, count: $count, high_risk: $high_risk}'
     else
         # Fallback: escape quotes manually
