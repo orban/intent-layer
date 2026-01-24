@@ -23,6 +23,11 @@ EOF
     exit 0
 }
 
+# Escape regex special chars: . * [ ] ^ $ \ + ? { } | ( )
+escape_regex() {
+    printf '%s\n' "$1" | sed 's/[.[\*^$()+?{|\\]/\\&/g'
+}
+
 DIRECTORY=""
 THRESHOLD=2
 JSON_OUTPUT=false
@@ -88,7 +93,9 @@ for subdir in pending accepted; do
 
     # Count matches (grep -l lists files with matches)
     # Use quotes around path to handle spaces
-    matches=$(grep -l "^\*\*Directory\*\*:.*$REL_DIR" "$mistakes_path"/*.md 2>/dev/null | wc -l || echo 0)
+    # Escape regex metacharacters in directory path
+    ESCAPED_REL_DIR=$(escape_regex "$REL_DIR")
+    matches=$(grep -l "^\*\*Directory\*\*:.*$ESCAPED_REL_DIR" "$mistakes_path"/*.md 2>/dev/null | wc -l || echo 0)
     # Trim whitespace from wc output (macOS adds leading spaces)
     matches=$(echo "$matches" | tr -d ' ')
     COUNT=$((COUNT + matches))
@@ -100,7 +107,17 @@ if [[ "$COUNT" -ge "$THRESHOLD" ]]; then
 fi
 
 if [[ "$JSON_OUTPUT" == true ]]; then
-    echo "{\"directory\": \"$DIRECTORY\", \"count\": $COUNT, \"high_risk\": $HIGH_RISK}"
+    if command -v jq &>/dev/null; then
+        jq -n \
+            --arg dir "$DIRECTORY" \
+            --argjson count "$COUNT" \
+            --argjson high_risk "$($HIGH_RISK && echo true || echo false)" \
+            '{directory: $dir, count: $count, high_risk: $high_risk}'
+    else
+        # Fallback: escape quotes manually
+        ESC_DIR="${DIRECTORY//\"/\\\"}"
+        echo "{\"directory\": \"$ESC_DIR\", \"count\": $COUNT, \"high_risk\": $HIGH_RISK}"
+    fi
 fi
 
 # Exit 0 for high-risk, 1 for low-risk
