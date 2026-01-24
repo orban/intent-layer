@@ -1,0 +1,51 @@
+{
+  "description": "Intent Layer learning loop - captures mistakes and injects learnings",
+  "hooks": {
+    "PostToolUseFailure": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/capture-tool-failure.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/inject-learnings.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-edit-check.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "You are evaluating whether this session discovered any learnings that should be captured for the Intent Layer.\n\nContext: $ARGUMENTS\n\nAnalyze the session and determine if:\n1. Any unexpected behaviors were discovered (things that worked differently than expected)\n2. The user corrected any assumptions you made about the codebase\n3. You had to figure out something that should have been documented\n\nIf genuine learnings were discovered, respond with:\n{\"ok\": false, \"reason\": \"Before ending, please run: ~/.claude/skills/intent-layer/scripts/capture_mistake.sh to capture: [brief description of the learning]\"}\n\nIf no significant learnings (normal exploration, expected behaviors, successful work), respond with:\n{\"ok\": true}\n\nBe conservative - only flag genuine documentation gaps, not normal development activities.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
