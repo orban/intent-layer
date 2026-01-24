@@ -17,9 +17,22 @@ OPTIONS:
 
 OUTPUT:
     Path to covering AGENTS.md/CLAUDE.md, or empty if none found.
-    With --section, outputs the section content instead.
+    With --section, outputs the section content including the header line.
 EOF
     exit 0
+}
+
+# Resolve symlinks cross-platform (macOS + Linux)
+resolve_path() {
+    local path="$1"
+    if command -v realpath &>/dev/null; then
+        realpath "$path"
+    elif command -v readlink &>/dev/null && readlink -f "$path" &>/dev/null 2>&1; then
+        readlink -f "$path"
+    else
+        # Fallback: use cd/pwd
+        echo "$(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
+    fi
 }
 
 FILE_PATH=""
@@ -47,6 +60,16 @@ fi
 if [[ "$FILE_PATH" != /* ]]; then
     FILE_PATH="${CLAUDE_PROJECT_DIR:-$(pwd)}/$FILE_PATH"
 fi
+
+# Validate the parent directory exists before proceeding
+FILE_DIR="$(dirname "$FILE_PATH")"
+if [[ ! -d "$FILE_DIR" ]]; then
+    echo "Error: Parent directory does not exist: $FILE_DIR" >&2
+    exit 1
+fi
+
+# Resolve symlinks for consistent path handling
+FILE_PATH="$(resolve_path "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
 
 # Start from file's directory
 if [[ -d "$FILE_PATH" ]]; then
@@ -76,11 +99,19 @@ if [[ -z "$NODE_PATH" ]]; then
     exit 0
 fi
 
+# Verify file is readable before processing
+if [[ ! -r "$NODE_PATH" ]]; then
+    echo "Error: Cannot read node file: $NODE_PATH" >&2
+    exit 1
+fi
+
 if [[ -n "$SECTION" ]]; then
+    # Extract section content including header line
+    # Uses exact section name match to avoid partial matches (e.g., "Pit" matching "Pitfalls")
     awk -v section="$SECTION" '
         /^## / {
             if (found) exit
-            if ($0 ~ "^## .*"section) found=1
+            if ($0 == "## " section) found=1
         }
         found { print }
     ' "$NODE_PATH"
