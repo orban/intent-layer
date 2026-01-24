@@ -278,6 +278,78 @@ else
 fi
 
 # =============================================================================
+# TEST 7: Different Learning Types
+# =============================================================================
+
+step "Test 7: Different learning types integrate to correct sections"
+
+# Test CHECK type
+CHECK_ID="CHECK-$(date +%Y-%m-%d)-$(printf '%04d' $RANDOM)"
+CHECK_FILE="$TEST_DIR/.intent-layer/mistakes/pending/$CHECK_ID.md"
+mkdir -p "$TEST_DIR/.intent-layer/mistakes/pending"
+
+cat > "$CHECK_FILE" << EOF
+## Learning Report
+**ID**: $CHECK_ID
+**Type**: check
+**Directory**: $TEST_DIR/src/api
+**Operation**: Database migration
+
+### Check Needed
+Verify backup exists before running migration
+
+### Why This Matters
+Lost data once when migration failed mid-way
+EOF
+
+# Run integration
+cd "$TEST_DIR"
+integration_output=$("$PLUGIN_DIR/lib/integrate_pitfall.sh" "$CHECK_FILE" 2>&1 || true)
+
+# Verify Check section was created and entry added
+if grep -q "## Checks" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null; then
+    pass "## Checks section created for check type"
+else
+    fail "## Checks section not created"
+fi
+
+# Test PATTERN type
+PATTERN_ID="PATTERN-$(date +%Y-%m-%d)-$(printf '%04d' $RANDOM)"
+PATTERN_FILE="$TEST_DIR/.intent-layer/mistakes/pending/$PATTERN_ID.md"
+
+cat > "$PATTERN_FILE" << EOF
+## Learning Report
+**ID**: $PATTERN_ID
+**Type**: pattern
+**Directory**: $TEST_DIR/src/api
+**Operation**: Error handling
+
+### Better Approach
+Use Result types instead of throwing exceptions
+
+### Why This Matters
+Makes error handling explicit and type-safe
+EOF
+
+integration_output=$("$PLUGIN_DIR/lib/integrate_pitfall.sh" "$PATTERN_FILE" 2>&1 || true)
+
+if grep -q "## Patterns" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null; then
+    pass "## Patterns section created for pattern type"
+else
+    fail "## Patterns section not created"
+fi
+
+# Verify all sections exist
+if grep -q "## Pitfalls" "$TEST_DIR/src/api/AGENTS.md" && \
+   grep -q "## Checks" "$TEST_DIR/src/api/AGENTS.md" && \
+   grep -q "## Patterns" "$TEST_DIR/src/api/AGENTS.md"; then
+    pass "All learning type sections created correctly"
+else
+    fail "Not all sections created"
+    cat "$TEST_DIR/src/api/AGENTS.md"
+fi
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 

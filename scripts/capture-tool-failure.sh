@@ -87,15 +87,16 @@ fi
 
 # Write skeleton report
 cat > "$REPORT_FILE" << EOF
-## Mistake Report (Skeleton)
+## Learning Report (Skeleton)
 
 **ID**: $REPORT_ID
+**Type**: pitfall
 **Timestamp**: $TIMESTAMP
 **Directory**: $TARGET_DIR
 **Operation**: $OPERATION
 **Status**: skeleton (awaiting enrichment)
 
-### What Happened
+### What Went Wrong
 <!-- Auto-captured: Tool failure detected -->
 Tool \`$TOOL_NAME\` failed during operation.
 
@@ -103,7 +104,7 @@ $CONTEXT_DETAILS
 ### How Discovered
 - [x] Agent self-caught (automatic capture)
 
-### Root Cause
+### Why This Matters
 <!-- To be filled by Stop hook or human review -->
 _Awaiting analysis_
 
@@ -111,17 +112,16 @@ _Awaiting analysis_
 - **Covering node**: $COVERING_NODE
 - **Missing content**: _Awaiting analysis_
 
-### Suggested Fix
+### Suggested Pitfall Entry
 <!-- To be filled by Stop hook or human review -->
 _Awaiting analysis_
 
 ### Disposition
 <!-- Filled during review -->
-- [ ] Check added to AGENTS.md
-- [ ] Pitfall added to AGENTS.md
+- [ ] Added to AGENTS.md (section: ________)
 - [ ] Rejected (reason: _______)
 - [ ] Deferred (reason: _______)
-- [ ] Discarded (exploratory failure, not a real mistake)
+- [ ] Discarded (exploratory failure, not a real learning)
 EOF
 
 # Output context to inform agent
