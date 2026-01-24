@@ -44,7 +44,22 @@ fi
 
 NODE_PATH=$("$FIND_NODE" "$FILE_PATH" 2>/dev/null || true)
 
+# If no covering node found, warn about uncovered directory
 if [[ -z "$NODE_PATH" ]]; then
+    # Only warn for source files, not configs/docs
+    case "$FILE_PATH" in
+        *.ts|*.js|*.tsx|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.sh)
+            CONTEXT="## Intent Layer: Uncovered Directory
+
+**Editing:** \`$FILE_PATH\`
+**Coverage:** ⚠️ No covering AGENTS.md found
+
+This directory isn't documented in the Intent Layer. Consider:
+- Adding an AGENTS.md if this is a key module
+- Running \`/intent-layer-maintenance\` to review coverage"
+            output_context "PreToolUse" "$CONTEXT"
+            ;;
+    esac
     exit 0
 fi
 
