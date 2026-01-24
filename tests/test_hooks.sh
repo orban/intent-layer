@@ -105,8 +105,72 @@ else
     fail "plugin.json missing hooks reference"
 fi
 
-# Test 10: All lib scripts have --help
-echo "Test 10: Library scripts have --help"
+# Test 10: SessionStart uses stronger language for missing Intent Layer
+echo "Test 10: SessionStart uses stronger language"
+TEMP_PROJECT=$(mktemp -d)
+export CLAUDE_PROJECT_DIR="$TEMP_PROJECT"
+output=$("$PLUGIN_DIR/scripts/inject-learnings.sh" 2>&1 || true)
+if echo "$output" | grep -q "⚠️ Intent Layer: Not Configured"; then
+    pass "SessionStart shows warning emoji for missing Intent Layer"
+else
+    fail "SessionStart should show ⚠️ for missing Intent Layer: $output"
+fi
+rm -rf "$TEMP_PROJECT"
+unset CLAUDE_PROJECT_DIR
+
+# Test 11: PostToolUse detects new directories
+echo "Test 11: PostToolUse detects new directories"
+TEMP_PROJECT=$(mktemp -d)
+# Create parent with AGENTS.md (coverage exists)
+mkdir -p "$TEMP_PROJECT/src"
+echo "# AGENTS.md" > "$TEMP_PROJECT/src/AGENTS.md"
+# Create new subdirectory with one file
+mkdir -p "$TEMP_PROJECT/src/utils"
+touch "$TEMP_PROJECT/src/utils/helper.ts"
+# Run post-edit-check with the new file
+output=$("$PLUGIN_DIR/scripts/post-edit-check.sh" "{\"file_path\": \"$TEMP_PROJECT/src/utils/helper.ts\"}" 2>&1 || true)
+if echo "$output" | grep -q "📁 New directory"; then
+    pass "PostToolUse detects new directory"
+else
+    fail "PostToolUse should detect new directory: $output"
+fi
+rm -rf "$TEMP_PROJECT"
+
+# Test 12: PostToolUse ignores excluded directories
+echo "Test 12: PostToolUse ignores excluded directories"
+TEMP_PROJECT=$(mktemp -d)
+mkdir -p "$TEMP_PROJECT/src"
+echo "# AGENTS.md" > "$TEMP_PROJECT/src/AGENTS.md"
+mkdir -p "$TEMP_PROJECT/src/node_modules/pkg"
+touch "$TEMP_PROJECT/src/node_modules/pkg/index.js"
+output=$("$PLUGIN_DIR/scripts/post-edit-check.sh" "{\"file_path\": \"$TEMP_PROJECT/src/node_modules/pkg/index.js\"}" 2>&1 || true)
+if echo "$output" | grep -q "📁 New directory"; then
+    fail "PostToolUse should ignore node_modules"
+else
+    pass "PostToolUse ignores excluded directory (node_modules)"
+fi
+rm -rf "$TEMP_PROJECT"
+
+# Test 13: PostToolUse ignores established directories
+echo "Test 13: PostToolUse ignores established directories"
+TEMP_PROJECT=$(mktemp -d)
+mkdir -p "$TEMP_PROJECT/src"
+echo "# AGENTS.md" > "$TEMP_PROJECT/src/AGENTS.md"
+mkdir -p "$TEMP_PROJECT/src/utils"
+# Create 5 files to make it "established"
+for i in 1 2 3 4 5; do
+    touch "$TEMP_PROJECT/src/utils/file$i.ts"
+done
+output=$("$PLUGIN_DIR/scripts/post-edit-check.sh" "{\"file_path\": \"$TEMP_PROJECT/src/utils/file5.ts\"}" 2>&1 || true)
+if echo "$output" | grep -q "📁 New directory"; then
+    fail "PostToolUse should ignore established directory (5 files)"
+else
+    pass "PostToolUse ignores established directory"
+fi
+rm -rf "$TEMP_PROJECT"
+
+# Test 14: All lib scripts have --help
+echo "Test 14: Library scripts have --help"
 failed_help=0
 checked=0
 for script in "$PLUGIN_DIR/lib"/*.sh; do

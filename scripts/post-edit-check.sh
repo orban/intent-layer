@@ -24,7 +24,8 @@ if [[ -z "$TOOL_INPUT" ]]; then
 fi
 
 # Extract file_path from JSON (simple extraction, avoids jq dependency)
-FILE_PATH=$(echo "$TOOL_INPUT" | grep -oE '"file_path"\s*:\s*"[^"]*"' | sed 's/"file_path"\s*:\s*"//' | sed 's/"$//' || true)
+# Use POSIX character classes for cross-platform compatibility
+FILE_PATH=$(echo "$TOOL_INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || true)
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0  # No file path found, silently exit
@@ -110,3 +111,57 @@ RELATIVE_PATH="${FILE_PATH#$NODE_DIR/}"
 # Output reminder (this is what Claude sees)
 echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
 echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+
+# --- New Directory Detection ---
+# Check if this file was written to a new directory that may need AGENTS.md
+
+# Directories that never need AGENTS.md
+is_excluded_directory() {
+    local dir_name="$1"
+    case "$dir_name" in
+        node_modules|.git|.svn|.hg|build|dist|out|target|__pycache__|.cache|\
+        .next|.nuxt|.output|coverage|.nyc_output|.pytest_cache|.mypy_cache|\
+        vendor|deps|_deps|packages|.packages|.pub-cache|Pods|.gradle|.idea|\
+        .vscode|.github|.gitlab|.circleci|.husky|.yarn|.pnp|tmp|temp|logs)
+            return 0
+            ;;
+        .*)
+            # All dotfile directories are excluded
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# Check if directory is "new" (has very few files)
+is_new_directory() {
+    local dir="$1"
+    local file_count
+    # Count files (not directories) in this directory only
+    file_count=$(find "$dir" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')
+    [[ "$file_count" -le 2 ]]
+}
+
+# Check if parent directory has Intent Layer coverage
+parent_has_coverage() {
+    local dir="$1"
+    local parent
+    parent=$(dirname "$dir")
+    [[ -f "$parent/AGENTS.md" || -f "$parent/CLAUDE.md" ]]
+}
+
+DIR_NAME=$(basename "$FILE_DIR")
+
+# Only suggest if:
+# 1. This directory doesn't have its own AGENTS.md
+# 2. Directory is not excluded
+# 3. Directory is "new" (≤2 files)
+# 4. Parent has coverage (we're extending hierarchy, not starting fresh)
+if [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
+   ! is_excluded_directory "$DIR_NAME" && \
+   is_new_directory "$FILE_DIR" && \
+   parent_has_coverage "$FILE_DIR"; then
+    echo ""
+    echo "📁 New directory \`$DIR_NAME\` created - may need AGENTS.md coverage as it grows."
+    echo "   Run \`/intent-layer-maintenance\` when ready to extend the hierarchy."
+fi
