@@ -43,6 +43,7 @@ Interactive workflows invoked via slash commands:
 | `intent-layer-maintenance` | Maintain existing Intent Layers | `/intent-layer-maintenance` |
 | `intent-layer-onboarding` | Orient new developers using Intent Layer | `/intent-layer-onboarding` |
 | `intent-layer-query` | Query Intent Layer for answers | `/intent-layer-query` |
+| `review-mistakes` | Interactive review of pending mistake reports | `/review-mistakes` |
 
 ### Agents
 
@@ -77,8 +78,10 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
                               ↓
                       Stop hook evaluates: enrich or discard?
                               ↓
-                      Human reviews: ./scripts/review_mistakes.sh
-                      [a]ccept [r]eject [d]iscard
+                      Next session: Agent offers interactive review
+                      or user runs /review-mistakes
+                              ↓
+                      User decides: Accept / Reject / Discard
                               ↓ (on accept)
                       Auto-integrated via lib/integrate_pitfall.sh
                       Pitfall added to covering AGENTS.md
@@ -88,13 +91,15 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
                       PreToolUse injects relevant pitfalls before edits
 ```
 
-**Automation scripts:**
+**Interactive review**: When pending reports exist, the agent offers to walk you through them conversationally. You can also explicitly run `/review-mistakes` to start a review session.
+
+**Supporting scripts:**
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/review_mistakes.sh` | Interactive triage of pending reports |
 | `lib/integrate_pitfall.sh` | Auto-add pitfalls to covering AGENTS.md |
 | `scripts/capture_mistake.sh` | Manual capture (if auto-capture missed something) |
+| `scripts/review_mistakes.sh` | Terminal-based review (alternative to agent) |
 
 ## Usage
 

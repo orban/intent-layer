@@ -53,18 +53,34 @@ fi
 # --- Check 3: Pending mistakes that need review ---
 PENDING_DIR="$PROJECT_ROOT/.intent-layer/mistakes/pending"
 if [[ -d "$PENDING_DIR" ]]; then
-    PENDING_COUNT=$(find "$PENDING_DIR" -name "MISTAKE-*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+    # Count both full reports and skeletons
+    PENDING_FILES=$(find "$PENDING_DIR" \( -name "MISTAKE-*.md" -o -name "SKELETON-*.md" \) -type f 2>/dev/null | sort)
+    PENDING_COUNT=$(echo "$PENDING_FILES" | grep -c . 2>/dev/null || echo "0")
 
     if [[ "$PENDING_COUNT" -gt 0 ]]; then
-        CONTEXT_PARTS+=("## Intent Layer: Pending Mistakes
+        # Build file list for agent
+        FILE_LIST=$(echo "$PENDING_FILES" | while read -r f; do
+            [[ -n "$f" ]] && echo "- \`$(basename "$f")\`"
+        done)
 
-There are **$PENDING_COUNT pending mistake report(s)** awaiting review in:
-\`$PENDING_DIR\`
+        CONTEXT_PARTS+=("## Intent Layer: Pending Mistake Reports
 
-To process them:
-1. Review each MISTAKE-*.md file
-2. If valid, move to \`accepted/\` and add pitfall to covering AGENTS.md
-3. If not valid, move to \`rejected/\`")
+There are **$PENDING_COUNT pending report(s)** awaiting review:
+
+$FILE_LIST
+
+**Agent: Offer to help the user review these interactively.**
+
+When the user agrees, for each report:
+1. **Read** the file and present a summary (directory, operation, what happened)
+2. **Analyze** whether it's a genuine mistake or exploratory failure
+3. **Ask** the user: Accept (add pitfall), Reject (not useful), or Discard (exploratory)?
+4. **Execute** based on choice:
+   - **Accept**: Run \`${CLAUDE_PLUGIN_ROOT}/lib/integrate_pitfall.sh <file>\` to auto-add pitfall
+   - **Reject**: Ask for reason, then \`mv <file> $PROJECT_ROOT/.intent-layer/mistakes/rejected/\`
+   - **Discard**: \`rm <file>\` (skeleton was exploratory, not a real mistake)
+
+Pending directory: \`$PENDING_DIR\`")
     fi
 fi
 
