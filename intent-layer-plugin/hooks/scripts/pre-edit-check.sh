@@ -9,6 +9,9 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "$(dirname "${BASH_SOURC
 source "$PLUGIN_ROOT/lib/common.sh"
 
 INPUT=$(cat)
+if [[ -z "$INPUT" ]]; then
+    exit 0
+fi
 
 TOOL_NAME=$(json_get "$INPUT" '.tool_name' '')
 
@@ -26,6 +29,11 @@ FILE_PATH=${FILE_PATH:-$(json_get "$INPUT" '.tool_input.notebook_path' '')}
 if [[ -z "$FILE_PATH" ]]; then
     exit 0
 fi
+
+# Basic path sanity check - silent exit for suspicious paths
+case "$FILE_PATH" in
+    */../*|../*|*/..|..) exit 0 ;;
+esac
 
 FIND_NODE="$PLUGIN_ROOT/lib/find_covering_node.sh"
 CHECK_HISTORY="$PLUGIN_ROOT/lib/check_mistake_history.sh"
@@ -49,7 +57,17 @@ if [[ -f "$CHECK_HISTORY" ]]; then
     fi
 fi
 
-PITFALLS=$("$FIND_NODE" "$FILE_PATH" --section Pitfalls 2>/dev/null || true)
+# Extract Pitfalls section directly from the node file (avoid redundant find_covering_node.sh call)
+PITFALLS=""
+if [[ -n "$NODE_PATH" && -r "$NODE_PATH" ]]; then
+    PITFALLS=$(awk '
+        /^## / {
+            if (found) exit
+            if ($0 == "## Pitfalls") found=1
+        }
+        found { print }
+    ' "$NODE_PATH")
+fi
 
 if [[ -z "$PITFALLS" ]]; then
     exit 0
