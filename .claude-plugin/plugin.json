@@ -15,5 +15,5 @@
   ],
   "repository": "https://github.com/orban/intent-layer",
   "license": "MIT",
-  "hooks": "hooks/hooks.json"
+  "hooks": "./hooks/hooks.json"
 }

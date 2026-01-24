@@ -1,5 +1,4 @@
 {
-  "description": "Intent Layer hooks - awareness reminders and continuous learning loop",
   "hooks": {
     "PostToolUse": [
       {
