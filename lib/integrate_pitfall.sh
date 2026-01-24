@@ -179,20 +179,39 @@ if ! grep -q '^## Pitfalls' "$COVERING_NODE"; then
 fi
 
 # Append pitfall entry after the ## Pitfalls header
-# We use a temp file approach to insert after the header
+# We write the pitfall to a temp file and use sed to insert it
 TEMP_FILE=$(mktemp)
-awk -v pitfall="$PITFALL_ENTRY" '
-    /^## Pitfalls/ {
-        print
-        getline  # Get the blank line after header
-        print
-        print pitfall
-        print ""
-        next
-    }
-    { print }
-' "$COVERING_NODE" > "$TEMP_FILE"
+PITFALL_FILE=$(mktemp)
 
+# Write pitfall to temp file (preserves newlines properly)
+printf '%s\n\n' "$PITFALL_ENTRY" > "$PITFALL_FILE"
+
+# Find the line number of "## Pitfalls"
+PITFALL_LINE=$(grep -n '^## Pitfalls' "$COVERING_NODE" | head -1 | cut -d: -f1)
+
+if [[ -z "$PITFALL_LINE" ]]; then
+    echo "Error: Could not find ## Pitfalls section" >&2
+    rm -f "$PITFALL_FILE"
+    exit 1
+fi
+
+# Insert after the Pitfalls header (skip one blank line if present)
+# Strategy: head to get lines up to and including header + 1, cat pitfall, tail for rest
+NEXT_LINE=$((PITFALL_LINE + 1))
+TOTAL_LINES=$(wc -l < "$COVERING_NODE" | tr -d ' ')
+
+# Get everything up to the line after ## Pitfalls
+head -n "$NEXT_LINE" "$COVERING_NODE" > "$TEMP_FILE"
+# Add blank line if not already present
+[[ $(tail -c 1 "$TEMP_FILE" | wc -l) -eq 0 ]] && echo "" >> "$TEMP_FILE"
+# Add the pitfall
+cat "$PITFALL_FILE" >> "$TEMP_FILE"
+# Add the rest of the file (if any)
+if [[ "$NEXT_LINE" -lt "$TOTAL_LINES" ]]; then
+    tail -n "+$((NEXT_LINE + 1))" "$COVERING_NODE" >> "$TEMP_FILE"
+fi
+
+rm -f "$PITFALL_FILE"
 mv "$TEMP_FILE" "$COVERING_NODE"
 echo "✓ Pitfall added to $COVERING_NODE"
 
