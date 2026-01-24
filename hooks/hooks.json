@@ -1,4 +1,5 @@
 {
+  "description": "Intent Layer hooks - awareness reminders and continuous learning loop",
   "hooks": {
     "PostToolUse": [
       {
@@ -7,6 +8,52 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/post-edit-check.sh \"$TOOL_INPUT\""
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/capture-tool-failure.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/inject-learnings.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/pre-edit-check.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "You are evaluating this session for Intent Layer learnings.\n\nContext: $ARGUMENTS\n\n## Check 1: Skeleton Reports\nIf any SKELETON-*.md files were auto-created in .intent-layer/mistakes/pending/ during this session (from tool failures), evaluate each one:\n- If the failure revealed a genuine gotcha that should be documented, the skeleton should be enriched\n- If the failure was just exploratory (expected behavior, typo, etc.), the skeleton can be discarded\n\n## Check 2: Other Learnings\nAnalyze the session for undocumented learnings:\n1. Unexpected behaviors discovered\n2. User corrections to your assumptions\n3. Things you figured out that should have been documented\n\n## Response\n\nIf skeletons need enrichment OR genuine learnings were discovered, respond with:\n{\"ok\": false, \"reason\": \"Before ending: [specific action - either enrich skeleton X with [details], or run capture_mistake.sh to capture: [description]]\"}\n\nIf all skeletons are exploratory failures AND no other learnings, respond with:\n{\"ok\": true}\n\nBe conservative - only flag genuine documentation gaps, not normal development activities. Exploratory failures (file not found, wrong path, typos) should be discarded, not documented.",
+            "timeout": 30
           }
         ]
       }

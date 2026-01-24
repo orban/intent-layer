@@ -59,7 +59,7 @@ intent-layer-plugin/
 |-----------|---------|------------|
 | **Skills** | Interactive workflows for setup/maintenance | `/intent-layer`, `/intent-layer-maintenance` |
 | **Agents** | Specialized analysis tasks | Auto-invoked by Claude when relevant |
-| **Hooks** | Edit tracking and reminders | Automatic on Edit/Write tools |
+| **Hooks** | Learning loop: auto-capture, pitfall injection, staleness check | 5 hooks: SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop |
 
 ### Scripts
 
@@ -81,11 +81,24 @@ Standalone bash tools in `scripts/`. All support `-h`/`--help`.
 | `show_status.sh` | Health dashboard with metrics |
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer contracts |
-| `capture_mistake.sh` | Record mistakes for learning loop |
+| `capture_mistake.sh` | Record mistakes for learning loop (manual) |
+| `review_mistakes.sh` | Interactive triage of pending mistake reports |
 | `post-edit-check.sh` | Hook script for edit tracking |
 | `generate_orientation.sh` | Generate onboarding documents |
 | `query_intent.sh` | Query Intent Layer for answers |
 | `walk_ancestors.sh` | Navigate node hierarchy |
+
+### Library Scripts (lib/)
+
+Internal scripts used by hooks and other scripts:
+
+| Script | Purpose |
+|--------|---------|
+| `common.sh` | Shared functions (json_get, output_context, etc.) |
+| `find_covering_node.sh` | Find nearest AGENTS.md for a file path |
+| `check_mistake_history.sh` | Check if directory has mistake history |
+| `aggregate_learnings.sh` | Aggregate recent accepted mistakes |
+| `integrate_pitfall.sh` | Auto-add pitfalls to covering AGENTS.md |
 
 ### Skill Relationships
 

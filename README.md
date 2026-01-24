@@ -43,6 +43,7 @@ Interactive workflows invoked via slash commands:
 | `intent-layer-maintenance` | Maintain existing Intent Layers | `/intent-layer-maintenance` |
 | `intent-layer-onboarding` | Orient new developers using Intent Layer | `/intent-layer-onboarding` |
 | `intent-layer-query` | Query Intent Layer for answers | `/intent-layer-query` |
+| `review-mistakes` | Interactive review of pending mistake reports | `/review-mistakes` |
 
 ### Agents
 
@@ -56,11 +57,49 @@ Specialized subagents that Claude invokes automatically when appropriate:
 
 ### Hooks
 
-Automatic event handlers:
+Automatic event handlers that keep the Intent Layer active during development:
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `post-edit-check` | PostToolUse (Edit/Write) | Remind about Intent Layer coverage |
+| `post-edit-check` | PostToolUse | Remind about Intent Layer coverage after edits |
+| `pre-edit-check` | PreToolUse | Inject pitfalls before edits, warn about uncovered dirs |
+| `inject-learnings` | SessionStart | Inject recent learnings, suggest setup if no Intent Layer |
+| `capture-tool-failure` | PostToolUseFailure | Auto-create skeleton mistake reports on Edit/Write failures |
+| Stop prompt | Stop | LLM evaluates session for learnings to capture |
+
+### Learning Loop
+
+The plugin implements a continuous, mostly-automated learning loop:
+
+```
+Agent makes mistake → PostToolUseFailure auto-creates skeleton
+                              ↓
+                      Skeleton in .intent-layer/mistakes/pending/
+                              ↓
+                      Stop hook evaluates: enrich or discard?
+                              ↓
+                      Next session: Agent offers interactive review
+                      or user runs /review-mistakes
+                              ↓
+                      User decides: Accept / Reject / Discard
+                              ↓ (on accept)
+                      Auto-integrated via lib/integrate_pitfall.sh
+                      Pitfall added to covering AGENTS.md
+                              ↓
+                      Next session: SessionStart injects learnings
+                              ↓
+                      PreToolUse injects relevant pitfalls before edits
+```
+
+**Interactive review**: When pending reports exist, the agent offers to walk you through them conversationally. You can also explicitly run `/review-mistakes` to start a review session.
+
+**Supporting scripts:**
+
+| Script | Purpose |
+|--------|---------|
+| `lib/integrate_pitfall.sh` | Auto-add pitfalls to covering AGENTS.md |
+| `scripts/capture_mistake.sh` | Manual capture (if auto-capture missed something) |
+| `scripts/review_mistakes.sh` | Terminal-based review (alternative to agent) |
 
 ## Usage
 
@@ -156,3 +195,70 @@ All scripts support:
 **Not good for:**
 - Initial setup (use `intent-layer` first)
 - Minor cosmetic changes that don't affect behavior
+
+## CI Integration
+
+The plugin includes `detect_staleness.sh` for automated staleness checks in CI pipelines. The script exits with code 2 when stale nodes are found, making it easy to fail builds or create warnings.
+
+### GitHub Actions
+
+```yaml
+# .github/workflows/intent-layer.yml
+name: Intent Layer Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for git history analysis
+
+      - name: Check Intent Layer staleness
+        run: |
+          ./scripts/detect_staleness.sh --code-changes --threshold 30
+        continue-on-error: true  # Warning only, or remove for hard fail
+```
+
+### GitLab CI
+
+```yaml
+# .gitlab-ci.yml
+intent-layer:check:
+  stage: test
+  script:
+    - ./scripts/detect_staleness.sh --code-changes
+  allow_failure: true  # Warning only
+  only:
+    - merge_requests
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | No stale nodes found |
+| 1 | Error (invalid path, etc.) |
+| 2 | Stale nodes found |
+
+### Useful Options
+
+- `--code-changes`: Flag nodes where code changed more recently than the node
+- `--threshold N`: Days since node update to consider stale (default: 90)
+- `--quiet`: Output only paths (useful for scripting)
+
+### PR Review Integration
+
+For PR-specific checks, use `review_pr.sh` which validates changes against Intent Layer contracts:
+
+```yaml
+- name: Review PR against Intent Layer
+  if: github.event_name == 'pull_request'
+  run: |
+    ./scripts/review_pr.sh origin/${{ github.base_ref }} HEAD
+```

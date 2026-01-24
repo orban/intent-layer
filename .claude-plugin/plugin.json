@@ -14,5 +14,6 @@
     "ai-infrastructure"
   ],
   "repository": "https://github.com/your-org/intent-layer-plugin",
-  "license": "MIT"
+  "license": "MIT",
+  "hooks": "hooks/hooks.json"
 }
