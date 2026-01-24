@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# PreToolUse hook for Edit/Write - Injects pitfalls via additionalContext
+# PreToolUse hook for Edit/Write - Injects learnings via additionalContext
 # Input: JSON on stdin with tool_name, tool_input
 # Output: JSON with additionalContext to stdout
+#
+# Injects all 4 learning types from covering AGENTS.md:
+#   - Pitfalls: Things that went wrong / gotchas to avoid
+#   - Checks: Pre-action verifications needed
+#   - Patterns: Preferred approaches / better ways
+#   - Context: Important background knowledge
 
 set -euo pipefail
 
@@ -72,46 +78,96 @@ if [[ -f "$CHECK_HISTORY" ]]; then
     fi
 fi
 
-# Extract Pitfalls section directly from the node file (avoid redundant find_covering_node.sh call)
-PITFALLS=""
-if [[ -n "$NODE_PATH" && -r "$NODE_PATH" ]]; then
-    PITFALLS=$(awk '
+# Extract a section from the node file
+# Usage: extract_section "Section Name"
+extract_section() {
+    local section_name="$1"
+    awk -v section="$section_name" '
         /^## / {
             if (found) exit
-            if ($0 == "## Pitfalls") found=1
+            if ($0 == "## " section) found=1
         }
         found { print }
-    ' "$NODE_PATH")
+    ' "$NODE_PATH"
+}
+
+# Extract all 4 learning sections from the covering node
+PITFALLS=""
+CHECKS=""
+PATTERNS=""
+CONTEXT_SECTION=""
+
+if [[ -n "$NODE_PATH" && -r "$NODE_PATH" ]]; then
+    PITFALLS=$(extract_section "Pitfalls")
+    CHECKS=$(extract_section "Checks")
+    PATTERNS=$(extract_section "Patterns")
+    CONTEXT_SECTION=$(extract_section "Context")
 fi
 
-if [[ -z "$PITFALLS" ]]; then
+# Exit if no learnings found
+if [[ -z "$PITFALLS" && -z "$CHECKS" && -z "$PATTERNS" && -z "$CONTEXT_SECTION" ]]; then
     exit 0
 fi
 
-# Build context message
+# Build context message with all non-empty sections
+LEARNINGS=""
+
+if [[ -n "$CHECKS" ]]; then
+    LEARNINGS="$CHECKS"
+fi
+
+if [[ -n "$PITFALLS" ]]; then
+    if [[ -n "$LEARNINGS" ]]; then
+        LEARNINGS="$LEARNINGS
+
+$PITFALLS"
+    else
+        LEARNINGS="$PITFALLS"
+    fi
+fi
+
+if [[ -n "$PATTERNS" ]]; then
+    if [[ -n "$LEARNINGS" ]]; then
+        LEARNINGS="$LEARNINGS
+
+$PATTERNS"
+    else
+        LEARNINGS="$PATTERNS"
+    fi
+fi
+
+if [[ -n "$CONTEXT_SECTION" ]]; then
+    if [[ -n "$LEARNINGS" ]]; then
+        LEARNINGS="$LEARNINGS
+
+$CONTEXT_SECTION"
+    else
+        LEARNINGS="$CONTEXT_SECTION"
+    fi
+fi
+
+# Build final context message
 if $HIGH_RISK; then
     CONTEXT="## Intent Layer Context
 
 **Editing:** \`$FILE_PATH\`
 **Covered by:** \`$NODE_PATH\`
 
-**HIGH-RISK AREA** - This directory has a history of mistakes.
+**⚠️ HIGH-RISK AREA** - This directory has a history of mistakes.
 
-Before proceeding, verify these pitfalls don't apply to your change:
+Before proceeding, review the learnings below carefully:
 
-$PITFALLS
+$LEARNINGS
 
 ---
-**Pre-flight check:** Confirm you've reviewed the pitfalls above."
+**Pre-flight check:** Confirm you've reviewed the sections above."
 else
     CONTEXT="## Intent Layer Context
 
 **Editing:** \`$FILE_PATH\`
 **Covered by:** \`$NODE_PATH\`
 
-Relevant pitfalls from covering node:
-
-$PITFALLS"
+$LEARNINGS"
 fi
 
 output_context "PreToolUse" "$CONTEXT"
