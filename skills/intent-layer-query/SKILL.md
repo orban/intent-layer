@@ -20,13 +20,13 @@ Query an existing Intent Layer to answer architectural and navigation questions.
 
 ```bash
 # Check state first
-~/.claude/skills/intent-layer/scripts/detect_state.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/detect_state.sh /path/to/project
 
 # View hierarchy
-~/.claude/skills/intent-layer/scripts/show_hierarchy.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/show_hierarchy.sh /path/to/project
 
 # Check health
-~/.claude/skills/intent-layer/scripts/show_status.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/show_status.sh /path/to/project
 ```
 
 ---
@@ -243,7 +243,7 @@ Classify the query:
 
 ```bash
 # View full hierarchy
-~/.claude/skills/intent-layer/scripts/show_hierarchy.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/show_hierarchy.sh /path/to/project
 
 # Search for concept in Intent Nodes
 grep -r "concept" --include="CLAUDE.md" --include="AGENTS.md" /path/to/project
@@ -465,7 +465,7 @@ This skill uses scripts from `intent-layer`:
 | `show_status.sh` | Check health before querying |
 | `detect_state.sh` | Verify Intent Layer exists |
 
-All paths: `~/.claude/skills/intent-layer/scripts/`
+All paths: `${CLAUDE_PLUGIN_ROOT}/scripts/`
 
 ---
 

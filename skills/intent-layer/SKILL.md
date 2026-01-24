@@ -176,13 +176,13 @@ Run `scripts/estimate_all_candidates.sh`, then:
 
 ```bash
 # Git commit analysis (extracts pitfalls, anti-patterns, decisions, contracts)
-~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory]
+${CLAUDE_PLUGIN_ROOT}/scripts/mine_git_history.sh [directory]
 
 # GitHub PR analysis (requires gh CLI)
-~/.claude/skills/intent-layer/scripts/mine_pr_reviews.sh --limit 50
+${CLAUDE_PLUGIN_ROOT}/scripts/mine_pr_reviews.sh --limit 50
 
 # Check for stale nodes (during maintenance)
-~/.claude/skills/intent-layer/scripts/detect_staleness.sh --code-changes [directory]
+${CLAUDE_PLUGIN_ROOT}/scripts/detect_staleness.sh --code-changes [directory]
 ```
 
 **mine_git_history.sh** extracts from commits:
@@ -225,7 +225,7 @@ For each risky operation identified:
 **Mine from history**:
 ```bash
 # Find reverts and fixes that suggest missing checks
-~/.claude/skills/intent-layer/scripts/mine_git_history.sh [directory] | grep -i "fix\|revert"
+${CLAUDE_PLUGIN_ROOT}/scripts/mine_git_history.sh [directory] | grep -i "fix\|revert"
 ```
 
 Present findings: "These commits suggest potential checks: [list]. Add any?"
@@ -776,12 +776,12 @@ The `pr-review` sub-skill will:
 
 ```yaml
 - name: Check Intent Layer
-  run: ~/.claude/skills/intent-layer/scripts/detect_state.sh .
+  run: ${CLAUDE_PLUGIN_ROOT}/scripts/detect_state.sh .
 
 - name: PR Review (if Intent Layer exists)
   if: github.event_name == 'pull_request'
   run: |
-    ~/.claude/skills/intent-layer/scripts/review_pr.sh origin/main HEAD --exit-code
+    ${CLAUDE_PLUGIN_ROOT}/scripts/review_pr.sh origin/main HEAD --exit-code
 ```
 
 ### Related Skills
