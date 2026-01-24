@@ -78,14 +78,18 @@ if [[ -f "$CHECK_HISTORY" ]]; then
     fi
 fi
 
-# Extract a section from the node file
+# Extract a section from the node file (including header line)
 # Usage: extract_section "Section Name"
 extract_section() {
     local section_name="$1"
     awk -v section="$section_name" '
         /^## / {
             if (found) exit
-            if ($0 == "## " section) found=1
+            if ($0 == "## " section) {
+                found=1
+                print
+                next
+            }
         }
         found { print }
     ' "$NODE_PATH"
