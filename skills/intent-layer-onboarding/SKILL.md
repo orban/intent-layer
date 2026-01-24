@@ -20,13 +20,13 @@ Use an existing Intent Layer to quickly orient yourself (or a new team member) i
 
 ```bash
 # Check Intent Layer exists
-~/.claude/skills/intent-layer/scripts/detect_state.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/detect_state.sh /path/to/project
 
 # Generate orientation overview
 scripts/generate_orientation.sh /path/to/project
 
 # View hierarchy
-~/.claude/skills/intent-layer/scripts/show_hierarchy.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/show_hierarchy.sh /path/to/project
 ```
 
 ---
@@ -54,7 +54,7 @@ cat /path/to/project/CLAUDE.md || cat /path/to/project/AGENTS.md
 Visualize the full Intent Layer structure:
 
 ```bash
-~/.claude/skills/intent-layer/scripts/show_hierarchy.sh /path/to/project
+${CLAUDE_PLUGIN_ROOT}/scripts/show_hierarchy.sh /path/to/project
 ```
 
 Note:
@@ -533,8 +533,8 @@ Task 3: "Create onboarding path for fullstack engineer.
 | `query_intent.sh` | Search for specific concepts |
 | `walk_ancestors.sh` | Gather context from hierarchy |
 
-Scripts from intent-layer: `~/.claude/skills/intent-layer/scripts/`
-Scripts from intent-layer-query: `~/.claude/skills/intent-layer-query/scripts/`
+Scripts from intent-layer: `${CLAUDE_PLUGIN_ROOT}/scripts/`
+Scripts from intent-layer-query: `${CLAUDE_PLUGIN_ROOT}/scripts/`
 
 ---
 
