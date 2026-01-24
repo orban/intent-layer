@@ -1,0 +1,16 @@
+{
+  "name": "orban",
+  "owner": {
+    "name": "Intent Layer Contributors"
+  },
+  "metadata": {
+    "description": "Plugin marketplace for Intent Layer - hierarchical AGENTS.md infrastructure for AI-navigable codebases"
+  },
+  "plugins": [
+    {
+      "name": "intent-layer",
+      "source": "./",
+      "description": "Hierarchical AGENTS.md infrastructure for AI-navigable codebases. Create CLAUDE.md/AGENTS.md files that help AI agents navigate your codebase like senior engineers."
+    }
+  ]
+}

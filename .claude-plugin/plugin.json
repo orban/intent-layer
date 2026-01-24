@@ -1,0 +1,19 @@
+{
+  "name": "intent-layer",
+  "version": "1.0.0",
+  "description": "Hierarchical AGENTS.md infrastructure for AI-navigable codebases. Create CLAUDE.md/AGENTS.md files that help AI agents navigate your codebase like senior engineers.",
+  "author": {
+    "name": "Intent Layer Contributors"
+  },
+  "keywords": [
+    "intent-layer",
+    "agents-md",
+    "claude-md",
+    "documentation",
+    "codebase-navigation",
+    "ai-infrastructure"
+  ],
+  "repository": "https://github.com/orban/intent-layer",
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json"
+}

@@ -1,6 +1,6 @@
-# Claude Code Skills
+# Intent Layer Plugin
 
-Custom skills for Claude Code CLI.
+Claude Code plugin for creating and maintaining Intent Layer infrastructure.
 
 ## Philosophy
 
@@ -20,6 +20,173 @@ Intent Layers compress this knowledge into high-signal AGENTS.md/CLAUDE.md files
 2. **Contracts > Comments** - Document invariants and constraints, not obvious code behavior.
 3. **Pitfalls > Patterns** - What catches people matters more than standard patterns.
 4. **Progressive Disclosure** - Start minimal, agents drill down when needed.
+
+## Installation
+
+### From GitHub (recommended)
+
+```bash
+# Add the marketplace
+/plugin marketplace add orban/intent-layer
+
+# Install the plugin
+/plugin install intent-layer@orban
+```
+
+Or using the CLI:
+
+```bash
+claude plugin marketplace add orban/intent-layer
+claude plugin install intent-layer@orban
+```
+
+### From local directory
+
+```bash
+# Clone the repository
+git clone https://github.com/orban/intent-layer.git
+
+# Install from local path
+claude plugin install ./intent-layer
+```
+
+## Components
+
+### Skills
+
+Interactive workflows invoked via slash commands:
+
+| Skill | Purpose | Command |
+|-------|---------|---------|
+| `intent-layer` | Set up new Intent Layer infrastructure | `/intent-layer` |
+| `intent-layer-maintenance` | Maintain existing Intent Layers | `/intent-layer-maintenance` |
+| `intent-layer-onboarding` | Orient new developers using Intent Layer | `/intent-layer-onboarding` |
+| `intent-layer-query` | Query Intent Layer for answers | `/intent-layer-query` |
+| `review-mistakes` | Interactive review of pending mistake reports | `/review-mistakes` |
+
+### Agents
+
+Specialized subagents that Claude invokes automatically when appropriate:
+
+| Agent | Purpose |
+|-------|---------|
+| `explorer` | Analyze directories and propose AGENTS.md content |
+| `validator` | Deep validation that nodes accurately reflect codebase |
+| `auditor` | Find drift between nodes and current code state |
+
+### Hooks
+
+Automatic event handlers that keep the Intent Layer active during development:
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `post-edit-check` | PostToolUse | Remind about Intent Layer coverage after edits |
+| `pre-edit-check` | PreToolUse | Inject pitfalls before edits, warn about uncovered dirs |
+| `inject-learnings` | SessionStart | Inject recent learnings, suggest setup if no Intent Layer |
+| `capture-tool-failure` | PostToolUseFailure | Auto-create skeleton mistake reports on Edit/Write failures |
+| Stop prompt | Stop | LLM evaluates session for learnings to capture |
+
+### Learning Loop
+
+The plugin implements a continuous, mostly-automated learning loop:
+
+```
+Agent makes mistake → PostToolUseFailure auto-creates skeleton
+                              ↓
+                      Skeleton in .intent-layer/mistakes/pending/
+                              ↓
+                      Stop hook evaluates: enrich or discard?
+                              ↓
+                      Next session: Agent offers interactive review
+                      or user runs /review-mistakes
+                              ↓
+                      User decides: Accept / Reject / Discard
+                              ↓ (on accept)
+                      Auto-integrated via lib/integrate_pitfall.sh
+                      Pitfall added to covering AGENTS.md
+                              ↓
+                      Next session: SessionStart injects learnings
+                              ↓
+                      PreToolUse injects relevant pitfalls before edits
+```
+
+**Interactive review**: When pending reports exist, the agent offers to walk you through them conversationally. You can also explicitly run `/review-mistakes` to start a review session.
+
+**Supporting scripts:**
+
+| Script | Purpose |
+|--------|---------|
+| `lib/integrate_pitfall.sh` | Auto-add pitfalls to covering AGENTS.md |
+| `scripts/capture_mistake.sh` | Manual capture (if auto-capture missed something) |
+| `scripts/review_mistakes.sh` | Terminal-based review (alternative to agent) |
+
+## Usage
+
+### Initial Setup
+
+```bash
+# Check if Intent Layer exists
+./scripts/detect_state.sh /path/to/project
+
+# Analyze token distribution
+./scripts/estimate_all_candidates.sh /path/to/project
+
+# Create nodes using the skill
+# Then in Claude Code: /intent-layer /path/to/project
+```
+
+### Maintenance
+
+```bash
+# Detect which nodes need review after changes
+./scripts/detect_changes.sh main HEAD
+
+# Generate pain point capture template
+./scripts/capture_pain_points.sh pain_points.md
+
+# Run maintenance workflow
+# In Claude Code: /intent-layer-maintenance /path/to/project
+```
+
+### Onboarding
+
+```bash
+# Generate orientation overview
+./scripts/generate_orientation.sh /path/to/project
+
+# Or use the skill interactively
+# In Claude Code: /intent-layer-onboarding /path/to/project
+```
+
+## Plugin Structure
+
+```
+intent-layer-plugin/
+├── .claude-plugin/
+│   └── plugin.json          # Plugin manifest
+├── skills/                   # Slash-command skills
+│   ├── intent-layer/
+│   ├── intent-layer-maintenance/
+│   ├── intent-layer-onboarding/
+│   └── intent-layer-query/
+├── agents/                   # Specialized subagents
+│   ├── explorer.md
+│   ├── validator.md
+│   └── auditor.md
+├── hooks/
+│   └── hooks.json            # PostToolUse hook config
+├── scripts/                  # Shared bash scripts
+└── references/               # Templates and guides
+```
+
+## Script Features
+
+All scripts support:
+- `-h` / `--help` for usage information
+- `set -euo pipefail` for robust error handling
+- Cross-platform compatibility (macOS + Linux)
+- Detailed error messages with remediation hints
+- Consistent exclusion of generated directories (node_modules, dist, etc.)
 
 ## When to Use
 
@@ -48,76 +215,69 @@ Intent Layers compress this knowledge into high-signal AGENTS.md/CLAUDE.md files
 - Initial setup (use `intent-layer` first)
 - Minor cosmetic changes that don't affect behavior
 
-## Installation
+## CI Integration
 
-Skills are symlinked to `~/.claude/skills/`:
+The plugin includes `detect_staleness.sh` for automated staleness checks in CI pipelines. The script exits with code 2 when stale nodes are found, making it easy to fail builds or create warnings.
 
-```bash
-ln -s ~/dev/claude-skills/intent-layer ~/.claude/skills/intent-layer
-ln -s ~/dev/claude-skills/intent-layer-maintenance ~/.claude/skills/intent-layer-maintenance
+### GitHub Actions
+
+```yaml
+# .github/workflows/intent-layer.yml
+name: Intent Layer Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for git history analysis
+
+      - name: Check Intent Layer staleness
+        run: |
+          ./scripts/detect_staleness.sh --code-changes --threshold 30
+        continue-on-error: true  # Warning only, or remove for hard fail
 ```
 
-## Skills
+### GitLab CI
 
-### intent-layer
-
-Set up hierarchical Intent Layer (AGENTS.md/CLAUDE.md files) for codebases. Helps AI agents navigate codebases like senior engineers.
-
-```bash
-# Check current state
-./intent-layer/scripts/detect_state.sh /path/to/project
-
-# Analyze token distribution
-./intent-layer/scripts/estimate_all_candidates.sh /path/to/project
-
-# Validate a node
-./intent-layer/scripts/validate_node.sh CLAUDE.md
+```yaml
+# .gitlab-ci.yml
+intent-layer:check:
+  stage: test
+  script:
+    - ./scripts/detect_staleness.sh --code-changes
+  allow_failure: true  # Warning only
+  only:
+    - merge_requests
 ```
 
-### intent-layer-maintenance
+### Exit Codes
 
-Maintain existing Intent Layers through quarterly audits, pain point capture, and incremental updates.
+| Code | Meaning |
+|------|---------|
+| 0 | No stale nodes found |
+| 1 | Error (invalid path, etc.) |
+| 2 | Stale nodes found |
 
-```bash
-# Detect which nodes need review after changes
-./intent-layer/scripts/detect_changes.sh main HEAD
+### Useful Options
 
-# Generate pain point capture template
-./intent-layer/scripts/capture_pain_points.sh pain_points.md
+- `--code-changes`: Flag nodes where code changed more recently than the node
+- `--threshold N`: Days since node update to consider stale (default: 90)
+- `--quiet`: Output only paths (useful for scripting)
+
+### PR Review Integration
+
+For PR-specific checks, use `review_pr.sh` which validates changes against Intent Layer contracts:
+
+```yaml
+- name: Review PR against Intent Layer
+  if: github.event_name == 'pull_request'
+  run: |
+    ./scripts/review_pr.sh origin/${{ github.base_ref }} HEAD
 ```
-
-## Structure
-
-```
-claude-skills/
-├── intent-layer/
-│   ├── SKILL.md              # Main skill documentation
-│   ├── scripts/              # Automation scripts (all support -h/--help)
-│   │   ├── detect_state.sh
-│   │   ├── analyze_structure.sh
-│   │   ├── estimate_tokens.sh
-│   │   ├── estimate_all_candidates.sh
-│   │   ├── validate_node.sh
-│   │   ├── capture_pain_points.sh
-│   │   ├── capture_state.sh
-│   │   └── detect_changes.sh
-│   └── references/           # Templates and guides
-│       ├── templates.md
-│       ├── node-examples.md
-│       ├── capture-protocol.md
-│       ├── compression-techniques.md
-│       ├── agent-feedback-protocol.md
-│       └── capture-workflow-agent.md
-│
-└── intent-layer-maintenance/
-    └── SKILL.md              # Maintenance workflow
-```
-
-## Script Features
-
-All scripts support:
-- `-h` / `--help` for usage information
-- `set -euo pipefail` for robust error handling
-- Cross-platform compatibility (macOS + Linux)
-- Detailed error messages with remediation hints
-- Consistent exclusion of generated directories (node_modules, dist, etc.)

@@ -1,46 +1,70 @@
 # CLAUDE.md
 
-> **TL;DR**: Custom skills for Claude Code CLI - markdown files + bash scripts, symlinked to `~/.claude/skills/`.
+> **TL;DR**: Intent Layer plugin for Claude Code - skills, agents, and hooks for managing AGENTS.md infrastructure.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Overview
 
-Custom skills for Claude Code CLI. Skills are symlinked to `~/.claude/skills/` for use across projects.
+Claude Code plugin providing tools for creating and maintaining Intent Layer infrastructure (hierarchical AGENTS.md/CLAUDE.md files that help AI agents navigate codebases).
+
+## Installation
+
+```bash
+# Add the marketplace and install from GitHub
+/plugin marketplace add orban/intent-layer
+/plugin install intent-layer@orban
+
+# Or from local directory
+claude plugin install ./path/to/intent-layer-plugin
+```
 
 ## Development
 
-No build process. Skills are markdown files with bash scripts.
+No build process. Skills are markdown files, agents are markdown files, scripts are bash.
 
 ```bash
-# Install skills (symlink to Claude Code skills directory)
-ln -s ~/dev/claude-skills/intent-layer ~/.claude/skills/intent-layer
-ln -s ~/dev/claude-skills/intent-layer-maintenance ~/.claude/skills/intent-layer-maintenance
-
 # Validate a skill's SKILL.md
-./intent-layer/scripts/validate_node.sh intent-layer/SKILL.md
+./scripts/validate_node.sh skills/intent-layer/SKILL.md
 
 # Get help for any script
-./intent-layer/scripts/detect_state.sh --help
+./scripts/detect_state.sh --help
 ```
 
 ## Architecture
 
-### Skill Structure
+### Plugin Structure
 
-Each skill follows this pattern:
 ```
-skill-name/
-├── SKILL.md              # Main skill documentation (frontmatter + content)
-├── scripts/              # Bash automation scripts
-└── references/           # Templates, examples, protocols
+intent-layer-plugin/
+├── .claude-plugin/
+│   └── plugin.json          # Plugin manifest (name, version, author)
+├── skills/                   # Slash-command skills (/intent-layer, etc.)
+│   ├── intent-layer/         # Main setup skill
+│   ├── intent-layer-maintenance/
+│   ├── intent-layer-onboarding/
+│   └── intent-layer-query/
+├── agents/                   # Specialized subagents
+│   ├── explorer.md           # Analyzes directories, proposes nodes
+│   ├── validator.md          # Deep validation against codebase
+│   └── auditor.md            # Drift detection, staleness check
+├── hooks/
+│   └── hooks.json            # PostToolUse hook for edit tracking
+├── scripts/                  # Shared bash scripts
+└── references/               # Templates, protocols, examples
 ```
 
-The `SKILL.md` file has YAML frontmatter with `name`, `description`, and optional `argument-hint` fields.
+### Components
+
+| Component | Purpose | Invocation |
+|-----------|---------|------------|
+| **Skills** | Interactive workflows for setup/maintenance | `/intent-layer`, `/intent-layer-maintenance` |
+| **Agents** | Specialized analysis tasks | Auto-invoked by Claude when relevant |
+| **Hooks** | Learning loop: auto-capture, pitfall injection, staleness check | 5 hooks: SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop |
 
 ### Scripts
 
-Scripts are standalone bash tools in `intent-layer/scripts/`. All support `-h`/`--help`.
+Standalone bash tools in `scripts/`. All support `-h`/`--help`.
 
 | Script | Purpose |
 |--------|---------|
@@ -55,18 +79,37 @@ Scripts are standalone bash tools in `intent-layer/scripts/`. All support `-h`/`
 | `detect_staleness.sh` | Find nodes that may need updates |
 | `mine_git_history.sh` | Extract insights from git commits |
 | `mine_pr_reviews.sh` | Extract insights from GitHub PRs |
-| `show_status.sh` | Health dashboard with metrics and recommendations |
+| `show_status.sh` | Health dashboard with metrics |
 | `show_hierarchy.sh` | Visual tree display of all nodes |
 | `review_pr.sh` | Review PR against Intent Layer contracts |
-| `capture_mistake.sh` | Record mistakes for learning loop |
+| `capture_mistake.sh` | Record mistakes for learning loop (manual) |
+| `review_mistakes.sh` | Interactive triage of pending mistake reports |
+| `post-edit-check.sh` | Hook script for edit tracking |
+| `generate_orientation.sh` | Generate onboarding documents |
+| `query_intent.sh` | Query Intent Layer for answers |
+| `walk_ancestors.sh` | Navigate node hierarchy |
 
-### Skill Relationship
+### Library Scripts (lib/)
 
-`intent-layer` handles initial setup (state = none/partial).
-`intent-layer-maintenance` handles ongoing maintenance (state = complete).
-`intent-layer:clean` removes Intent Layer from a repo (deletes child AGENTS.md, strips section from root).
+Internal scripts used by hooks and other scripts:
 
-The maintenance skill references scripts from intent-layer via `~/.claude/skills/intent-layer/scripts/`.
+| Script | Purpose |
+|--------|---------|
+| `common.sh` | Shared functions (json_get, output_context, etc.) |
+| `find_covering_node.sh` | Find nearest AGENTS.md for a file path |
+| `check_mistake_history.sh` | Check if directory has mistake history |
+| `aggregate_learnings.sh` | Aggregate recent accepted mistakes |
+| `integrate_pitfall.sh` | Auto-add pitfalls to covering AGENTS.md |
+
+### Skill Relationships
+
+- `intent-layer` → Initial setup (state = none/partial)
+- `intent-layer-maintenance` → Ongoing updates (state = complete)
+- `intent-layer-onboarding` → Orientation for new developers
+- `intent-layer-query` → Answer questions using Intent Layer
+- `intent-layer:clean` → Remove Intent Layer from a repo
+
+All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 
 ## Key Concepts
 
@@ -75,32 +118,54 @@ The maintenance skill references scripts from intent-layer via `~/.claude/skills
 - **Three-tier boundaries**: Always/Ask First/Never pattern for permissions
 - **Child nodes**: Named `AGENTS.md` (not CLAUDE.md) for cross-tool compatibility
 
-## Intent Layer
-
-> TL;DR: Claude Code skills for setting up AGENTS.md infrastructure in codebases. See Entry Points below.
-
-### Entry Points
+## Entry Points
 
 | Task | Start Here |
 |------|------------|
-| Create new skill | Copy existing skill directory, edit `SKILL.md` frontmatter |
-| Add/modify scripts | `intent-layer/scripts/` - standalone bash, no dependencies |
-| Update templates | `intent-layer/references/templates.md` |
-| Test a script | Run directly: `./intent-layer/scripts/detect_state.sh --help` |
+| Create new skill | Copy `skills/intent-layer/`, edit `SKILL.md` frontmatter |
+| Add/modify scripts | `scripts/` - standalone bash, no dependencies |
+| Update templates | `references/templates.md` |
+| Add new agent | Create `agents/<name>.md` with frontmatter |
+| Modify hook behavior | Edit `hooks/hooks.json` or `scripts/post-edit-check.sh` |
+| Test a script | Run directly: `./scripts/detect_state.sh --help` |
 
-### Contracts
+## Contracts
 
 - Scripts must work standalone (no external dependencies beyond coreutils + bc)
 - SKILL.md requires YAML frontmatter with `name` and `description`
+- Agent markdown requires frontmatter with `description` and `capabilities`
 - Scripts use `set -euo pipefail` for robust error handling
-- All paths in scripts use `$TARGET_PATH` variable, not hardcoded paths
+- All paths in scripts use `$TARGET_PATH` or `${CLAUDE_PLUGIN_ROOT}` variables
 - All scripts support `-h`/`--help` for usage information
 - Error messages go to stderr with actionable remediation hints
+- Hook scripts must complete in <500ms
 
-### Pitfalls
+## Pitfalls
 
-- `intent-layer-maintenance` skill references scripts via `~/.claude/skills/intent-layer/scripts/` - if intent-layer isn't symlinked, maintenance skill breaks
 - Token estimation uses bytes/4 approximation - not precise for non-ASCII text
 - Scripts handle both macOS and Linux `stat` commands automatically
 - `detect_state.sh` distinguishes symlinked AGENTS.md (expected) from duplicate files (warning)
 - `mine_pr_reviews.sh` requires `gh` CLI and `jq` - other scripts only need coreutils + bc
+- Hook script receives tool input as JSON - parse carefully to avoid breaking on special characters
+
+## Learning Loop
+
+When you discover a non-obvious gotcha while working in this codebase:
+
+1. **Identify the right AGENTS.md**: Find the nearest AGENTS.md to where the issue occurred
+2. **Append to Pitfalls section**: Add a brief entry with:
+   - **Problem**: What assumption failed or what was non-obvious
+   - **Symptom**: Error message or unexpected behavior
+   - **Solution**: How to handle it correctly
+3. **Keep it concise**: 2-4 lines per pitfall, code references welcome
+
+Example format:
+```markdown
+### API response format varies
+
+**Problem**: `parse_response()` assumes dict, but API can return list
+**Symptom**: `'list' object has no attribute 'get'`
+**Solution**: Check `isinstance(data, list)` before calling `.get()`
+```
+
+This keeps the Intent Layer alive and useful for future sessions.
