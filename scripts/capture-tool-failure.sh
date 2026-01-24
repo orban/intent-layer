@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Source shared library
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "$(dirname "${BASH_SOURCE[0]}")")")}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
 source "$PLUGIN_ROOT/lib/common.sh"
 
 # Read hook input
@@ -52,7 +52,7 @@ esac
     fi
     echo ""
     echo "If this was unexpected, consider capturing it:"
-    echo "  ~/.claude/skills/intent-layer/scripts/capture_mistake.sh --from-git"
+    echo "  ${CLAUDE_PLUGIN_ROOT}/scripts/capture_mistake.sh --from-git"
     echo ""
     echo "(Ignore if exploratory/expected behavior)"
     echo ""

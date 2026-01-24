@@ -29,7 +29,7 @@ fi
 # Test 2: PostToolUseFailure suggests capture for Edit
 echo "Test 2: PostToolUseFailure on Edit failure"
 output=$(echo '{"hook_event_name": "PostToolUseFailure", "tool_name": "Edit", "tool_input": {"file_path": "/test.ts"}}' | \
-    "$PLUGIN_DIR/hooks/scripts/capture-tool-failure.sh" 2>&1 || true)
+    "$PLUGIN_DIR/scripts/capture-tool-failure.sh" 2>&1 || true)
 if echo "$output" | grep -q "capture_mistake"; then
     pass "Suggests capture on Edit failure"
 else
@@ -39,7 +39,7 @@ fi
 # Test 3: PostToolUseFailure filters Read
 echo "Test 3: PostToolUseFailure filters Read"
 output=$(echo '{"hook_event_name": "PostToolUseFailure", "tool_name": "Read", "tool_input": {"file_path": "/test.md"}}' | \
-    "$PLUGIN_DIR/hooks/scripts/capture-tool-failure.sh" 2>&1 || true)
+    "$PLUGIN_DIR/scripts/capture-tool-failure.sh" 2>&1 || true)
 if [[ -z "$output" ]]; then
     pass "Silently ignores Read failure"
 else
@@ -48,7 +48,7 @@ fi
 
 # Test 4: SessionStart hook runs
 echo "Test 4: SessionStart hook runs"
-if "$PLUGIN_DIR/hooks/scripts/inject-learnings.sh" < /dev/null >/dev/null 2>&1; then
+if "$PLUGIN_DIR/scripts/inject-learnings.sh" < /dev/null >/dev/null 2>&1; then
     pass "SessionStart hook executes"
 else
     fail "SessionStart hook crashed"
@@ -58,7 +58,7 @@ fi
 echo "Test 5: PreToolUse handles Edit"
 exit_code=0
 echo '{"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "nonexistent/file.py"}}' | \
-    "$PLUGIN_DIR/hooks/scripts/pre-edit-check.sh" >/dev/null 2>&1 || exit_code=$?
+    "$PLUGIN_DIR/scripts/pre-edit-check.sh" >/dev/null 2>&1 || exit_code=$?
 if [[ $exit_code -le 1 ]]; then
     pass "PreToolUse handles Edit without crashing"
 else
@@ -68,7 +68,7 @@ fi
 # Test 6: PreToolUse filters Read
 echo "Test 6: PreToolUse filters Read"
 output=$(echo '{"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {"file_path": "test.py"}}' | \
-    "$PLUGIN_DIR/hooks/scripts/pre-edit-check.sh" 2>&1 || true)
+    "$PLUGIN_DIR/scripts/pre-edit-check.sh" 2>&1 || true)
 if [[ -z "$output" ]]; then
     pass "PreToolUse ignores Read"
 else
@@ -77,11 +77,12 @@ fi
 
 # Test 7: hooks.json is valid and has correct structure
 echo "Test 7: hooks.json validation"
-if jq -e '.hooks.PostToolUseFailure' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
+if jq -e '.hooks.PostToolUse' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
+   jq -e '.hooks.PostToolUseFailure' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
    jq -e '.hooks.SessionStart' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
    jq -e '.hooks.PreToolUse' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
    jq -e '.hooks.Stop' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1; then
-    pass "hooks.json has all 4 hook events"
+    pass "hooks.json has all 5 hook events"
 else
     fail "hooks.json missing hook events"
 fi

@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "$(dirname "${BASH_SOURCE[0]}")")")}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
 source "$PLUGIN_ROOT/lib/common.sh"
 
 AGGREGATE_SCRIPT="$PLUGIN_ROOT/lib/aggregate_learnings.sh"
