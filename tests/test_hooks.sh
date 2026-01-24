@@ -26,15 +26,17 @@ else
     fail "common.sh failed to source"
 fi
 
-# Test 2: PostToolUseFailure suggests capture for Edit
+# Test 2: PostToolUseFailure auto-captures Edit failure
 echo "Test 2: PostToolUseFailure on Edit failure"
 output=$(echo '{"hook_event_name": "PostToolUseFailure", "tool_name": "Edit", "tool_input": {"file_path": "/test.ts"}}' | \
     "$PLUGIN_DIR/scripts/capture-tool-failure.sh" 2>&1 || true)
-if echo "$output" | grep -q "capture_mistake"; then
-    pass "Suggests capture on Edit failure"
+if echo "$output" | grep -qi "Mistake Captured\|skeleton"; then
+    pass "Auto-captures Edit failure"
 else
-    fail "Should suggest capture: $output"
+    fail "Should auto-capture: $output"
 fi
+# Clean up any skeleton created during test
+rm -f ./.intent-layer/mistakes/pending/SKELETON-*.md 2>/dev/null || true
 
 # Test 3: PostToolUseFailure filters Read
 echo "Test 3: PostToolUseFailure filters Read"
