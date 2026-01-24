@@ -61,15 +61,15 @@ if [[ "$FILE_PATH" != /* ]]; then
     FILE_PATH="${CLAUDE_PROJECT_DIR:-$(pwd)}/$FILE_PATH"
 fi
 
-# Validate the parent directory exists before proceeding
+# Resolve symlinks for consistent path handling
+FILE_PATH="$(resolve_path "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
+
+# Validate the parent directory exists after resolution
 FILE_DIR="$(dirname "$FILE_PATH")"
 if [[ ! -d "$FILE_DIR" ]]; then
     echo "Error: Parent directory does not exist: $FILE_DIR" >&2
     exit 1
 fi
-
-# Resolve symlinks for consistent path handling
-FILE_PATH="$(resolve_path "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
 
 # Start from file's directory
 if [[ -d "$FILE_PATH" ]]; then
