@@ -147,6 +147,7 @@ All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 - `detect_state.sh` distinguishes symlinked AGENTS.md (expected) from duplicate files (warning)
 - `mine_pr_reviews.sh` requires `gh` CLI and `jq` - other scripts only need coreutils + bc
 - Hook script receives tool input as JSON - parse carefully to avoid breaking on special characters
+- **Sub-skills must be inside parent skill directory**: Place sub-skills at `skills/<parent>/<sub>/SKILL.md`, NOT at root level. Symptom: "Unknown skill: parent:sub". The plugin system only recognizes sub-skills nested within `skills/`.
 
 ## Learning Loop
 
