@@ -22,16 +22,16 @@ if [[ -x "$DETECT_STATE" ]]; then
     STATE=$("$DETECT_STATE" "$PROJECT_ROOT" 2>/dev/null | grep -oE 'state: (none|partial|complete)' | cut -d' ' -f2 || echo "unknown")
 
     if [[ "$STATE" == "none" ]]; then
-        CONTEXT_PARTS+=("## Intent Layer: Not Configured
+        CONTEXT_PARTS+=("## ⚠️ Intent Layer: Not Configured
 
-This project doesn't have an Intent Layer yet (no CLAUDE.md or AGENTS.md found).
+No CLAUDE.md or AGENTS.md found in this project.
 
-**Consider running \`/intent-layer\` to:**
-- Create a root CLAUDE.md with project overview
-- Identify directories that need AGENTS.md coverage
-- Set up the learning loop for capturing mistakes
+**Run \`/intent-layer\` to set up AI-friendly navigation:**
+- Contracts, patterns, and pitfalls that prevent mistakes
+- Automatic learning loop captures gotchas as you work
+- Compression ratio ~100:1 vs reading raw code
 
-This is optional but helps AI agents navigate your codebase more effectively.")
+Without this, I'm navigating blind. Setup takes ~5 minutes for most projects.")
     fi
 fi
 
