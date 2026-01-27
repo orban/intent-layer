@@ -21,8 +21,10 @@ ARGUMENTS:
 OPTIONS:
     -h, --help           Show this help
     -n, --dry-run        Show what would be done without modifying files
-    -f, --force          Overwrite even if entry seems to exist
+    -f, --force          Skip deduplication check entirely
+    -c, --check-only     Only check for duplicates, don't integrate
     -s, --section NAME   Override target section (Pitfalls, Checks, Patterns, Context)
+    -t, --threshold N    Word overlap threshold for duplicate detection (default: 60)
 
 LEARNING TYPES → TARGET SECTIONS:
     pitfall  → ## Pitfalls
@@ -30,18 +32,27 @@ LEARNING TYPES → TARGET SECTIONS:
     pattern  → ## Patterns
     insight  → ## Context
 
+DEDUPLICATION:
+    Before integrating, the script searches the target section for similar entries.
+    If an entry has 60%+ word overlap with the new entry title, it's flagged as
+    a potential duplicate. You'll be prompted to:
+      [s]kip  - Don't integrate, exit cleanly
+      [f]orce - Integrate anyway (adds the entry)
+      [v]iew  - Show full existing entry before deciding
+
 WORKFLOW:
     1. Reads the accepted learning report
     2. Detects learning type from report
     3. Finds the covering AGENTS.md using find_covering_node.sh
-    4. Extracts/generates an entry for the appropriate section
-    5. Appends to the target section (creates if missing)
-    6. Moves report to .intent-layer/mistakes/integrated/
+    4. Checks for duplicate entries (unless --force)
+    5. Extracts/generates an entry for the appropriate section
+    6. Appends to the target section (creates if missing)
+    7. Moves report to .intent-layer/mistakes/integrated/
 
 EXIT CODES:
-    0    Learning integrated successfully
+    0    Learning integrated successfully (or skipped intentionally)
     1    Error (file not found, no covering node, etc.)
-    2    Entry already exists (use --force to override)
+    2    Duplicate found (with --check-only)
 EOF
     exit 0
 }
@@ -49,14 +60,18 @@ EOF
 LEARNING_FILE=""
 DRY_RUN=false
 FORCE=false
+CHECK_ONLY=false
 OVERRIDE_SECTION=""
+OVERLAP_THRESHOLD=60
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help ;;
         -n|--dry-run) DRY_RUN=true; shift ;;
         -f|--force) FORCE=true; shift ;;
+        -c|--check-only) CHECK_ONLY=true; shift ;;
         -s|--section) OVERRIDE_SECTION="$2"; shift 2 ;;
+        -t|--threshold) OVERLAP_THRESHOLD="$2"; shift 2 ;;
         -*)
             echo "Error: Unknown option: $1" >&2
             exit 1
@@ -240,13 +255,156 @@ echo "$LEARNING_ENTRY"
 echo "---"
 echo ""
 
-# Check if similar entry already exists
-if ! $FORCE; then
-    if grep -qi "$(echo "$ENTRY_TITLE" | head -c 20)" "$COVERING_NODE" 2>/dev/null; then
-        echo "Warning: Similar entry may already exist in $COVERING_NODE" >&2
-        echo "Use --force to add anyway" >&2
-        exit 2
+# Function to find similar entries in the target section
+find_similar_entries() {
+    local node_file="$1"
+    local section="$2"
+    local new_title="$3"
+    local threshold="$4"
+
+    # Extract all entry titles from the section
+    local in_section=false
+    local similar_found=false
+    local current_entry=""
+    local current_title=""
+    local line_num=0
+    local entry_start=0
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line_num=$((line_num + 1))
+
+        # Check if we're entering the target section
+        if [[ "$line" =~ ^##\ $section$ ]]; then
+            in_section=true
+            continue
+        fi
+
+        # Check if we're leaving the section (next ## header)
+        if $in_section && [[ "$line" =~ ^##\  ]] && [[ ! "$line" =~ ^##\ $section$ ]]; then
+            # Process last entry before exiting
+            if [[ -n "$current_title" ]]; then
+                local overlap
+                overlap=$(calculate_word_overlap "$new_title" "$current_title")
+                if [[ "$overlap" -ge "$threshold" ]]; then
+                    echo "MATCH:$overlap:$entry_start:$current_title"
+                    echo "ENTRY:$current_entry"
+                    similar_found=true
+                fi
+            fi
+            break
+        fi
+
+        if $in_section; then
+            # Check for entry header (### )
+            if [[ "$line" =~ ^###\  ]]; then
+                # Process previous entry if exists
+                if [[ -n "$current_title" ]]; then
+                    local overlap
+                    overlap=$(calculate_word_overlap "$new_title" "$current_title")
+                    if [[ "$overlap" -ge "$threshold" ]]; then
+                        echo "MATCH:$overlap:$entry_start:$current_title"
+                        echo "ENTRY:$current_entry"
+                        similar_found=true
+                    fi
+                fi
+                # Start new entry
+                current_title="${line#\#\#\# }"
+                current_entry="$line"
+                entry_start=$line_num
+            elif [[ -n "$current_title" ]]; then
+                # Accumulate entry content
+                current_entry="$current_entry
+$line"
+            fi
+        fi
+    done < "$node_file"
+
+    # Process final entry if we're still in section
+    if $in_section && [[ -n "$current_title" ]]; then
+        local overlap
+        overlap=$(calculate_word_overlap "$new_title" "$current_title")
+        if [[ "$overlap" -ge "$threshold" ]]; then
+            echo "MATCH:$overlap:$entry_start:$current_title"
+            echo "ENTRY:$current_entry"
+            similar_found=true
+        fi
     fi
+
+    $similar_found
+}
+
+# Check for duplicate entries
+DUPLICATE_FOUND=false
+DUPLICATE_INFO=""
+
+if ! $FORCE; then
+    # Search for similar entries
+    SIMILAR_OUTPUT=$(find_similar_entries "$COVERING_NODE" "$TARGET_SECTION" "$ENTRY_TITLE" "$OVERLAP_THRESHOLD" 2>/dev/null || true)
+
+    if [[ -n "$SIMILAR_OUTPUT" ]]; then
+        DUPLICATE_FOUND=true
+
+        # Parse the match info
+        MATCH_LINE=$(echo "$SIMILAR_OUTPUT" | grep "^MATCH:" | head -1)
+        OVERLAP_PCT=$(echo "$MATCH_LINE" | cut -d: -f2)
+        EXISTING_TITLE=$(echo "$MATCH_LINE" | cut -d: -f4-)
+
+        # Extract existing entry (first 5 lines after ENTRY:)
+        EXISTING_ENTRY=$(echo "$SIMILAR_OUTPUT" | sed -n '/^ENTRY:/,/^MATCH:/p' | grep -v "^MATCH:" | sed 's/^ENTRY://' | head -5)
+
+        echo "=============================================="
+        echo "  POTENTIAL DUPLICATE DETECTED (${OVERLAP_PCT}% overlap)"
+        echo "=============================================="
+        echo ""
+        echo "New entry title:      $ENTRY_TITLE"
+        echo "Existing entry title: $EXISTING_TITLE"
+        echo ""
+        echo "Existing entry preview:"
+        echo "---"
+        echo "$EXISTING_ENTRY"
+        echo "---"
+        echo ""
+
+        if $CHECK_ONLY; then
+            echo "Duplicate found (--check-only mode)" >&2
+            exit 2
+        fi
+
+        # Interactive prompt
+        while true; do
+            read -r -p "Similar entry exists. [s]kip, [f]orce, [v]iew full? " response
+            response=$(echo "$response" | tr '[:upper:]' '[:lower:]')
+
+            case "$response" in
+                s|skip)
+                    echo "Skipping integration (duplicate detected)"
+                    exit 0
+                    ;;
+                f|force)
+                    echo "Forcing integration..."
+                    FORCE=true
+                    break
+                    ;;
+                v|view)
+                    echo ""
+                    echo "Full existing entry:"
+                    echo "===================="
+                    echo "$SIMILAR_OUTPUT" | sed -n '/^ENTRY:/,/^MATCH:/p' | grep -v "^MATCH:" | sed 's/^ENTRY://'
+                    echo "===================="
+                    echo ""
+                    ;;
+                *)
+                    echo "Unknown option. Use [s]kip, [f]orce, or [v]iew"
+                    ;;
+            esac
+        done
+    fi
+fi
+
+# If check-only mode and no duplicate found, exit success
+if $CHECK_ONLY; then
+    echo "No duplicate found"
+    exit 0
 fi
 
 if $DRY_RUN; then

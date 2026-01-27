@@ -118,6 +118,59 @@ All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 - **Three-tier boundaries**: Always/Ask First/Never pattern for permissions
 - **Child nodes**: Named `AGENTS.md` (not CLAUDE.md) for cross-tool compatibility
 
+### Information Architecture
+
+#### How Ancestor Discovery Works
+
+The hierarchy uses file-path-based traversal:
+
+1. **Walk up directory tree** from target file/directory looking for `AGENTS.md` or `CLAUDE.md`
+2. **Root identification**: First node found at repo root (typically `CLAUDE.md`)
+3. **Child identification**: All `AGENTS.md` files in subdirectories beneath root
+
+See `scripts/walk_ancestors.sh` for the implementation.
+
+#### Loading Order
+
+When working on a target file, nodes load in parent-before-child order:
+
+1. Root node (project-wide context)
+2. Intermediate ancestors (in descending order)
+3. Target node (most specific context)
+
+This ensures broad context is established before specific details.
+
+#### T-Shaped Context Model
+
+```
+CLAUDE.md (root)              ← LOADED
+    ├── src/
+    │   ├── AGENTS.md         ← LOADED (ancestor)
+    │   ├── api/
+    │   │   └── AGENTS.md     ← TARGET (loaded)
+    │   └── auth/
+    │       └── AGENTS.md     ← NOT loaded (sibling)
+    └── tests/
+        └── AGENTS.md         ← NOT loaded (uncle)
+```
+
+- **Vertical axis**: All ancestors from root to target → loaded
+- **Horizontal axis**: Siblings, cousins, uncles → NOT loaded
+
+Why: Provides complete lineage without horizontal noise. Working in `src/api/` needs `src/` context but not `auth/` implementation details.
+
+#### LCA (Lowest Common Ancestor) Placement
+
+Facts that apply to multiple areas belong at their lowest common ancestor:
+
+| Fact | Relevant Paths | Place At (LCA) |
+|------|---------------|----------------|
+| "All endpoints require auth" | `api/v1/*`, `api/v2/*` | `api/AGENTS.md` |
+| "Never commit .env" | All paths | Root `CLAUDE.md` |
+| "Use idempotency keys" | `payments/`, `billing/` | Their common parent |
+
+This prevents duplication and drift. See `references/compression-techniques.md` for details.
+
 ## Entry Points
 
 | Task | Start Here |

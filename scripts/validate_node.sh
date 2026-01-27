@@ -105,11 +105,45 @@ if [ ! -r "$NODE_PATH" ]; then
     exit 1
 fi
 
-# Get filename for context
+# Resolve to absolute path for consistent root detection
+resolve_path() {
+    local path="$1"
+    if command -v realpath &>/dev/null; then
+        realpath "$path"
+    elif command -v readlink &>/dev/null && readlink -f "$path" &>/dev/null 2>&1; then
+        readlink -f "$path"
+    else
+        echo "$(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
+    fi
+}
+
+NODE_PATH=$(resolve_path "$NODE_PATH")
+NODE_DIR=$(dirname "$NODE_PATH")
 FILENAME=$(basename "$NODE_PATH")
+
+# Determine if this is the root node by checking for ancestor nodes
+has_ancestor_node() {
+    local dir="$1"
+    local parent
+    parent=$(dirname "$dir")
+    while [ "$parent" != "/" ] && [ "$parent" != "." ]; do
+        if [ -f "$parent/AGENTS.md" ] || [ -f "$parent/CLAUDE.md" ]; then
+            return 0
+        fi
+        # Stop early at git root if present
+        if [ -d "$parent/.git" ]; then
+            break
+        fi
+        parent=$(dirname "$parent")
+    done
+    return 1
+}
+
 IS_ROOT=false
-if [ "$FILENAME" = "CLAUDE.md" ] || [ "$(dirname "$NODE_PATH")" = "." ]; then
-    IS_ROOT=true
+if [[ "$FILENAME" == "CLAUDE.md" || "$FILENAME" == "AGENTS.md" ]]; then
+    if ! has_ancestor_node "$NODE_DIR"; then
+        IS_ROOT=true
+    fi
 fi
 
 if [ "$QUIET" = false ]; then
@@ -139,10 +173,18 @@ else
     fi
 fi
 
-# Check 2: Required sections for child nodes
+# Check 2: Required sections for child nodes (schema)
 if [ "$IS_ROOT" = false ]; then
     REQUIRED_SECTIONS=("Purpose" "Entry Points" "Contracts" "Patterns")
     for section in "${REQUIRED_SECTIONS[@]}"; do
+        if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
+            PASSED+=("Has '$section' section")
+        else
+            ERRORS+=("Missing required section: '$section'")
+        fi
+    done
+    RECOMMENDED_SECTIONS=("Code Map" "Pitfalls" "Boundaries" "Design Rationale" "Public API")
+    for section in "${RECOMMENDED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
         else
@@ -155,6 +197,16 @@ else
         PASSED+=("Has Intent Layer section")
     else
         ERRORS+=("Missing '## Intent Layer' section in root node")
+    fi
+    if grep -qiE "^##+ *(Entry Points|Subsystems)" "$NODE_PATH" 2>/dev/null; then
+        PASSED+=("Has Entry Points or Subsystems section")
+    else
+        ERRORS+=("Missing required section: 'Entry Points' or 'Subsystems'")
+    fi
+    if grep -qiE "^##+ *Downlinks" "$NODE_PATH" 2>/dev/null; then
+        PASSED+=("Has Downlinks section")
+    else
+        WARNINGS+=("Missing recommended section: 'Downlinks'")
     fi
 fi
 

@@ -103,3 +103,64 @@ output_block() {
     require_jq
     jq -n --arg reason "$reason" '{decision: "block", reason: $reason}'
 }
+
+# Calculate word overlap between two strings
+# Returns percentage (0-100) of matching significant words
+# Significant words are 3+ characters, lowercased, alphanumeric only
+calculate_word_overlap() {
+    local str1="$1"
+    local str2="$2"
+
+    # Extract significant words (3+ chars, lowercase, alphanumeric)
+    local words1 words2
+    words1=$(echo "$str1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '\n' | awk 'length >= 3' | sort -u)
+    words2=$(echo "$str2" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '\n' | awk 'length >= 3' | sort -u)
+
+    # Count words in each set
+    local count1 count2
+    count1=$(echo "$words1" | grep -c . 2>/dev/null || echo 0)
+    count2=$(echo "$words2" | grep -c . 2>/dev/null || echo 0)
+
+    # Handle empty cases
+    if [[ "$count1" -eq 0 || "$count2" -eq 0 ]]; then
+        echo "0"
+        return
+    fi
+
+    # Count matching words
+    local matches=0
+    while IFS= read -r word; do
+        [[ -z "$word" ]] && continue
+        if echo "$words2" | grep -qx "$word" 2>/dev/null; then
+            matches=$((matches + 1))
+        fi
+    done <<< "$words1"
+
+    # Calculate overlap percentage based on smaller set
+    local min_count
+    if [[ "$count1" -lt "$count2" ]]; then
+        min_count="$count1"
+    else
+        min_count="$count2"
+    fi
+
+    # Return percentage (integer)
+    echo $(( (matches * 100) / min_count ))
+}
+
+# Extract entries from a specific section of an AGENTS.md file
+# Returns each entry (starting with ###) as a block
+extract_section_entries() {
+    local file="$1"
+    local section="$2"
+
+    awk -v section="$section" '
+        /^## / {
+            if (in_section) exit
+            if ($0 == "## " section) { in_section=1; next }
+        }
+        in_section && /^### / { print; in_entry=1; next }
+        in_section && in_entry && /^### / { print; next }
+        in_section && in_entry { print }
+    ' "$file"
+}

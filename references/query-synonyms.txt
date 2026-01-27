@@ -1,0 +1,75 @@
+# Query synonym expansions for semantic search
+# Format: term:synonym1,synonym2,synonym3
+# Lines starting with # are comments, blank lines are ignored
+# Terms are matched case-insensitively
+
+# Error handling
+error:exception,failure,fault,bug,issue,problem,crash,panic
+exception:error,failure,throw,catch,raise
+
+# API patterns
+api:endpoint,route,handler,controller,service,rest,graphql
+endpoint:api,route,url,path,handler
+handler:controller,endpoint,route,processor
+
+# Authentication & Security
+auth:authentication,authorization,login,session,token,oauth,jwt
+authentication:auth,login,signin,credentials,identity
+authorization:auth,permission,access,role,acl,rbac
+security:auth,authentication,authorization,encryption,secret
+
+# Database & Storage
+db:database,storage,persistence,repository,datastore,sql,nosql
+database:db,storage,persistence,repository,store,data
+storage:db,database,persist,cache,store,save
+repository:db,database,store,repo,dao
+
+# Testing
+test:spec,unit,integration,e2e,testing,assertion,mock
+testing:test,spec,verify,validate,check,assert
+mock:stub,fake,spy,double,fixture
+
+# Configuration
+config:configuration,settings,options,env,environment,params
+configuration:config,settings,options,setup,params
+settings:config,configuration,options,preferences,params
+env:environment,config,settings,dotenv
+
+# Caching
+cache:memoize,store,persist,buffer,redis,memcache
+memoize:cache,remember,store,persist
+
+# Async & Concurrency
+async:asynchronous,concurrent,parallel,await,promise,future
+concurrent:async,parallel,thread,mutex,lock
+parallel:async,concurrent,multithread,worker
+
+# Logging & Monitoring
+log:logging,logger,trace,debug,monitor,audit
+logging:log,trace,debug,monitor,output
+monitor:logging,metrics,observability,trace,alert
+
+# Validation
+validate:validation,verify,check,assert,sanitize,parse
+validation:validate,check,verify,constraint,rule
+
+# Dependencies
+dependency:import,require,module,package,library
+import:dependency,require,include,module
+
+# HTTP & Network
+http:request,response,fetch,ajax,network,rest,api
+request:http,call,fetch,invoke,query
+response:http,reply,result,return,output
+
+# State management
+state:store,redux,context,data,model,atom
+store:state,data,persist,save,cache
+
+# Build & Deploy
+build:compile,bundle,package,transpile,webpack
+deploy:release,publish,ship,ci,cd,pipeline
+
+# Documentation
+docs:documentation,readme,guide,manual,reference
+documentation:docs,readme,guide,wiki,manual

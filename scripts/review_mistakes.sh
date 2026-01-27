@@ -137,6 +137,29 @@ for file in "${FILES[@]}"; do
         fi
     fi
 
+    # Check for potential duplicates before showing options
+    DUPLICATE_WARNING=""
+    if [[ -x "$INTEGRATE_SCRIPT" ]]; then
+        # Extract directory and operation for a temporary check
+        CHECK_DIR=$(grep -m1 '^\*\*Directory\*\*' "$file" 2>/dev/null | sed 's/.*: //' || echo "")
+        if [[ -n "$CHECK_DIR" && "$CHECK_DIR" != "unknown" ]]; then
+            # Run check-only to see if duplicate exists
+            DEDUP_CHECK=$("$INTEGRATE_SCRIPT" --check-only "$file" 2>&1 || true)
+            if echo "$DEDUP_CHECK" | grep -q "POTENTIAL DUPLICATE"; then
+                OVERLAP=$(echo "$DEDUP_CHECK" | grep "POTENTIAL DUPLICATE" | sed 's/.*(\([0-9]*\)%.*/\1/')
+                EXISTING=$(echo "$DEDUP_CHECK" | grep "Existing entry title:" | sed 's/.*: //')
+                DUPLICATE_WARNING="[!] Similar entry exists (${OVERLAP}% match): $EXISTING"
+            fi
+        fi
+    fi
+
+    # Show duplicate warning if found
+    if [[ -n "$DUPLICATE_WARNING" ]]; then
+        echo ""
+        echo "  $DUPLICATE_WARNING"
+        echo ""
+    fi
+
     # Prompt for action
     while true; do
         read -r -p "Action [a/r/d/e/s/q/?]: " action
