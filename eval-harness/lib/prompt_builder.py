@@ -42,3 +42,19 @@ def build_prompt_from_issue(title: str, body: str, with_agents_preamble: bool = 
 {body}
 
 The fix should make the existing tests pass."""
+
+
+def build_skill_generation_prompt() -> str:
+    """Build prompt for Intent Layer generation."""
+    return """Create an Intent Layer for this codebase to help with bug fixing.
+
+1. Run scripts/detect_state.sh to check current state
+2. Run scripts/analyze_structure.sh to find semantic boundaries
+3. Create a root CLAUDE.md with:
+   - Entry points for key functionality
+   - Architecture overview (components, data flow)
+   - Pitfalls extracted from git history (use git-history sub-skill)
+   - Contracts that must be maintained
+4. Create AGENTS.md child nodes for directories with distinct responsibilities
+
+Focus on information that would help someone unfamiliar with the codebase navigate and fix bugs safely."""

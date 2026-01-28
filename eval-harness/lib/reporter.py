@@ -61,29 +61,43 @@ class Reporter:
         result = {
             "success": r.success,
             "test_output": r.test_output[:1000],  # Truncate
-            "wall_clock_seconds": r.wall_clock_seconds,
-            "input_tokens": r.input_tokens,
-            "output_tokens": r.output_tokens,
-            "tool_calls": r.tool_calls,
-            "lines_changed": r.lines_changed,
-            "files_touched": r.files_touched,
         }
 
         if r.skill_generation:
+            # Three-level structure for with_skill results
+            result["fix_only"] = {
+                "wall_clock_seconds": r.wall_clock_seconds,
+                "input_tokens": r.input_tokens,
+                "output_tokens": r.output_tokens,
+                "tool_calls": r.tool_calls,
+                "lines_changed": r.lines_changed,
+                "files_touched": r.files_touched,
+            }
             result["skill_generation"] = {
                 "wall_clock_seconds": r.skill_generation.wall_clock_seconds,
                 "input_tokens": r.skill_generation.input_tokens,
-                "output_tokens": r.skill_generation.output_tokens
+                "output_tokens": r.skill_generation.output_tokens,
+                "cache_hit": r.skill_generation.cache_hit,
             }
-            result["total_wall_clock_seconds"] = (
-                r.wall_clock_seconds + r.skill_generation.wall_clock_seconds
-            )
-            result["total_input_tokens"] = (
-                r.input_tokens + r.skill_generation.input_tokens
-            )
-            result["total_output_tokens"] = (
-                r.output_tokens + r.skill_generation.output_tokens
-            )
+            result["total"] = {
+                "wall_clock_seconds": (
+                    r.wall_clock_seconds + r.skill_generation.wall_clock_seconds
+                ),
+                "input_tokens": (
+                    r.input_tokens + r.skill_generation.input_tokens
+                ),
+                "output_tokens": (
+                    r.output_tokens + r.skill_generation.output_tokens
+                ),
+            }
+        else:
+            # Flat structure for without_skill results
+            result["wall_clock_seconds"] = r.wall_clock_seconds
+            result["input_tokens"] = r.input_tokens
+            result["output_tokens"] = r.output_tokens
+            result["tool_calls"] = r.tool_calls
+            result["lines_changed"] = r.lines_changed
+            result["files_touched"] = r.files_touched
 
         if r.error:
             result["error"] = r.error
@@ -91,28 +105,22 @@ class Reporter:
         return result
 
     def _compute_delta(self, without: TaskResult | None, with_skill: TaskResult | None) -> dict:
-        """Compute delta between conditions."""
+        """Compute delta between conditions using fix_only metrics."""
         if not without or not with_skill:
             return {}
 
         success_delta = int(with_skill.success) - int(without.success)
 
-        # For with_skill, use total time including skill generation
-        with_time = with_skill.wall_clock_seconds
-        if with_skill.skill_generation:
-            with_time += with_skill.skill_generation.wall_clock_seconds
+        # Use fix-only time (exclude skill_generation)
+        time_pct = ((with_skill.wall_clock_seconds - without.wall_clock_seconds) / without.wall_clock_seconds * 100) if without.wall_clock_seconds else 0
 
-        time_pct = ((with_time - without.wall_clock_seconds) / without.wall_clock_seconds * 100) if without.wall_clock_seconds else 0
-
+        # Use fix-only tokens (exclude skill_generation)
         with_tokens = with_skill.input_tokens + with_skill.output_tokens
-        if with_skill.skill_generation:
-            with_tokens += with_skill.skill_generation.input_tokens + with_skill.skill_generation.output_tokens
         without_tokens = without.input_tokens + without.output_tokens
-
         tokens_pct = ((with_tokens - without_tokens) / without_tokens * 100) if without_tokens else 0
 
+        # tool_calls and lines_changed are already fix-only
         tools_pct = ((with_skill.tool_calls - without.tool_calls) / without.tool_calls * 100) if without.tool_calls else 0
-
         lines_pct = ((with_skill.lines_changed - without.lines_changed) / without.lines_changed * 100) if without.lines_changed else 0
 
         return {
@@ -161,8 +169,8 @@ class Reporter:
             "",
             "## Results",
             "",
-            "| Task | Without Skill | With Skill | Δ Success | Δ Time | Δ Tokens |",
-            "|------|--------------|------------|-----------|--------|----------|",
+            "| Task | Without Skill | With Skill | Δ Success | Δ Fix Time | Δ Fix Tokens | Δ Tools | Δ Lines | Δ Files | Index Time | Index Tokens | Cache |",
+            "|------|--------------|------------|-----------|-----------|-------------|---------|---------|---------|------------|--------------|-------|",
         ]
 
         for r in results.results:
@@ -170,13 +178,47 @@ class Reporter:
             with_s = r.get("with_skill", {})
             delta = r.get("delta", {})
 
+            # Extract index metrics from with_skill condition
+            index_time = "N/A"
+            index_tokens = "N/A"
+            cache = "N/A"
+
+            if with_s and "skill_generation" in with_s:
+                skill_gen = with_s["skill_generation"]
+
+                # Format index time
+                index_time = f"{skill_gen['wall_clock_seconds']:.1f}s"
+
+                # Format index tokens in thousands
+                total_index_tokens = skill_gen['input_tokens'] + skill_gen['output_tokens']
+                index_tokens = f"{total_index_tokens / 1000:.1f}k"
+
+                # Format cache hit/miss
+                cache_hit = skill_gen.get('cache_hit', False)
+                cache = "✓" if cache_hit else "✗"
+
+            # Calculate files delta
+            files_delta = "N/A"
+            if without and with_s and "fix_only" in with_s:
+                without_files = len(without.get('files_touched', []))
+                with_files = len(with_s['fix_only'].get('files_touched', []))
+                if without_files > 0:
+                    files_pct = ((with_files - without_files) / without_files * 100)
+                    files_delta = f"{files_pct:+.1f}%"
+
             lines.append(
                 f"| {r['task_id']} | "
                 f"{'PASS' if without.get('success') else 'FAIL'} | "
                 f"{'PASS' if with_s.get('success') else 'FAIL'} | "
                 f"{delta.get('success', 'N/A')} | "
                 f"{delta.get('time_percent', 'N/A')} | "
-                f"{delta.get('tokens_percent', 'N/A')} |"
+                f"{delta.get('tokens_percent', 'N/A')} | "
+                f"{delta.get('tool_calls_percent', 'N/A')} | "
+                f"{delta.get('lines_changed_percent', 'N/A')} | "
+                f"{files_delta} | "
+                f"{index_time} | "
+                f"{index_tokens} | "
+                f"{cache} |"
             )
 
         with open(path, "w") as f:

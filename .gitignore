@@ -8,3 +8,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Design docs (local working drafts)
+docs/plans/

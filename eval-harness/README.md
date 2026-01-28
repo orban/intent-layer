@@ -77,11 +77,36 @@ pytest tests/ -v --cov=lib
 6. **Verify**: Run tests in Docker to check success
 7. **Report**: Generate JSON + Markdown with deltas
 
-## Metrics Captured
+## Index Cache
 
+The eval harness caches generated AGENTS.md files to avoid regenerating the Intent Layer on every run. Cache behavior:
+
+- **Location**: `workspaces/.index-cache/`
+- **Cache key**: Combination of repo name, commit SHA, and intent-layer skill hash
+- **Invalidation**: Automatic when any file in `~/.claude/skills/intent-layer/` changes
+- **CLI flags**:
+  - `--clear-cache`: Delete all cached indexes before running
+  - `--no-cache`: Disable caching entirely (always regenerate)
+  - `--cache-dir PATH`: Use custom cache directory
+
+Cache hits are reported in results with 0s indexing time.
+
+## Metrics Structure
+
+Results separate fix-only metrics from skill generation (indexing) metrics:
+
+**Fix-only metrics** (used for performance comparison):
 - Success rate (test passes)
 - Wall clock time
 - Input/output tokens
 - Tool calls
 - Lines changed
 - Files touched
+
+**Skill generation metrics** (reported separately):
+- Wall clock time (indexing)
+- Input/output tokens (indexing)
+- Cache hit/miss status
+- Files created
+
+**Delta calculations**: Compare `with_skill` fix metrics vs `without_skill` metrics. Skill generation costs are visible in reports but excluded from performance deltas. This ensures the comparison shows whether the Intent Layer helps with fixing bugs, independent of the one-time indexing overhead.
