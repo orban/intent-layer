@@ -112,23 +112,49 @@ if [ -n "$ROOT_FILE" ]; then
     fi
 fi
 
-# Common exclusions for find
-EXCLUSIONS="-not -path \"*/node_modules/*\" -not -path \"*/.git/*\" -not -path \"*/dist/*\" -not -path \"*/build/*\" -not -path \"*/public/*\" -not -path \"*/target/*\" -not -path \"*/.turbo/*\" -not -path \"*/vendor/*\" -not -path \"*/.venv/*\" -not -path \"*/venv/*\" -not -path \"*/.worktrees/*\""
+# Common exclusions for find (as array to avoid eval injection)
+FIND_EXCLUSIONS=(
+    -not -path "*/node_modules/*"
+    -not -path "*/.git/*"
+    -not -path "*/dist/*"
+    -not -path "*/build/*"
+    -not -path "*/public/*"
+    -not -path "*/target/*"
+    -not -path "*/.turbo/*"
+    -not -path "*/vendor/*"
+    -not -path "*/.venv/*"
+    -not -path "*/venv/*"
+    -not -path "*/.worktrees/*"
+)
 
 # Find child AGENTS.md files (excluding root)
+FIND_AGENTS_ARGS=(
+    "$TARGET_PATH"
+    -name "AGENTS.md"
+    -not -path "$TARGET_PATH/AGENTS.md"
+    "${FIND_EXCLUSIONS[@]}"
+)
+
 while IFS= read -r file; do
     if [ -n "$file" ]; then
         CHILD_NODES+=("$file")
     fi
-done < <(eval "find \"$TARGET_PATH\" -name \"AGENTS.md\" -not -path \"$TARGET_PATH/AGENTS.md\" $EXCLUSIONS 2>/dev/null" || true)
+done < <(find "${FIND_AGENTS_ARGS[@]}" 2>/dev/null || true)
 
 # Find orphaned CLAUDE.md files in subdirectories (potential issues)
 ORPHAN_CLAUDE=()
+FIND_CLAUDE_ARGS=(
+    "$TARGET_PATH"
+    -name "CLAUDE.md"
+    -not -path "$TARGET_PATH/CLAUDE.md"
+    "${FIND_EXCLUSIONS[@]}"
+)
+
 while IFS= read -r file; do
-    if [ -n "$file" ] && [ "$file" != "$TARGET_PATH/CLAUDE.md" ]; then
+    if [ -n "$file" ]; then
         ORPHAN_CLAUDE+=("$file")
     fi
-done < <(eval "find \"$TARGET_PATH\" -name \"CLAUDE.md\" -not -path \"$TARGET_PATH/CLAUDE.md\" $EXCLUSIONS 2>/dev/null" || true)
+done < <(find "${FIND_CLAUDE_ARGS[@]}" 2>/dev/null || true)
 
 if [ ${#ORPHAN_CLAUDE[@]} -gt 0 ]; then
     WARNINGS+=("Found CLAUDE.md in subdirectories (should be AGENTS.md for cross-tool compatibility): ${ORPHAN_CLAUDE[*]}")

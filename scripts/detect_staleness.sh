@@ -21,7 +21,7 @@ OPTIONS:
     -q, --quiet          Output only stale node paths, no headers
     --entries            Check individual entries for stale references
     --entries-quick      Quick mode: only check file paths, skip function names
-    --json               Output as JSON (not yet implemented)
+    --json               Output as JSON (not yet implemented; warns and uses table format)
 
 STALENESS CRITERIA:
     1. Node file older than threshold days

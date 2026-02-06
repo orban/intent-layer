@@ -19,7 +19,7 @@ OPTIONS:
     -s, --since DATE     Analyze commits since DATE (default: 1 year ago)
     -d, --depth N        Limit to N most recent commits per category
     -q, --quiet          Output only findings, no headers
-    --json               Output as JSON instead of markdown
+    --json               Output as JSON (not yet implemented; warns and uses markdown)
 
 CATEGORIES SEARCHED:
     Bug fixes      Commits with "fix", "bug", "broken", "issue"
