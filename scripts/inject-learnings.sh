@@ -87,6 +87,18 @@ Pending directory: \`$PENDING_DIR\`")
     fi
 fi
 
+# --- Check 4: Resolve Intent Layer context for working directory ---
+RESOLVE_SCRIPT="$PLUGIN_ROOT/scripts/resolve_context.sh"
+if [[ -x "$RESOLVE_SCRIPT" && "$STATE" == "complete" ]]; then
+    RESOLVED=$("$RESOLVE_SCRIPT" "$PROJECT_ROOT" "$PROJECT_ROOT" --compact 2>/dev/null || true)
+
+    if [[ -n "$RESOLVED" ]]; then
+        CONTEXT_PARTS+=("## Intent Layer: Project Context
+
+$RESOLVED")
+    fi
+fi
+
 # --- Output combined context ---
 if [[ ${#CONTEXT_PARTS[@]} -eq 0 ]]; then
     exit 0
