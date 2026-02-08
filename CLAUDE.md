@@ -88,6 +88,8 @@ Standalone bash tools in `scripts/`. All support `-h`/`--help`.
 | `generate_orientation.sh` | Generate onboarding documents |
 | `query_intent.sh` | Query Intent Layer for answers |
 | `walk_ancestors.sh` | Navigate node hierarchy |
+| `resolve_context.sh` | Single-call context resolver for agent swarms |
+| `report_learning.sh` | Swarm-friendly non-interactive write-back |
 
 ### Library Scripts (lib/)
 
@@ -170,6 +172,16 @@ Facts that apply to multiple areas belong at their lowest common ancestor:
 | "Use idempotency keys" | `payments/`, `billing/` | Their common parent |
 
 This prevents duplication and drift. See `references/compression-techniques.md` for details.
+
+### Agent Protocol
+
+Intent Layer serves as a context protocol for agent swarms:
+
+- **Read**: `resolve_context.sh <project> <path>` returns merged context from all ancestors
+- **Write**: `report_learning.sh --project <p> --path <f> --type <t> --title <x> --detail <d>` queues a learning report
+- **Spec**: See `references/agent-protocol.md` for the full protocol specification
+
+Any tool that can read the filesystem can consume AGENTS.md nodes. The protocol is orchestrator-agnostic.
 
 ## Entry Points
 
