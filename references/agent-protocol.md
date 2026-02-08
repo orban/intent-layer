@@ -88,7 +88,7 @@ Options:
   --with-pending                    Include unreviewed learning reports
 ```
 
-Returns: Markdown text to stdout. Exit code 0 = success, 2 = no coverage.
+Returns: Markdown text to stdout. Exit code 0 = success, 1 = error (invalid args), 2 = no coverage.
 
 ### Integration Example (non-Claude tools)
 
@@ -104,12 +104,14 @@ def resolve_context(project_root, target_path):
     current = os.path.dirname(target_path)
 
     nodes = []
-    while current != os.path.dirname(project_root):
+    while True:
         for name in ['AGENTS.md', 'CLAUDE.md']:
             path = os.path.join(current, name)
             if os.path.exists(path):
                 nodes.append(path)
                 break
+        if current == project_root:
+            break
         current = os.path.dirname(current)
 
     nodes.reverse()  # root-first
@@ -158,7 +160,7 @@ report_learning.sh \
   --agent-id "swarm-worker-3"
 ```
 
-Returns: Path to created report on stdout.
+Returns: Creation banner including report path on stdout.
 
 ### Report Lifecycle
 

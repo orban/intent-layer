@@ -21,7 +21,7 @@ set -euo pipefail
 #
 # Output:
 #   Markdown text with merged context from all ancestor nodes.
-#   Sections are deduplicated: child entries override/supplement parent.
+#   Sections are merged: child entries supplement parent.
 #
 # Exit codes:
 #   0 - Success (context returned)
@@ -47,7 +47,12 @@ POSITIONAL=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help) show_help ;;
-        --sections) SECTIONS_FILTER="$2"; shift 2 ;;
+        --sections)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --sections requires an argument" >&2
+                exit 1
+            fi
+            SECTIONS_FILTER="$2"; shift 2 ;;
         --compact) COMPACT=true; shift ;;
         --with-pending) WITH_PENDING=true; shift ;;
         *) POSITIONAL+=("$1"); shift ;;
@@ -76,7 +81,7 @@ if [[ "$TARGET_PATH" != /* ]]; then
     TARGET_PATH="$PROJECT_ROOT/$TARGET_PATH"
 fi
 
-# Strip trailing slash, resolve to directory
+# Resolve target to directory path
 if [[ -f "$TARGET_PATH" ]]; then
     TARGET_DIR=$(dirname "$TARGET_PATH")
 elif [[ -d "$TARGET_PATH" ]]; then
@@ -100,6 +105,11 @@ TARGET_DIR=$(cd "$TARGET_DIR" && pwd)
 collect_ancestors_root_first() {
     local current="$TARGET_DIR"
     local nodes=()
+
+    # Verify target is under project root
+    if [[ "$current" != "$PROJECT_ROOT" && "$current" != "$PROJECT_ROOT"/* ]]; then
+        return
+    fi
 
     # Walk up to project root, collecting nodes
     while [[ "$current" != "/" ]]; do
@@ -207,8 +217,6 @@ if [[ "$COMPACT" != "true" ]]; then
 fi
 
 # Collect sections across all nodes, child supplements parent
-declare -A SECTION_CONTENT
-
 IFS=',' read -ra SECTION_LIST <<< "$ACTIVE_SECTIONS"
 
 for section in "${SECTION_LIST[@]}"; do
@@ -243,15 +251,9 @@ $CONTENT"
     done <<< "$NODES"
 
     if [[ -n "$MERGED" ]]; then
-        if [[ "$COMPACT" == "true" ]]; then
-            OUTPUT="$OUTPUT
+        OUTPUT="$OUTPUT
 $MERGED
 "
-        else
-            OUTPUT="$OUTPUT
-$MERGED
-"
-        fi
     fi
 done
 
@@ -266,7 +268,7 @@ if [[ "$WITH_PENDING" == "true" ]]; then
 
         while IFS= read -r pf; do
             [[ -z "$pf" ]] && continue
-            if grep -q "$REL_TARGET\|$TARGET_DIR" "$pf" 2>/dev/null; then
+            if grep -Fq "$REL_TARGET" "$pf" 2>/dev/null || grep -Fq "$TARGET_DIR" "$pf" 2>/dev/null; then
                 RELEVANT="$RELEVANT
 - \`$(basename "$pf")\`"
             fi

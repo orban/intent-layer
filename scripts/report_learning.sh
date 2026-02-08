@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage: report_learning.sh --project <path> --path <file> --type <type> --title <text> --detail <text> [--agent-id <id>]
 #
 # Designed for agent swarm workers. All arguments required (no prompts).
-# Returns the path to the created report on stdout.
+# Outputs a creation banner including the report path on stdout.
 #
 # Required:
 #   --project PATH    Project root directory
@@ -63,6 +63,12 @@ MISSING=""
 if [[ -n "$MISSING" ]]; then
     echo "Error: Missing required arguments:$MISSING" >&2
     echo "Usage: report_learning.sh --project <path> --path <file> --type <type> --title <text> --detail <text>" >&2
+    exit 1
+fi
+
+# Validate project directory
+if [[ ! -d "$PROJECT" ]]; then
+    echo "Error: Project directory not found: $PROJECT" >&2
     exit 1
 fi
 

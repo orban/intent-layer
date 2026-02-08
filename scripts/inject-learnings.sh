@@ -15,6 +15,7 @@ source "$PLUGIN_ROOT/lib/common.sh"
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
 CONTEXT_PARTS=()
+STATE="unknown"
 
 # --- Check 1: Does Intent Layer exist? ---
 DETECT_STATE="$PLUGIN_ROOT/scripts/detect_state.sh"

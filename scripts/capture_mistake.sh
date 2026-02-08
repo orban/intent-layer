@@ -21,6 +21,7 @@ OPTIONS:
     -c, --cause TEXT        Root cause or why this matters
     --from-git              Auto-fill from recent git activity
     --non-interactive       Fail if prompts needed (for scripting)
+    --agent-id ID           Identifier for the reporting agent
 
 LEARNING TYPES:
     pitfall    Something that went wrong / gotcha to avoid
@@ -204,6 +205,10 @@ fi
 case "$LEARNING_TYPE" in
     pitfall|check|pattern|insight) ;;
     *)
+        if [ "$NON_INTERACTIVE" = true ]; then
+            echo "Error: Invalid learning type '$LEARNING_TYPE'. Must be: pitfall, check, pattern, insight" >&2
+            exit 1
+        fi
         echo "Warning: Unknown learning type '$LEARNING_TYPE', defaulting to 'pitfall'" >&2
         LEARNING_TYPE="pitfall"
         ;;
@@ -353,7 +358,7 @@ esac
 
 # Write report
 AGENT_LINE=""
-[[ -n "$AGENT_ID" ]] && AGENT_LINE="**Agent**: $AGENT_ID"
+[[ -n "$AGENT_ID" ]] && AGENT_LINE=$'\n'"**Agent**: $AGENT_ID"
 
 cat > "$REPORT_FILE" << EOF
 ## Learning Report
@@ -362,8 +367,7 @@ cat > "$REPORT_FILE" << EOF
 **Type**: $LEARNING_TYPE
 **Timestamp**: $TIMESTAMP
 **Directory**: $TARGET_DIR
-**Operation**: $OPERATION
-$AGENT_LINE
+**Operation**: $OPERATION${AGENT_LINE}
 
 ### $SECTION_TITLE
 $WHAT_HAPPENED
