@@ -100,6 +100,33 @@ else
     fail "Expected 5 reports, got $COUNT"
 fi
 
+# Test 5: report_learning.sh exists and works
+echo "Test 5: report_learning.sh swarm wrapper"
+rm -rf "$PENDING_DIR"
+cd "$TEST_DIR"
+output=$("$PLUGIN_DIR/scripts/report_learning.sh" \
+    --project "$TEST_DIR" \
+    --path "src/api/handlers.ts" \
+    --type pitfall \
+    --title "Arrow functions in API module" \
+    --detail "All handlers use arrow syntax, not function declarations" \
+    --agent-id "explorer-1" \
+    2>&1 || true)
+if ls "$PENDING_DIR"/PITFALL-*.md 1>/dev/null 2>&1; then
+    pass "report_learning.sh creates report"
+else
+    fail "report_learning.sh failed: $output"
+fi
+
+# Test 6: report_learning.sh validates required args
+echo "Test 6: report_learning.sh validates required args"
+output=$("$PLUGIN_DIR/scripts/report_learning.sh" --type pitfall 2>&1 || true)
+if echo "$output" | grep -qi "error\|required\|missing"; then
+    pass "Validates missing required args"
+else
+    fail "Should reject missing args: $output"
+fi
+
 # Summary
 echo ""
 echo "=== Results ==="
