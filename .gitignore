@@ -11,3 +11,10 @@ __pycache__/
 
 # Design docs (local working drafts)
 docs/plans/
+
+# Review artifacts
+CODEX_PLAN.md
+CODEX_REVIEW.md
+
+# Tool configs
+.serena/
