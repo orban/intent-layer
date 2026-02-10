@@ -186,6 +186,28 @@ if [[ $failed_help -eq 0 && $checked -gt 0 ]]; then
     pass "All lib scripts support --help ($checked checked)"
 fi
 
+# Test 15: SessionStart includes resolved context when Intent Layer exists
+echo "Test 15: SessionStart resolves context for working directory"
+TEMP_PROJECT=$(mktemp -d)
+export CLAUDE_PROJECT_DIR="$TEMP_PROJECT"
+cat > "$TEMP_PROJECT/CLAUDE.md" << 'EOF'
+# Test Project
+
+## Contracts
+- Never log PII
+
+## Pitfalls
+- Config is case-sensitive
+EOF
+output=$("$PLUGIN_DIR/scripts/inject-learnings.sh" < /dev/null 2>&1 || true)
+if echo "$output" | grep -q "Never log PII\|case-sensitive"; then
+    pass "SessionStart includes resolved context"
+else
+    fail "SessionStart should include resolved context: $output"
+fi
+rm -rf "$TEMP_PROJECT"
+unset CLAUDE_PROJECT_DIR
+
 # Summary
 echo ""
 echo "=== Results ==="

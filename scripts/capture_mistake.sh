@@ -21,6 +21,7 @@ OPTIONS:
     -c, --cause TEXT        Root cause or why this matters
     --from-git              Auto-fill from recent git activity
     --non-interactive       Fail if prompts needed (for scripting)
+    --agent-id ID           Identifier for the reporting agent
 
 LEARNING TYPES:
     pitfall    Something that went wrong / gotcha to avoid
@@ -60,6 +61,7 @@ WHAT_HAPPENED=""
 ROOT_CAUSE=""
 FROM_GIT=false
 NON_INTERACTIVE=false
+AGENT_ID=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -94,6 +96,10 @@ while [[ $# -gt 0 ]]; do
         --non-interactive)
             NON_INTERACTIVE=true
             shift
+            ;;
+        --agent-id)
+            AGENT_ID="$2"
+            shift 2
             ;;
         -*)
             echo "Error: Unknown option: $1" >&2
@@ -199,6 +205,10 @@ fi
 case "$LEARNING_TYPE" in
     pitfall|check|pattern|insight) ;;
     *)
+        if [ "$NON_INTERACTIVE" = true ]; then
+            echo "Error: Invalid learning type '$LEARNING_TYPE'. Must be: pitfall, check, pattern, insight" >&2
+            exit 1
+        fi
         echo "Warning: Unknown learning type '$LEARNING_TYPE', defaulting to 'pitfall'" >&2
         LEARNING_TYPE="pitfall"
         ;;
@@ -265,12 +275,15 @@ echo ""
 echo "Existing Intent Layer node: $EXISTING_NODE"
 
 # Missing content
-prompt MISSING_CONTENT "What was missing from the Intent Layer?"
-
-# Suggested check
-echo ""
-echo "Suggested fix (press Enter to skip, or describe the check):"
-prompt SUGGESTED_CHECK "Check: Before [operation] → [verification]" ""
+if [ "$NON_INTERACTIVE" = true ]; then
+    MISSING_CONTENT=""
+    SUGGESTED_CHECK=""
+else
+    prompt MISSING_CONTENT "What was missing from the Intent Layer?"
+    echo ""
+    echo "Suggested fix (press Enter to skip, or describe the check):"
+    prompt SUGGESTED_CHECK "Check: Before [operation] → [verification]" ""
+fi
 
 # Generate report
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -278,7 +291,7 @@ DATE_PART=$(date +"%Y-%m-%d")
 
 # Use type-based prefix for report ID
 TYPE_PREFIX=$(echo "$LEARNING_TYPE" | tr '[:lower:]' '[:upper:]')
-REPORT_ID="$TYPE_PREFIX-$DATE_PART-$(printf '%03d' $((RANDOM % 1000)))"
+REPORT_ID="$TYPE_PREFIX-$DATE_PART-$(printf '%06d' $((RANDOM % 1000000)))-$$"
 
 # Create directory structure
 REPORT_DIR=".intent-layer/mistakes/pending"
@@ -344,6 +357,9 @@ _Discovered_: $ROOT_CAUSE
 esac
 
 # Write report
+AGENT_LINE=""
+[[ -n "$AGENT_ID" ]] && AGENT_LINE=$'\n'"**Agent**: $AGENT_ID"
+
 cat > "$REPORT_FILE" << EOF
 ## Learning Report
 
@@ -351,7 +367,7 @@ cat > "$REPORT_FILE" << EOF
 **Type**: $LEARNING_TYPE
 **Timestamp**: $TIMESTAMP
 **Directory**: $TARGET_DIR
-**Operation**: $OPERATION
+**Operation**: $OPERATION${AGENT_LINE}
 
 ### $SECTION_TITLE
 $WHAT_HAPPENED

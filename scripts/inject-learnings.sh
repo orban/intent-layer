@@ -15,6 +15,7 @@ source "$PLUGIN_ROOT/lib/common.sh"
 
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
 CONTEXT_PARTS=()
+STATE="unknown"
 
 # --- Check 1: Does Intent Layer exist? ---
 DETECT_STATE="$PLUGIN_ROOT/scripts/detect_state.sh"
@@ -84,6 +85,18 @@ When the user agrees, for each report:
 \`${CLAUDE_PLUGIN_ROOT}/scripts/capture_mistake.sh --type [pitfall|check|pattern|insight]\`
 
 Pending directory: \`$PENDING_DIR\`")
+    fi
+fi
+
+# --- Check 4: Resolve Intent Layer context for working directory ---
+RESOLVE_SCRIPT="$PLUGIN_ROOT/scripts/resolve_context.sh"
+if [[ -x "$RESOLVE_SCRIPT" && "$STATE" != "none" && "$STATE" != "unknown" ]]; then
+    RESOLVED=$("$RESOLVE_SCRIPT" "$PROJECT_ROOT" "$PROJECT_ROOT" --compact 2>/dev/null || true)
+
+    if [[ -n "$RESOLVED" ]]; then
+        CONTEXT_PARTS+=("## Intent Layer: Project Context
+
+$RESOLVED")
     fi
 fi
 
