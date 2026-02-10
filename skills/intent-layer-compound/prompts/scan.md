@@ -56,16 +56,22 @@ Verification or validation that would have helped earlier.
 
 ## Output Format
 
-For each potential learning, extract:
+For each potential learning, extract structured fields that can be passed directly to `learn.sh`:
 
 ```markdown
 ## Candidate [N]
 
 **Type**: pitfall | check | pattern | insight
-**Quote**: "[The relevant conversation snippet]"
-**Summary**: [One-line description of the learning]
-**Affected area**: [Directory path if identifiable, or "(workflow-level)" if cross-cutting]
+**Title**: [One-line title for ### header — concise, specific]
+**Detail**: [Body content for the entry — the actual learning]
+**Path**: [Directory path, e.g., src/api/ — or project root for workflow-level]
 **Confidence**: high | medium | low
+**Quote**: "[The relevant conversation snippet]"
+```
+
+The **Title**, **Detail**, **Path**, and **Type** fields map directly to `learn.sh` arguments:
+```bash
+learn.sh --project <project> --path <Path> --type <Type> --title "<Title>" --detail "<Detail>"
 ```
 
 ## Confidence Levels
@@ -86,10 +92,11 @@ Extracted:
 ## Candidate 1
 
 **Type**: pitfall
-**Quote**: "Actually, the API can return either a dict or a list depending on the query type. You need to check the type before calling .get()."
-**Summary**: API response format varies by query type - check isinstance before .get()
-**Affected area**: src/api/ (inferred from context)
+**Title**: API response format varies by query type
+**Detail**: API can return either a dict or a list depending on query type. Check isinstance() before calling .get().
+**Path**: src/api/
 **Confidence**: high
+**Quote**: "Actually, the API can return either a dict or a list depending on the query type."
 ```
 
 ### Example 2: Discovery (Medium Confidence)
@@ -102,10 +109,11 @@ Extracted:
 ## Candidate 2
 
 **Type**: insight
-**Quote**: "Turns out the cache invalidates automatically on every deploy. That's why the first request after deploy is slow."
-**Summary**: Cache invalidates on deploy, causing slow first requests
-**Affected area**: (workflow-level)
+**Title**: Cache invalidates on every deploy
+**Detail**: Cache invalidates automatically on deploy, causing slow first requests post-deploy.
+**Path**: .
 **Confidence**: medium
+**Quote**: "Turns out the cache invalidates automatically on every deploy."
 ```
 
 ### Example 3: Missing Check (High Confidence)
@@ -118,10 +126,11 @@ Extracted:
 ## Candidate 3
 
 **Type**: check
-**Quote**: "We should have verified the schema exists before running the migration. Always check with `hasattr(db, 'schema_version')` first."
-**Summary**: Before migration, verify schema_version exists
-**Affected area**: src/db/
+**Title**: Verify schema version before migration
+**Detail**: Always check hasattr(db, 'schema_version') exists before running migration to avoid data loss.
+**Path**: src/db/
 **Confidence**: high
+**Quote**: "We should have verified the schema exists before running the migration."
 ```
 
 ## What NOT to Extract

@@ -171,3 +171,17 @@ $LEARNINGS"
 fi
 
 output_context "PreToolUse" "$CONTEXT"
+
+# Injection audit log (feedback data trail)
+LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.intent-layer/hooks"
+if [[ -d "${CLAUDE_PROJECT_DIR:-.}/.intent-layer" ]]; then
+    mkdir -p "$LOG_DIR"
+    INJECTED_SECTIONS=""
+    [[ -n "$PITFALLS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Pitfalls,"
+    [[ -n "$CHECKS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Checks,"
+    [[ -n "$PATTERNS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Patterns,"
+    [[ -n "$CONTEXT_SECTION" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Context,"
+    INJECTED_SECTIONS="${INJECTED_SECTIONS%,}"  # trim trailing comma
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $FILE_PATH $NODE_PATH $INJECTED_SECTIONS" \
+        >> "$LOG_DIR/injections.log" 2>/dev/null || true
+fi
