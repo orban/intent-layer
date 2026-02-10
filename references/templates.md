@@ -66,6 +66,10 @@ Choose based on project size:
 
 - [Invariant across all areas]
 
+### Global Pitfalls
+
+- [Surprising behavior that catches people]
+
 ### Boundaries
 
 #### Never
@@ -130,6 +134,10 @@ If any unchecked → stop and escalate to #releases.
 
 - [Invariant 1]
 - [Invariant 2]
+
+### Global Pitfalls
+
+- [Non-obvious behavior that catches new contributors]
 
 ### Architecture Decisions
 
@@ -264,9 +272,10 @@ When populating sections, focus on **what agents can't infer from code**:
 | Code Map | Non-obvious locations, semantic groupings | Obvious mappings (routes.ts → routes) |
 | Public API | Exports used by OTHER modules | Internal-only exports |
 | Decisions | Choices someone might question | Obvious decisions |
-| Contracts | Non-type-enforced invariants | Type-enforced rules |
+| Entry Points | Common tasks with specific file paths. Must reference specific file path | Self-evident starting points |
+| Contracts | Non-type-enforced invariants. Should cite source (file, PR, or incident) | Type-enforced rules |
 | Patterns | Sequence + non-obvious steps | "Create file, add imports" |
-| Pitfalls | Looks wrong but right, or vice versa | Obvious gotchas |
+| Pitfalls | Looks wrong but right, or vice versa. Should cite source (file, PR, or incident) | Obvious gotchas |
 
 ### Generation Order
 
@@ -376,6 +385,13 @@ For AI scaffolding:
 ### Never
 - [Component-specific prohibition]
 ```
+
+## Maintenance Discipline
+
+- **Quarterly review**: Review each node; keep only 2-5 highest-value items per section.
+- **Mistake-driven growth**: New Pitfalls/Contracts entries should come from real failures or user corrections, not speculation.
+- **Prune aggressively**: Remove items that are no longer relevant or have been fixed.
+- **Evidence required**: Each entry should reference a file path, PR, or incident that justifies it.
 
 ## Scaffolding Protocol
 

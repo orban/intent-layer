@@ -175,7 +175,7 @@ fi
 
 # Check 2: Required sections for child nodes (schema)
 if [ "$IS_ROOT" = false ]; then
-    REQUIRED_SECTIONS=("Purpose" "Entry Points" "Contracts" "Patterns")
+    REQUIRED_SECTIONS=("Purpose" "Entry Points" "Contracts" "Pitfalls")
     for section in "${REQUIRED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
@@ -183,7 +183,7 @@ if [ "$IS_ROOT" = false ]; then
             ERRORS+=("Missing required section: '$section'")
         fi
     done
-    RECOMMENDED_SECTIONS=("Code Map" "Pitfalls" "Boundaries" "Design Rationale" "Public API")
+    RECOMMENDED_SECTIONS=("Code Map" "Patterns" "Boundaries" "Design Rationale" "Public API")
     for section in "${RECOMMENDED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
@@ -203,10 +203,20 @@ else
     else
         ERRORS+=("Missing required section: 'Entry Points' or 'Subsystems'")
     fi
+    if grep -qiE "^##+ *(Contracts|Global Contracts|Global Invariants)" "$NODE_PATH" 2>/dev/null; then
+        PASSED+=("Has Contracts section")
+    else
+        ERRORS+=("Missing required section: 'Contracts' (or 'Global Contracts'/'Global Invariants')")
+    fi
+    if grep -qiE "^##+ *(Pitfalls|Global Pitfalls)" "$NODE_PATH" 2>/dev/null; then
+        PASSED+=("Has Pitfalls section")
+    else
+        ERRORS+=("Missing required section: 'Pitfalls' (or 'Global Pitfalls')")
+    fi
     if grep -qiE "^##+ *Downlinks" "$NODE_PATH" 2>/dev/null; then
         PASSED+=("Has Downlinks section")
     else
-        WARNINGS+=("Missing recommended section: 'Downlinks'")
+        ERRORS+=("Missing required section: 'Downlinks'")
     fi
 fi
 
@@ -270,6 +280,78 @@ if [ "$LONG_LINES" -gt 5 ]; then
 else
     PASSED+=("Line lengths reasonable")
 fi
+
+# Check 11: Warn if any required section has >5 list items
+if [ "$IS_ROOT" = true ]; then
+    CHECK11_SECTIONS=("Entry Points" "Subsystems" "Contracts" "Global Contracts" "Global Invariants" "Pitfalls" "Global Pitfalls" "Downlinks")
+else
+    CHECK11_SECTIONS=("Purpose" "Entry Points" "Contracts" "Pitfalls")
+fi
+for section in "${CHECK11_SECTIONS[@]}"; do
+    if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
+        # Extract lines between this section header and the next section header
+        section_items=$(awk -v sec="$section" '
+            BEGIN { IGNORECASE=1; in_section=0 }
+            /^##/ {
+                if (in_section) exit
+                if (tolower($0) ~ tolower(sec)) { in_section=1; next }
+            }
+            in_section && /^[[:space:]]*[-*] / { count++ }
+            END { print count+0 }
+        ' "$NODE_PATH")
+        if [ "$section_items" -gt 5 ]; then
+            WARNINGS+=("Section '$section' has $section_items list items (>5) - consider splitting or compressing")
+        fi
+    fi
+done
+
+# Check 12: Entry Points table rows should have backtick-quoted paths
+if grep -qiE "^##+ *(Entry Points)" "$NODE_PATH" 2>/dev/null; then
+    entry_rows_without_path=$(awk '
+        BEGIN { IGNORECASE=1; in_section=0; bad=0 }
+        /^##/ {
+            if (in_section) exit
+            if (tolower($0) ~ /entry points/) { in_section=1; next }
+        }
+        in_section && /^\|/ && !/^\|[[:space:]]*[-]+/ && !/^\|[[:space:]]*[A-Z].*\|[[:space:]]*[A-Z].*\|[[:space:]]*$/ {
+            # Skip header separator rows (|---|---|) and the header row itself
+            if (/^[|][-| ]+[|]$/) next
+            # Count table data rows missing backtick-quoted paths
+            if (!/`[^`]+`/) bad++
+        }
+        END { print bad+0 }
+    ' "$NODE_PATH")
+    if [ "$entry_rows_without_path" -gt 0 ]; then
+        WARNINGS+=("Entry Points table has $entry_rows_without_path row(s) without backtick-quoted file paths")
+    else
+        PASSED+=("Entry Points table rows have file path references")
+    fi
+fi
+
+# Check 13: Evidence check — Pitfalls/Contracts entries should have source references
+for section in "Pitfalls" "Contracts"; do
+    if grep -qiE "^##+ .*$section|^##+ *$section" "$NODE_PATH" 2>/dev/null; then
+        # Extract section content and count list items lacking evidence markers
+        items_without_evidence=$(awk -v sec="$section" '
+            BEGIN { IGNORECASE=1; in_section=0; bad=0 }
+            /^##/ {
+                if (in_section) exit
+                if (tolower($0) ~ tolower(sec)) { in_section=1; next }
+            }
+            in_section && /^[[:space:]]*[-*] / {
+                # Check for evidence: backtick-quoted path, "Source:", URL, or PR ref (#123)
+                if (/`[^`]+`/ || /[Ss]ource:/ || /https?:\/\// || /#[0-9]+/) {
+                    next
+                }
+                bad++
+            }
+            END { print bad+0 }
+        ' "$NODE_PATH")
+        if [ "$items_without_evidence" -gt 0 ]; then
+            WARNINGS+=("$items_without_evidence $section entries lack source references (consider adding file paths or 'Source:' links)")
+        fi
+    fi
+done
 
 # Output results
 if [ "$QUIET" = false ]; then
