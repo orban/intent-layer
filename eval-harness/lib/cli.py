@@ -85,7 +85,10 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--dry-run", is_flag=True, help="Show what would run")
 @click.option("--timeout", default=300, help="Per-task timeout in seconds")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed progress for each step")
-def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose):
+@click.option("--clear-cache", is_flag=True, help="Clear index cache before running")
+@click.option("--no-cache", is_flag=True, help="Disable index caching entirely")
+@click.option("--cache-dir", default="workspaces/.index-cache", help="Index cache directory")
+def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir):
     """Run eval on task files."""
     # Validate task files exist
     for task_path in tasks:
@@ -102,6 +105,13 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             all_tasks.append((task_file.repo, task))
 
     click.echo(f"Loaded {len(all_tasks)} tasks from {len(tasks)} file(s)")
+
+    # Handle cache management (do this before dry-run check)
+    if clear_cache and not no_cache:
+        from lib.index_cache import IndexCache
+        cache = IndexCache(cache_dir)
+        cache.clear()
+        click.echo(f"Cleared index cache at {cache_dir}")
 
     if dry_run:
         click.echo("\nDry run - would execute:")
@@ -125,7 +135,13 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
     def run_single(item):
         repo, task, condition = item
-        runner = TaskRunner(repo, str(workspaces_dir), progress_callback=progress_callback)
+        runner = TaskRunner(
+            repo,
+            str(workspaces_dir),
+            progress_callback=progress_callback,
+            cache_dir=cache_dir,
+            use_cache=not no_cache
+        )
         return runner.run(task, condition)
 
     with ThreadPoolExecutor(max_workers=parallel) as executor:

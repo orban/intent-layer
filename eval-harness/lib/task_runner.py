@@ -4,6 +4,7 @@ import os
 import tempfile
 import shutil
 import sys
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -18,6 +19,7 @@ from lib.prompt_builder import (
     build_prompt_from_failing_test,
     build_prompt_from_issue
 )
+from lib.index_cache import IndexCache
 
 
 # Progress callback type: (task_id, condition, step, message) -> None
@@ -29,25 +31,12 @@ class Condition(Enum):
     WITHOUT_SKILL = "without_skill"
 
 
-SKILL_GENERATION_PROMPT = """Create an Intent Layer for this codebase to help with bug fixing.
-
-1. Run scripts/detect_state.sh to check current state
-2. Run scripts/analyze_structure.sh to find semantic boundaries
-3. Create a root CLAUDE.md with:
-   - Entry points for key functionality
-   - Architecture overview (components, data flow)
-   - Pitfalls extracted from git history (use git-history sub-skill)
-   - Contracts that must be maintained
-4. Create AGENTS.md child nodes for directories with distinct responsibilities
-
-Focus on information that would help someone unfamiliar with the codebase navigate and fix bugs safely."""
-
-
 @dataclass
 class SkillGenerationMetrics:
     wall_clock_seconds: float
     input_tokens: int
     output_tokens: int
+    cache_hit: bool = False
     files_created: list[str] = field(default_factory=list)
 
 
@@ -69,16 +58,79 @@ class TaskResult:
 
 
 class TaskRunner:
-    def __init__(self, repo: RepoConfig, workspaces_dir: str, progress_callback: ProgressCallback | None = None):
+    def __init__(
+        self,
+        repo: RepoConfig,
+        workspaces_dir: str,
+        progress_callback: ProgressCallback | None = None,
+        cache_dir: str = "workspaces/.index-cache",
+        use_cache: bool = True
+    ):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
         self.workspaces_dir.mkdir(parents=True, exist_ok=True)
         self.progress_callback = progress_callback
+        self.index_cache = IndexCache(cache_dir) if use_cache else None
 
     def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
         """Report progress if callback is set."""
         if self.progress_callback:
             self.progress_callback(task_id, condition, step, message)
+
+    def _check_or_generate_index(
+        self,
+        workspace: str,
+        repo_url: str,
+        commit: str
+    ) -> SkillGenerationMetrics:
+        """Check cache or generate index. Returns metrics.
+
+        Args:
+            workspace: Path to workspace where index should be
+            repo_url: Repository URL
+            commit: Commit SHA
+
+        Returns:
+            SkillGenerationMetrics with cache_hit flag
+        """
+        # Check cache if enabled
+        if self.index_cache:
+            cache_entry = self.index_cache.lookup(repo_url, commit)
+
+            if cache_entry:
+                # Cache hit: restore files
+                start = time.time()
+                self.index_cache.restore(cache_entry, workspace)
+                elapsed = time.time() - start
+
+                return SkillGenerationMetrics(
+                    wall_clock_seconds=elapsed,
+                    input_tokens=0,
+                    output_tokens=0,
+                    cache_hit=True,
+                    files_created=cache_entry.agents_files
+                )
+
+        # Cache miss: generate index
+        from lib.prompt_builder import build_skill_generation_prompt
+
+        prompt = build_skill_generation_prompt()
+        result = run_claude(workspace, prompt, timeout=600)
+
+        # Find generated AGENTS.md files
+        agents_files = self._find_agents_files(workspace)
+
+        # Save to cache if enabled
+        if self.index_cache:
+            self.index_cache.save(repo_url, commit, workspace, agents_files)
+
+        return SkillGenerationMetrics(
+            wall_clock_seconds=result.wall_clock_seconds,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            cache_hit=False,
+            files_created=agents_files
+        )
 
     def run(self, task: Task, condition: Condition) -> TaskResult:
         """Execute a single task under the given condition."""
@@ -102,21 +154,14 @@ class TaskRunner:
 
             # Generate AGENTS.md if with_skill
             if condition == Condition.WITH_SKILL:
-                self._progress(task.id, cond_str, "skill_gen", "generating Intent Layer with Claude...")
-                skill_result = run_claude(
-                    workspace,
-                    SKILL_GENERATION_PROMPT,
-                    timeout=600
+                self._progress(task.id, cond_str, "skill_gen", "checking cache or generating Intent Layer...")
+                skill_metrics = self._check_or_generate_index(
+                    workspace=workspace,
+                    repo_url=self.repo.url,
+                    commit=task.pre_fix_commit
                 )
-                # Find created AGENTS.md/CLAUDE.md files
-                files_created = self._find_agents_files(workspace)
-                skill_metrics = SkillGenerationMetrics(
-                    wall_clock_seconds=skill_result.wall_clock_seconds,
-                    input_tokens=skill_result.input_tokens,
-                    output_tokens=skill_result.output_tokens,
-                    files_created=files_created
-                )
-                self._progress(task.id, cond_str, "skill_gen_done", f"created {len(files_created)} file(s) in {skill_result.wall_clock_seconds:.1f}s")
+                cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
+                self._progress(task.id, cond_str, "skill_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
             # Build prompt (with AGENTS.md preamble if skill was generated)
             self._progress(task.id, cond_str, "prompt", "building prompt")

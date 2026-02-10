@@ -52,3 +52,19 @@ lib/
 **Problem**: Docker `-v` flag requires absolute paths, but workspace paths may be relative.
 
 **Solution**: Use `os.path.abspath()` before passing to docker. See `lib/docker_runner.py`.
+
+### Index cache not invalidated when skill changes
+
+**Problem**: Cache key includes skill hash, but changing skill files doesn't automatically clear old cache entries.
+
+**Symptom**: Old AGENTS.md files used even after modifying `~/.claude/skills/intent-layer/`.
+
+**Solution**: Use `--clear-cache` flag to manually clear cache after skill updates. Cache miss will regenerate with new skill version.
+
+### Metrics structure differs with/without skill
+
+**Problem**: `with_skill` results have nested `skill_generation` metrics, but `without_skill` does not.
+
+**Symptom**: Accessing `result["skill_generation"]` on `without_skill` results raises KeyError.
+
+**Solution**: Always check `if "skill_generation" in result` before accessing. See `lib/reporter.py` for the defensive pattern. Delta calculations only use top-level fix metrics, which exist in both conditions.

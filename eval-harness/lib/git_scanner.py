@@ -56,7 +56,7 @@ class GitScanner:
         limit: int = 50
     ) -> list[ScannedTask]:
         """Scan a repo for bug fix commits."""
-        cmd = ["git", "log", "--format=%H|%s", f"-{limit * 3}"]  # Over-fetch
+        cmd = ["git", "log", "--format=%H|%s", f"-{limit * 10}"]  # Over-fetch
         if since:
             cmd.append(f"--since={since}")
 
