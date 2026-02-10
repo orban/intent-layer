@@ -214,8 +214,17 @@ if [[ -z "$SECTION_LINE" ]]; then
     exit 1
 fi
 
-NEXT_LINE=$((SECTION_LINE + 1))
 TOTAL_LINES=$(wc -l < "$COVERING_NODE" | tr -d ' ')
+
+# Insert after section header. Only include the next line when it's an
+# intentional blank spacer, so we never split an existing ### entry header.
+NEXT_LINE="$SECTION_LINE"
+if [[ "$SECTION_LINE" -lt "$TOTAL_LINES" ]]; then
+    LINE_AFTER_SECTION=$(sed -n "$((SECTION_LINE + 1))p" "$COVERING_NODE")
+    if [[ -z "${LINE_AFTER_SECTION//[[:space:]]/}" ]]; then
+        NEXT_LINE=$((SECTION_LINE + 1))
+    fi
+fi
 
 head -n "$NEXT_LINE" "$COVERING_NODE" > "$TEMP_FILE"
 # Ensure blank line before entry
