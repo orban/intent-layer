@@ -207,6 +207,45 @@ else
     fail "title=$has_learn_title body=$has_learn_body"
 fi
 
+# ---- Test 7: Date stamp present ----
+echo "Test 7: Entry includes date stamp in source tag"
+if grep -q "_Source: learn.sh | added: " "$AGENTS"; then
+    pass "Date stamp found in source tag"
+else
+    fail "No date stamp in source tag"
+fi
+
+# ---- Test 8: Section size warning ----
+echo "Test 8: Section size warning when budget exceeded"
+# Create a fresh node with a bloated Pitfalls section (>300 words)
+mkdir -p "$TEST_DIR/src/bloated"
+BLOATED_AGENTS="$TEST_DIR/src/bloated/AGENTS.md"
+{
+    echo "# Bloated Module"
+    echo ""
+    echo "## Pitfalls"
+    echo ""
+    for i in $(seq 1 20); do
+        echo "### Synthetic pitfall entry number $i"
+        echo ""
+        echo "This is synthetic content designed to pad the pitfalls section well beyond the three hundred word budget threshold. Each entry contributes approximately twenty five words to the total."
+        echo ""
+    done
+} > "$BLOATED_AGENTS"
+touch "$TEST_DIR/src/bloated/file.ts"
+
+WARNING=$("$PLUGIN_DIR/scripts/learn.sh" \
+    --project "$TEST_DIR" --path "src/bloated/file.ts" \
+    --type pitfall --title "Unique trigger entry for budget warning" \
+    --detail "This final entry triggers the section size warning check after writing" \
+    2>&1 >/dev/null || true)
+
+if echo "$WARNING" | grep -q "Warning.*words"; then
+    pass "Section size warning emitted when budget exceeded"
+else
+    fail "No size warning: $WARNING"
+fi
+
 # ============================================================
 # Summary
 # ============================================================

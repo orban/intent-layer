@@ -117,14 +117,14 @@ case "$LEARNING_TYPE" in
         ENTRY="### Before $TITLE
 - [ ] $DETAIL
 
-_Source: learn.sh_"
+_Source: learn.sh | added: $(date +%Y-%m-%d)_"
         ;;
     pattern)
         ENTRY="### $TITLE
 
 **Preferred**: $DETAIL
 
-_Source: learn.sh_"
+_Source: learn.sh | added: $(date +%Y-%m-%d)_"
         ;;
     *)
         # pitfall and insight share the same format
@@ -132,7 +132,7 @@ _Source: learn.sh_"
 
 $DETAIL
 
-_Source: learn.sh_"
+_Source: learn.sh | added: $(date +%Y-%m-%d)_"
         ;;
 esac
 
@@ -230,3 +230,17 @@ rm -f "$ENTRY_FILE"
 mv "$TEMP_FILE" "$COVERING_NODE"
 
 echo "✓ $LEARNING_TYPE added to ## $TARGET_SECTION in $COVERING_NODE"
+
+# Section size check (lazy pruning trigger)
+SECTION_WORDS=$(awk -v section="$TARGET_SECTION" '
+    /^## / {
+        if (in_section) exit
+        if ($0 == "## " section) { in_section=1; next }
+    }
+    in_section { print }
+' "$COVERING_NODE" | wc -w | tr -d ' ')
+
+if [[ "$SECTION_WORDS" -gt 300 ]]; then
+    echo "Warning: ## $TARGET_SECTION in $COVERING_NODE has ~${SECTION_WORDS} words (budget: ~300)" >&2
+    echo "Consider consolidating entries with /intent-layer-maintenance" >&2
+fi

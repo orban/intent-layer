@@ -200,6 +200,32 @@ Facts that apply to multiple directories belong at their Lowest Common Ancestor:
 | "Never commit .env" | All paths | Root `CLAUDE.md` |
 | "Use idempotency keys" | `payments/`, `billing/` | Their common parent |
 
+## Feedback Data Trail
+
+The Intent Layer collects lightweight feedback signals to assess entry quality:
+
+### Injection Log
+
+When the PreToolUse hook injects learnings from AGENTS.md before an edit, it logs:
+```
+.intent-layer/hooks/injections.log
+```
+Format: `{ISO-timestamp} {edited-file} {covering-node} {sections-injected}`
+
+### Failure Correlation
+
+When a tool failure occurs (PostToolUseFailure), the system checks whether AGENTS.md
+entries were recently injected for that file. If so, the skeleton report is enriched
+with injection history — signaling that existing entries may need improvement.
+
+### Entry Timestamps
+
+Entries written by `learn.sh` include `added: YYYY-MM-DD` in their source tag,
+enabling age-based review during maintenance cycles.
+
+These signals are passive (no writes to AGENTS.md from hooks). Analysis happens
+at session end via the compound learning skill or during maintenance.
+
 ## Compatibility
 
 This protocol is tool-agnostic. Any AI agent that can read files from the filesystem

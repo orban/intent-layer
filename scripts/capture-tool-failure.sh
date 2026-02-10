@@ -124,6 +124,27 @@ _Awaiting analysis_
 - [ ] Discarded (exploratory failure, not a real learning)
 EOF
 
+# Check if this file had recent AGENTS.md injections
+INJECTION_LOG="$PROJECT_ROOT/.intent-layer/hooks/injections.log"
+INJECTED_CONTEXT=""
+if [[ -f "$INJECTION_LOG" && -n "$FILE_PATH" ]]; then
+    RECENT=$(grep "$FILE_PATH" "$INJECTION_LOG" 2>/dev/null | tail -3 || true)
+    if [[ -n "$RECENT" ]]; then
+        INJECTED_CONTEXT="
+**Injection history**: Entries from covering AGENTS.md were injected before this edit.
+Recent injections:
+\`\`\`
+$RECENT
+\`\`\`
+This failure occurred despite active AGENTS.md guidance — the entries may need improvement."
+        # Append injection context to skeleton report
+        {
+            echo ""
+            echo "$INJECTED_CONTEXT"
+        } >> "$REPORT_FILE"
+    fi
+fi
+
 # Output context to inform agent
 CONTEXT="## Intent Layer: Mistake Captured
 
@@ -133,6 +154,7 @@ A skeleton mistake report was auto-created:
 **Tool**: $TOOL_NAME
 **File**: ${FILE_PATH:-N/A}
 
-If this failure reveals a non-obvious gotcha, the Stop hook will prompt you to enrich this report at session end. If it was just exploratory (expected failure), you can ignore it or delete the skeleton."
+If this failure reveals a non-obvious gotcha, the Stop hook will prompt you to enrich this report at session end. If it was just exploratory (expected failure), you can ignore it or delete the skeleton.
+$INJECTED_CONTEXT"
 
 output_context "PostToolUseFailure" "$CONTEXT"

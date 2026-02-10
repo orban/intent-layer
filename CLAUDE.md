@@ -62,6 +62,8 @@ intent-layer-plugin/
 | **Agents** | Specialized analysis tasks | Auto-invoked by Claude when relevant |
 | **Hooks** | Learning loop: auto-capture, pitfall injection, staleness check | 5 hooks: SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop |
 
+- **Injection log**: `.intent-layer/hooks/injections.log` — tracks which AGENTS.md entries were injected before edits (for feedback analysis)
+
 ### Scripts
 
 Standalone bash tools in `scripts/`. All support `-h`/`--help`.
