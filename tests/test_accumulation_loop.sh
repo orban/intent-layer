@@ -96,10 +96,17 @@ else
     "$PLUGIN_DIR/lib/integrate_pitfall.sh" --force "$REPORT" >/dev/null 2>&1 || true
 
     CONTEXT=$("$PLUGIN_DIR/scripts/resolve_context.sh" "$TEST_DIR" "src/api/" 2>/dev/null)
-    if echo "$CONTEXT" | grep -q "Null check on empty collections"; then
-        pass "Learning flows capture → integration → context resolution"
+    has_title=false
+    has_body=false
+    echo "$CONTEXT" | grep -q "Null check on empty collections" && has_title=true
+    echo "$CONTEXT" | grep -q "null instead of empty array" && has_body=true
+
+    if $has_title && $has_body; then
+        pass "Learning title AND body flow through capture → integration → context"
+    elif $has_title; then
+        fail "Title present but body content missing from resolved context"
     else
-        fail "Integrated learning not found in resolved context"
+        fail "Neither title nor body found in resolved context"
     fi
 fi
 
@@ -136,16 +143,20 @@ else
 
     CONTEXT=$("$PLUGIN_DIR/scripts/resolve_context.sh" "$TEST_DIR" "src/api/" 2>/dev/null)
     has_original=false
-    has_first=false
-    has_second=false
+    has_first_title=false
+    has_first_body=false
+    has_second_title=false
+    has_second_body=false
     echo "$CONTEXT" | grep -q "validate.*silently passes" && has_original=true
-    echo "$CONTEXT" | grep -q "Null check on empty collections" && has_first=true
-    echo "$CONTEXT" | grep -q "Rate limiter ignores OPTIONS" && has_second=true
+    echo "$CONTEXT" | grep -q "Null check on empty collections" && has_first_title=true
+    echo "$CONTEXT" | grep -q "null instead of empty array" && has_first_body=true
+    echo "$CONTEXT" | grep -q "Rate limiter ignores OPTIONS" && has_second_title=true
+    echo "$CONTEXT" | grep -q "CORS preflight passes through" && has_second_body=true
 
-    if $has_original && $has_first && $has_second; then
-        pass "Pre-populated + 2 captured pitfalls all coexist in resolved context"
+    if $has_original && $has_first_title && $has_first_body && $has_second_title && $has_second_body; then
+        pass "All 3 pitfalls coexist with both titles and body content intact"
     else
-        fail "original=$has_original first=$has_first second=$has_second"
+        fail "original=$has_original first_title=$has_first_title first_body=$has_first_body second_title=$has_second_title second_body=$has_second_body"
     fi
 fi
 
@@ -154,11 +165,24 @@ echo "Test 4: PreToolUse hook injects integrated learnings"
 HOOK_INPUT='{"tool_name":"Edit","tool_input":{"file_path":"'"$TEST_DIR/src/api/handlers.ts"'"}}'
 HOOK_OUTPUT=$(echo "$HOOK_INPUT" | "$PLUGIN_DIR/scripts/pre-edit-check.sh" 2>/dev/null || true)
 
-if echo "$HOOK_OUTPUT" | grep -q "Null check on empty collections" && \
-   echo "$HOOK_OUTPUT" | grep -q "Rate limiter ignores OPTIONS"; then
-    pass "PreToolUse hook output contains integrated learnings"
+# Verify hook output is valid JSON with the expected structure
+ADDITIONAL_CONTEXT=$(echo "$HOOK_OUTPUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true)
+
+if [[ -z "$ADDITIONAL_CONTEXT" ]]; then
+    fail "Hook output is not valid JSON or missing additionalContext field"
 else
-    fail "Hook output missing learnings"
+    has_title=false
+    has_body=false
+    has_second=false
+    echo "$ADDITIONAL_CONTEXT" | grep -q "Null check on empty collections" && has_title=true
+    echo "$ADDITIONAL_CONTEXT" | grep -q "null instead of empty array" && has_body=true
+    echo "$ADDITIONAL_CONTEXT" | grep -q "CORS preflight passes through" && has_second=true
+
+    if $has_title && $has_body && $has_second; then
+        pass "Hook emits valid JSON with learning titles AND body content in additionalContext"
+    else
+        fail "title=$has_title body=$has_body second=$has_second"
+    fi
 fi
 
 # ---- Test 5: Deduplication ----
@@ -227,29 +251,39 @@ INSIGHT_REPORT=$(find_latest_report "INSIGHT")
 [[ -n "$INSIGHT_REPORT" ]] && \
     "$PLUGIN_DIR/lib/integrate_pitfall.sh" --force "$INSIGHT_REPORT" >/dev/null 2>&1 || true
 
-# Verify sections exist in the AGENTS.md file
+# Verify type-specific formatting in the AGENTS.md file
 AGENTS="$TEST_DIR/src/api/AGENTS.md"
-missing_sections=""
-grep -q "^## Checks" "$AGENTS" || missing_sections="$missing_sections Checks"
-grep -q "^## Patterns" "$AGENTS" || missing_sections="$missing_sections Patterns"
-grep -q "^## Context" "$AGENTS" || missing_sections="$missing_sections Context"
+format_errors=""
 
-if [[ -z "$missing_sections" ]]; then
-    # Also verify all 4 section types visible via resolve_context.sh
+# Check: should have checklist format (- [ ] ...)
+grep -q "^## Checks" "$AGENTS" || format_errors="$format_errors no-Checks-section"
+grep -q "\- \[ \]" "$AGENTS" || format_errors="$format_errors no-checklist-item"
+
+# Pattern: should have **Preferred**: prefix
+grep -q "^## Patterns" "$AGENTS" || format_errors="$format_errors no-Patterns-section"
+grep -q "\*\*Preferred\*\*" "$AGENTS" || format_errors="$format_errors no-Preferred-prefix"
+
+# Insight: should land in ## Context with body content
+grep -q "^## Context" "$AGENTS" || format_errors="$format_errors no-Context-section"
+grep -q "defense in depth" "$AGENTS" || format_errors="$format_errors no-insight-body"
+
+if [[ -z "$format_errors" ]]; then
+    # Also verify body content surfaces through resolve_context.sh
     CONTEXT=$("$PLUGIN_DIR/scripts/resolve_context.sh" "$TEST_DIR" "src/api/" 2>/dev/null)
-    has_all=true
-    echo "$CONTEXT" | grep -q "## Pitfalls" || has_all=false
-    echo "$CONTEXT" | grep -q "## Checks" || has_all=false
-    echo "$CONTEXT" | grep -q "## Patterns" || has_all=false
-    echo "$CONTEXT" | grep -q "## Context" || has_all=false
+    has_check_body=false
+    has_pattern_body=false
+    has_insight_body=false
+    echo "$CONTEXT" | grep -q "auth test suite" && has_check_body=true
+    echo "$CONTEXT" | grep -q "pipe rather than nesting" && has_pattern_body=true
+    echo "$CONTEXT" | grep -q "defense in depth" && has_insight_body=true
 
-    if $has_all; then
-        pass "All 4 section types (Pitfalls, Checks, Patterns, Context) present in resolved context"
+    if $has_check_body && $has_pattern_body && $has_insight_body; then
+        pass "All 4 types: correct formatting + body content present in resolved context"
     else
-        fail "Sections exist in file but not all present in resolved context"
+        fail "check_body=$has_check_body pattern_body=$has_pattern_body insight_body=$has_insight_body"
     fi
 else
-    fail "Missing sections in AGENTS.md:$missing_sections"
+    fail "Type-specific formatting errors:$format_errors"
 fi
 
 # ============================================================
