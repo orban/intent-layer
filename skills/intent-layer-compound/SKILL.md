@@ -78,26 +78,28 @@ For each "yes" response:
 - Capture via the existing `capture_mistake.sh` with pre-filled fields
 - Assign appropriate learning type
 
-### Layer 3: Pending Review
+### Layer 3: Direct Integration
 
-After capture is complete:
+After candidates are confirmed, integrate each one directly using `learn.sh`:
 
-1. **Show pending count** (auto-captured + just captured)
-   ```bash
-   ${CLAUDE_PLUGIN_ROOT}/scripts/review_mistakes.sh [PROJECT_PATH]
-   ```
+For each confirmed candidate:
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/learn.sh \
+  --project [PROJECT_PATH] \
+  --path [AFFECTED_PATH] \
+  --type [pitfall|check|pattern|insight] \
+  --title "[TITLE]" \
+  --detail "[DETAIL]"
+```
 
-2. **Run interactive review** with scope selection
-   - For each learning, prompt: `Scope: [l]ocal or [g]lobal [Enter=<default>]?`
-   - Smart defaults:
-     | Type | Default | Rationale |
-     |------|---------|-----------|
-     | insight | global | Workflow-level knowledge |
-     | pitfall | local | Code-specific gotcha |
-     | check | local | Pre-action verification |
-     | pattern | local | Usually code patterns |
+`learn.sh` handles deduplication automatically — if the learning already exists (≥60% word overlap), it exits with code 2 and reports "duplicate skipped".
 
-3. **Show summary** of what was integrated and where
+**Report outcomes to the user:**
+- Exit 0: "✓ Integrated into [AGENTS.md path]"
+- Exit 2: "⊘ Duplicate skipped (already documented)"
+- Exit 1: "✗ Error: [message]"
+
+**Show summary** of what was integrated and where when all candidates are processed.
 
 ---
 
@@ -107,9 +109,8 @@ After capture is complete:
 
 | Script | Purpose |
 |--------|---------|
-| `capture_mistake.sh` | Create learning report with type selection |
-| `review_mistakes.sh` | Interactive triage with scope routing |
-| `integrate_pitfall.sh` | Merge accepted learning into covering AGENTS.md |
+| `learn.sh` | Direct-write learning to AGENTS.md (dedup-gated) |
+| `capture_mistake.sh` | Create learning report for pending queue (swarm use) |
 
 ### Prompts
 
@@ -146,53 +147,33 @@ Found 2 potential learnings:
 
 1. [pitfall] API response format varies
    "Actually, the API can return either a dict or a list..."
-   Affected: src/api/
+   Path: src/api/
 
    Is this worth documenting? [y/n/edit]: y
-   ✓ Captured as PITFALL-2024-01-15-api-response.md
 
 2. [insight] Deploy triggers cache invalidation
    "Turns out the cache clears on every deploy..."
-   Affected: (workflow-level)
+   Path: (workflow-level)
 
    Is this worth documenting? [y/n/edit]: y
-   ✓ Captured as INSIGHT-2024-01-15-cache-deploy.md
 
 [Layer 2: Additional Prompts]
 Any other corrections you made to my assumptions? [y/n]: n
 Any unexpected behaviors discovered? [y/n]: n
 Any better approaches figured out? [y/n]: n
 
-[Layer 3: Pending Review]
-Found 3 pending reports (1 auto-captured, 2 just captured)
+[Layer 3: Direct Integration]
+Integrating 2 confirmed learnings...
+
+1. ✓ pitfall added to ## Pitfalls in src/api/AGENTS.md
+2. ✓ insight added to ## Context in CLAUDE.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[1/3] PITFALL-2024-01-15-api-response.md
+Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Directory:  src/api/
-Operation:  Parse API response
-...
-
-Action [a/r/d/e/s/q/?]: a
-
-Scope: [l]ocal (src/api/AGENTS.md) or [g]lobal (CLAUDE.md)
-Select scope [l/g, Enter=local]:
-
-Integrating (local scope)...
-✓ pitfall added to ## Pitfalls in src/api/AGENTS.md (local)
-✓ Moved to integrated/
-
-...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Review Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Reviewed:  3
-  Accepted:  2 (1 local, 1 global)
-  Rejected:  0
-  Discarded: 1
-  Skipped:   0
+  Integrated: 2
+  Duplicates: 0
+  Errors:     0
 
 Compound learning complete!
 ```

@@ -188,6 +188,8 @@ from `{RANDOM}-{PID}`. No locking required.
 
 Workers MUST NOT write directly to AGENTS.md files. Always use the pending queue.
 
+For single-agent sessions (not swarm), `learn.sh` provides a direct-write path that bypasses the pending queue. It uses dedup to prevent duplicates and temp-file swap for atomic writes, but is NOT safe for concurrent writes to the same AGENTS.md. Swarm workers must continue using `report_learning.sh`.
+
 ## LCA Placement Rule
 
 Facts that apply to multiple directories belong at their Lowest Common Ancestor:
