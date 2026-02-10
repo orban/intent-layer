@@ -110,6 +110,7 @@ Internal scripts used by hooks and other scripts:
 - `intent-layer-onboarding` → Orientation for new developers
 - `intent-layer-query` → Answer questions using Intent Layer
 - `intent-layer:clean` → Remove Intent Layer from a repo
+- `intent-layer-compound` → End-of-session learning capture and triage
 
 All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 
