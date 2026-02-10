@@ -97,12 +97,12 @@ else
     fail "hooks.json should use \${CLAUDE_PLUGIN_ROOT}"
 fi
 
-# Test 9: plugin.json references hooks
-echo "Test 9: plugin.json references hooks"
-if jq -e '.hooks' "$PLUGIN_DIR/.claude-plugin/plugin.json" >/dev/null 2>&1; then
-    pass "plugin.json references hooks"
+# Test 9: hooks.json auto-discovered at hooks/hooks.json
+echo "Test 9: hooks auto-discovered via hooks/hooks.json"
+if [[ -f "$PLUGIN_DIR/hooks/hooks.json" ]]; then
+    pass "hooks/hooks.json exists for auto-discovery"
 else
-    fail "plugin.json missing hooks reference"
+    fail "hooks/hooks.json missing — hooks won't be auto-discovered"
 fi
 
 # Test 10: SessionStart uses stronger language for missing Intent Layer
