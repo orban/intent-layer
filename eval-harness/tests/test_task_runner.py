@@ -347,6 +347,60 @@ def test_generate_flat_context_dual_write(sample_repo):
         assert os.path.exists(os.path.join(workspace, "CLAUDE.md"))
 
 
+def test_strip_extra_rejects_path_traversal(sample_repo):
+    """Test that strip_extra blocks paths that escape the workspace."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(workspace)
+
+        # Create a file outside workspace that should NOT be deleted
+        outside_file = os.path.join(tmpdir, "important.txt")
+        with open(outside_file, "w") as f:
+            f.write("don't delete me")
+
+        removed = runner._strip_context_files(
+            workspace, strip_extra=["../important.txt"]
+        )
+
+        # Path traversal should be blocked
+        assert "../important.txt" not in removed
+        assert os.path.exists(outside_file)
+
+
+def test_infrastructure_error_prefix(sample_repo):
+    """Test that infrastructure errors are tagged with [infrastructure] prefix."""
+    result = TaskResult(
+        task_id="fix-123",
+        condition=Condition.NONE,
+        success=False,
+        test_output="",
+        wall_clock_seconds=0,
+        input_tokens=0,
+        output_tokens=0,
+        tool_calls=0,
+        lines_changed=0,
+        files_touched=[],
+        error="[infrastructure] clone failed: timeout"
+    )
+    assert result.error.startswith("[infrastructure]")
+    # A normal task failure has no error field
+    normal_fail = TaskResult(
+        task_id="fix-456",
+        condition=Condition.NONE,
+        success=False,
+        test_output="3 tests failed",
+        wall_clock_seconds=45.0,
+        input_tokens=1000,
+        output_tokens=500,
+        tool_calls=10,
+        lines_changed=5,
+        files_touched=["src/main.py"],
+    )
+    assert normal_fail.error is None
+
+
 def test_strip_context_files_with_universal_and_extras(sample_repo):
     """Test stripping universal context files AND strip_extra simultaneously."""
     with tempfile.TemporaryDirectory() as tmpdir:

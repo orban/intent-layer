@@ -1,10 +1,13 @@
 # lib/claude_runner.py
 from __future__ import annotations
+import logging
 import subprocess
 import time
 import json
 import os
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -65,7 +68,8 @@ def parse_claude_output(stdout: str) -> dict:
             }
 
         return {"input_tokens": 0, "output_tokens": 0, "tool_calls": 0}
-    except (json.JSONDecodeError, TypeError, AttributeError):
+    except (json.JSONDecodeError, TypeError, AttributeError) as e:
+        logger.warning("Failed to parse Claude output metrics: %s", e)
         return {"input_tokens": 0, "output_tokens": 0, "tool_calls": 0}
 
 

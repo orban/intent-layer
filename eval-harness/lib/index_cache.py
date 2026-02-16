@@ -1,10 +1,13 @@
 # lib/index_cache.py
 from __future__ import annotations
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 import json
 from datetime import datetime
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -148,12 +151,19 @@ class IndexCache:
         cache_entry_dir = Path(entry.workspace_path)
         target_path = Path(target_workspace)
 
+        restored = 0
         for agents_file in entry.agents_files:
             src = cache_entry_dir / agents_file
             dst = target_path / agents_file
             dst.parent.mkdir(parents=True, exist_ok=True)
             if src.exists():
                 shutil.copy2(src, dst)
+                restored += 1
+            else:
+                logger.warning("Cache file missing: %s (expected in %s)", agents_file, cache_entry_dir)
+
+        if restored == 0 and entry.agents_files:
+            logger.warning("Cache restore found 0 of %d expected files", len(entry.agents_files))
 
     def clear(self):
         """Clear all cached indexes."""
