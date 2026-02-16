@@ -1,6 +1,6 @@
 {
   "name": "intent-layer",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Hierarchical AGENTS.md infrastructure for AI-navigable codebases. Create CLAUDE.md/AGENTS.md files that help AI agents navigate your codebase like senior engineers.",
   "author": {
     "name": "Intent Layer Contributors"
