@@ -108,9 +108,12 @@ fi
 NODE_DIR=$(dirname "$COVERING_NODE")
 RELATIVE_PATH="${FILE_PATH#$NODE_DIR/}"
 
-# Output reminder (this is what Claude sees)
-echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
-echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+# Only emit reminder if the file's basename appears in the covering node
+# Case-insensitive match reduces noise for files not mentioned in AGENTS.md
+if grep -qi "$FILE_NAME" "$COVERING_NODE" 2>/dev/null; then
+    echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
+    echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+fi
 
 # --- New Directory Detection ---
 # Check if this file was written to a new directory that may need AGENTS.md
