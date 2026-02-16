@@ -40,17 +40,23 @@ intent-layer-plugin/
 ├── .claude-plugin/
 │   └── plugin.json          # Plugin manifest (name, version, author)
 ├── skills/                   # Slash-command skills (/intent-layer, etc.)
-│   ├── intent-layer/         # Main setup skill
+│   ├── intent-layer/         # Main setup skill + sub-skills (git-history, pr-review, pr-review-mining)
 │   ├── intent-layer-maintenance/
 │   ├── intent-layer-onboarding/
-│   └── intent-layer-query/
+│   ├── intent-layer-query/
+│   ├── intent-layer-compound/ # End-of-session learning capture
+│   ├── intent-layer-health/   # Quick health check
+│   └── review-mistakes/       # Interactive mistake triage
 ├── agents/                   # Specialized subagents
 │   ├── explorer.md           # Analyzes directories, proposes nodes
 │   ├── validator.md          # Deep validation against codebase
-│   └── auditor.md            # Drift detection, staleness check
+│   ├── auditor.md            # Drift detection, staleness check
+│   └── change-tracker.md     # Maps code changes to covering nodes
 ├── hooks/
-│   └── hooks.json            # PostToolUse hook for edit tracking
-├── scripts/                  # Shared bash scripts
+│   └── hooks.json            # 5 hook slots (SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop)
+├── scripts/                  # 28 standalone bash scripts
+├── lib/                      # 5 internal library scripts
+├── tests/                    # Bash test scripts
 └── references/               # Templates, protocols, examples
 ```
 
@@ -66,7 +72,7 @@ intent-layer-plugin/
 
 ### Scripts
 
-Standalone bash tools in `scripts/`. All support `-h`/`--help`.
+28 standalone bash tools in `scripts/`. CLI scripts support `-h`/`--help`; hook scripts don't.
 
 | Script | Purpose |
 |--------|---------|
@@ -87,6 +93,11 @@ Standalone bash tools in `scripts/`. All support `-h`/`--help`.
 | `capture_mistake.sh` | Record mistakes for learning loop (manual) |
 | `review_mistakes.sh` | Interactive triage of pending mistake reports |
 | `post-edit-check.sh` | Hook script for edit tracking |
+| `stop-learning-check.sh` | Stop hook: two-tier learning classifier (heuristic + Haiku) |
+| `inject-learnings.sh` | SessionStart hook: inject recent learnings |
+| `pre-edit-check.sh` | PreToolUse hook: inject covering AGENTS.md sections |
+| `capture-tool-failure.sh` | PostToolUseFailure hook: create skeleton reports |
+| `audit_intent_layer.sh` | Comprehensive audit (validation + staleness + coverage) |
 | `generate_orientation.sh` | Generate onboarding documents |
 | `query_intent.sh` | Query Intent Layer for answers |
 | `walk_ancestors.sh` | Navigate node hierarchy |
@@ -114,6 +125,8 @@ Internal scripts used by hooks and other scripts:
 - `intent-layer-query` → Answer questions using Intent Layer
 - `intent-layer:clean` → Remove Intent Layer from a repo
 - `intent-layer-compound` → End-of-session learning capture and triage
+- `intent-layer-health` → Quick health check (validation + staleness + coverage)
+- `review-mistakes` → Interactive triage of pending mistake reports
 
 All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 
@@ -225,12 +238,18 @@ _Source: learn.sh | added: 2026-02-15_
 
 ## Intent Layer
 
-This project uses its own Intent Layer for documentation. Child nodes:
+This project uses its own Intent Layer for documentation.
 
-- `scripts/AGENTS.md` — Script categories, arg parsing patterns, cross-platform gotchas
-- `lib/AGENTS.md` — Library functions, dependency graph, common.sh API
-- `hooks/AGENTS.md` — Hook slots, data flow, stdin/stdout contracts, injection log
-- `eval-harness/AGENTS.md` — Evaluation framework for A/B testing Claude skills
+### Downlinks
+
+| Area | Node | Description |
+|------|------|-------------|
+| Scripts | `scripts/AGENTS.md` | Script categories, arg parsing patterns, cross-platform gotchas |
+| Library | `lib/AGENTS.md` | Shared functions, dependency graph, common.sh API |
+| Hooks | `hooks/AGENTS.md` | Hook slots, data flow, stdin/stdout contracts, injection log |
+| Skills | `skills/AGENTS.md` | Skill map, sub-skill invocation, state routing |
+| Agents | `agents/AGENTS.md` | Subagent definitions, pipeline, frontmatter contracts |
+| Eval Harness | `eval-harness/AGENTS.md` | A/B testing framework for Claude skills |
 
 ## Learning Loop
 

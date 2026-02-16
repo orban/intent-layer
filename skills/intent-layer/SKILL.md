@@ -170,9 +170,9 @@ Run `scripts/estimate_all_candidates.sh`, then:
 - Present candidates table to user
 - Ask: "Which directories should get their own AGENTS.md?"
 
-### Step 3: Mine History (Auto-Invoked)
+### Step 3: Mine History (Auto-Invoked) — HIGHEST VALUE STEP
 
-**Before creating each node**, automatically analyze both git history AND PR discussions using the mining scripts:
+**Before creating each node**, automatically analyze both git history AND PR discussions using the mining scripts. Git-mined pitfalls are consistently the most valuable content in any node. Pitfalls discovered from real bugs (commit fixes, reverts, migrations) are far more useful than pitfalls guessed from reading code.
 
 ```bash
 # Git commit analysis (extracts pitfalls, anti-patterns, decisions, contracts)
@@ -589,7 +589,11 @@ For full protocol: `references/capture-protocol.md`
 | Hidden contracts/invariants | Document in nearest ancestor |
 | Cross-cutting concern | Place at lowest common ancestor |
 
-**Do NOT create for**: every directory, simple utilities, test folders (unless complex).
+**Do NOT create for**:
+- Every directory
+- Simple utilities or config-only directories
+- Test folders (unless complex test infrastructure)
+- Directories with <5 source files AND <2k tokens (too little to document meaningfully — a 54-line node for 4 markdown files is filler)
 
 ---
 
