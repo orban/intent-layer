@@ -48,6 +48,16 @@ Pick the right one:
 
 Calling `learn.sh --agent-id` errors on purpose, directing to `report_learning.sh`.
 
+### stop-learning-check.sh three-tier architecture
+
+The Stop hook uses three tiers to auto-capture learnings without blocking sessions unnecessarily:
+
+1. **Tier 1** (bash heuristics): Checks for signals — uncommitted AGENTS.md changes, skeleton reports, injection log. No signals → exit 0 immediately.
+2. **Tier 2** (Haiku classifier): Binary `should_capture: true/false`. Filters out routine sessions.
+3. **Tier 3** (Haiku extraction): Pulls structured learnings (type, title, detail, path, confidence). High-confidence → `learn.sh` (auto-write with dedup). Low-confidence → `report_learning.sh` (pending queue).
+
+Only blocks the session when low-confidence learnings were queued for human review. High-confidence auto-writes don't block. All tiers fail open on error.
+
 ### Library sourcing
 
 Scripts that need shared functions source `lib/common.sh` via:

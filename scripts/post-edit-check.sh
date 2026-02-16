@@ -165,3 +165,30 @@ if [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
     echo "📁 New directory \`$DIR_NAME\` created - may need AGENTS.md coverage as it grows."
     echo "   Run \`/intent-layer-maintenance\` when ready to extend the hierarchy."
 fi
+
+# --- Outcome Telemetry ---
+# Log successful edit outcome for telemetry correlation with pre-edit injections
+
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
+TELEMETRY_DIR="$PROJECT_ROOT/.intent-layer/hooks"
+
+if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
+   [[ ! -f "$PROJECT_ROOT/.intent-layer/disable-telemetry" ]]; then
+    mkdir -p "$TELEMETRY_DIR"
+    # Infer tool name from JSON input fields (matcher is "Write|Edit")
+    # Edit has old_string; Write does not
+    if echo "$TOOL_INPUT" | grep -q '"old_string"' 2>/dev/null; then
+        TOOL_NAME="Edit"
+    else
+        TOOL_NAME="Write"
+    fi
+    OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
+    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "success" "$FILE_PATH" \
+        >> "$OUTCOME_LOG" 2>/dev/null || true
+    # Rotate log when it exceeds 1000 lines
+    LOG_LINES=$(wc -l < "$OUTCOME_LOG" 2>/dev/null || echo 0)
+    if [[ "${LOG_LINES// /}" -gt 1000 ]]; then
+        tail -500 "$OUTCOME_LOG" > "$OUTCOME_LOG.tmp" && \
+            mv "$OUTCOME_LOG.tmp" "$OUTCOME_LOG"
+    fi
+fi

@@ -158,3 +158,22 @@ If this failure reveals a non-obvious gotcha, the Stop hook will prompt you to e
 $INJECTED_CONTEXT"
 
 output_context "PostToolUseFailure" "$CONTEXT"
+
+# --- Outcome Telemetry ---
+# Log failure outcome for telemetry correlation with pre-edit injections
+
+TELEMETRY_DIR="$PROJECT_ROOT/.intent-layer/hooks"
+
+if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
+   [[ ! -f "$PROJECT_ROOT/.intent-layer/disable-telemetry" ]]; then
+    mkdir -p "$TELEMETRY_DIR"
+    OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
+    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "failure" "${FILE_PATH:-unknown}" \
+        >> "$OUTCOME_LOG" 2>/dev/null || true
+    # Rotate log when it exceeds 1000 lines
+    LOG_LINES=$(wc -l < "$OUTCOME_LOG" 2>/dev/null || echo 0)
+    if [[ "${LOG_LINES// /}" -gt 1000 ]]; then
+        tail -500 "$OUTCOME_LOG" > "$OUTCOME_LOG.tmp" && \
+            mv "$OUTCOME_LOG.tmp" "$OUTCOME_LOG"
+    fi
+fi
