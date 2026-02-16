@@ -3,7 +3,7 @@
   "checkpoint_id": "ca136b07c532",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 6,
   "files_touched": [
     "eval-harness/docs/brainstorms/2026-02-16-agentbench-replication-brainstorm.md",
     "eval-harness/docs/plans/2026-02-16-feat-agentbench-replication-three-condition-eval-plan.md",
@@ -166,7 +166,11 @@
     "eval-harness/docs/reference/agentbench-harness/src/configs/model_constants.py",
     "eval-harness/docs/reference/agentbench-harness/src/configs/plan_constants.py",
     "eval-harness/docs/reference/agentbench-harness/src/configs/remove_docs.py",
-    "eval-harness/docs/reference/agentbench-paper.md"
+    "eval-harness/docs/reference/agentbench-paper.md",
+    "eval-harness/lib/models.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/tests/test_task_runner.py",
+    "eval-harness/tests/test_task_runner_cache.py"
   ],
   "sessions": [
     {
@@ -175,13 +179,20 @@
       "context": "/ca/136b07c532/0/context.md",
       "content_hash": "/ca/136b07c532/0/content_hash.txt",
       "prompt": "/ca/136b07c532/0/prompt.txt"
+    },
+    {
+      "metadata": "/ca/136b07c532/1/metadata.json",
+      "transcript": "/ca/136b07c532/1/full.jsonl",
+      "context": "/ca/136b07c532/1/context.md",
+      "content_hash": "/ca/136b07c532/1/content_hash.txt",
+      "prompt": "/ca/136b07c532/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2595,
-    "cache_creation_tokens": 424724,
-    "cache_read_tokens": 7444464,
-    "output_tokens": 7966,
-    "api_call_count": 71
+    "input_tokens": 5765,
+    "cache_creation_tokens": 749622,
+    "cache_read_tokens": 20265757,
+    "output_tokens": 17683,
+    "api_call_count": 174
   }
 }
