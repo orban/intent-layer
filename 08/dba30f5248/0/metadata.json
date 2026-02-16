@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "08dba30f5248",
+  "session_id": "345aae6d-62b9-4fb4-8273-1b60aa9cd3a7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T21:28:15.934171Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "eval-harness/docs/plans/2026-02-16-feat-agentbench-replication-three-condition-eval-plan.md",
+    "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/index_cache.py",
+    "eval-harness/lib/models.py",
+    "eval-harness/lib/reporter.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/tests/test_reporter.py",
+    "eval-harness/tests/test_task_runner.py",
+    "eval-harness/tests/test_task_runner_cache.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c0cb0612-331d-42bc-be3a-fa7f40c95fa9",
+  "checkpoint_transcript_start": 1517,
+  "transcript_lines_at_start": 1517,
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 99435,
+    "cache_read_tokens": 3692921,
+    "output_tokens": 833,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T21:28:11.922609Z",
+    "agent_lines": 0,
+    "human_added": 20743,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 20751,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/345aae6d-62b9-4fb4-8273-1b60aa9cd3a7.jsonl"
+}
