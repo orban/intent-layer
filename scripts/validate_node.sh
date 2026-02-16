@@ -175,7 +175,7 @@ fi
 
 # Check 2: Required sections for child nodes (schema)
 if [ "$IS_ROOT" = false ]; then
-    REQUIRED_SECTIONS=("Purpose" "Entry Points" "Contracts" "Pitfalls")
+    REQUIRED_SECTIONS=("Purpose" "Code Map" "Entry Points" "Contracts" "Pitfalls")
     for section in "${REQUIRED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
@@ -183,7 +183,7 @@ if [ "$IS_ROOT" = false ]; then
             ERRORS+=("Missing required section: '$section'")
         fi
     done
-    RECOMMENDED_SECTIONS=("Code Map" "Patterns" "Boundaries" "Design Rationale" "Public API")
+    RECOMMENDED_SECTIONS=("Patterns" "Boundaries" "Design Rationale" "Public API")
     for section in "${RECOMMENDED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
@@ -263,7 +263,36 @@ if grep -qi "see also\|refer to\|please see" "$NODE_PATH" 2>/dev/null; then
     WARNINGS+=("Passive references found - use direct links instead")
 fi
 
-# Check 9: Boundaries section (recommended for child nodes)
+# Check 9a: "Find It Fast" table in Code Map (highest-value subsection)
+if [ "$IS_ROOT" = false ]; then
+    if grep -qi "Find It Fast" "$NODE_PATH" 2>/dev/null; then
+        # Count table rows (lines starting with |, excluding header/separator)
+        FIF_ROWS=$(awk '
+            BEGIN { in_section=0; rows=0 }
+            tolower($0) ~ /find it fast/ { in_section=1; next }
+            /^##/ { if (in_section) exit }
+            {
+                if (!in_section) next
+                if (!/^\|/) next
+                if (/^\|[[:space:]]*[-]+/) next
+                if (tolower($0) ~ /looking/) next
+                rows++
+            }
+            END { print rows+0 }
+        ' "$NODE_PATH")
+        if [ "$FIF_ROWS" -ge 8 ]; then
+            PASSED+=("'Find It Fast' table has $FIF_ROWS entries (good coverage)")
+        elif [ "$FIF_ROWS" -ge 1 ]; then
+            WARNINGS+=("'Find It Fast' table has only $FIF_ROWS entries - aim for 10-20 for good coverage")
+        else
+            WARNINGS+=("Code Map exists but missing 'Find It Fast' table - this is the highest-value subsection")
+        fi
+    elif grep -qiE "^##+ *Code Map" "$NODE_PATH" 2>/dev/null; then
+        WARNINGS+=("Code Map exists but missing 'Find It Fast' table - this is the highest-value subsection")
+    fi
+fi
+
+# Check 9b: Boundaries section (recommended for child nodes)
 if grep -qi "## Boundaries\|### Always\|### Never" "$NODE_PATH" 2>/dev/null; then
     PASSED+=("Has Boundaries section (three-tier pattern)")
 elif [ "$IS_ROOT" = false ]; then

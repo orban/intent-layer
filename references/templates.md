@@ -158,13 +158,6 @@ Each AGENTS.md in subdirectories. Optimized for AI agent consumption - prioritiz
 Owns: [what this area is responsible for]
 Does not own: [explicitly out of scope - look elsewhere for this]
 
-## Design Rationale
-[Why this module exists and the philosophy behind it]
-
-- **Problem solved**: [What pain point or need drove creation of this]
-- **Core insight**: [The key idea that makes this work - what you'd lose if you removed it]
-- **Constraints**: [What shaped the design - performance, compatibility, team size, etc.]
-
 ## Code Map
 
 ### Find It Fast
@@ -173,9 +166,19 @@ Does not own: [explicitly out of scope - look elsewhere for this]
 | [common search] | `path/to/file.ts` |
 | [non-obvious location] | `path/file.ts` (not where you'd expect) |
 
+> This is the highest-value section. Aim for 10-20 entries mapping "what am I looking for?" to exact file + function. This saves 5-10 minutes of grepping per lookup.
+
 ### Key Relationships
 - `layer1/` → `layer2/` → `layer3/` (direction matters, never skip)
 - [Module A] imports from [Module B], never reverse
+
+## Design Rationale
+
+> Skip this section for simple modules where purpose is self-evident. Include when the "why" isn't obvious from the code (e.g., non-standard algorithms, unusual constraints, historical reasons).
+
+- **Problem solved**: [What pain point or need drove creation of this]
+- **Core insight**: [The key idea that makes this work - what you'd lose if you removed it]
+- **Constraints**: [What shaped the design - performance, compatibility, team size, etc.]
 
 ## Public API
 
@@ -268,25 +271,25 @@ When populating sections, focus on **what agents can't infer from code**:
 
 | Section | What to Include | What to Skip |
 |---------|-----------------|--------------|
-| Design Rationale | Why this exists, core insight, constraints | Implementation details |
-| Code Map | Non-obvious locations, semantic groupings | Obvious mappings (routes.ts → routes) |
+| Code Map | **Highest-value section.** "Find It Fast" table mapping questions to files/functions. Non-obvious locations, semantic groupings | Obvious mappings (routes.ts → routes) |
+| Design Rationale | Why this exists, core insight, constraints. Best when the "why" isn't obvious from the code | Implementation details. Skip for simple modules where purpose is self-evident |
 | Public API | Exports used by OTHER modules | Internal-only exports |
 | Decisions | Choices someone might question | Obvious decisions |
 | Entry Points | Common tasks with specific file paths. Must reference specific file path | Self-evident starting points |
-| Contracts | Non-type-enforced invariants. Should cite source (file, PR, or incident) | Type-enforced rules |
-| Patterns | Sequence + non-obvious steps | "Create file, add imports" |
-| Pitfalls | Looks wrong but right, or vice versa. Should cite source (file, PR, or incident) | Obvious gotchas |
+| Contracts | Non-type-enforced invariants. **Must cite the bug, migration, or incident that proved them.** A contract without a failure story is just a guess | Type-enforced rules, hypothetical invariants |
+| Patterns | Multi-file change sequences (2+ files touched). The value is showing the non-obvious order and cross-file dependencies | Single-file patterns ("edit this function"). If it's one file, an Entry Point suffices |
+| Pitfalls | Looks wrong but right, or vice versa. **Git-mined real bugs >> code-reading guesses.** Should cite source (commit, PR, or incident) | Hypothetical gotchas, obvious warnings |
 
 ### Generation Order
 
 Populate sections in this order (easier → harder):
 
-1. Purpose, Code Map, Public API (file system + imports)
-2. External Dependencies, Entry Points, Downlinks (config + git log)
-3. Data Flow, Contracts (code reading)
-4. Patterns, Boundaries (existing examples + CI)
-5. Decisions, Pitfalls (git/PR mining - needs judgment)
-6. Design Rationale (requires understanding the "why" - often from interviews or deep history)
+1. **Purpose, Code Map** (file system + imports). Code Map's "Find It Fast" table is the single highest-ROI section — prioritize it
+2. Public API, External Dependencies, Entry Points, Downlinks (config + imports)
+3. Data Flow, Contracts (code reading). Data flow diagrams work best for pipeline architectures
+4. Patterns, Boundaries (existing examples + CI). Only include patterns that span 2+ files
+5. **Pitfalls, Decisions** (git/PR mining - needs judgment). Mine git history first, then supplement with code reading. Real bugs > hypothetical gotchas
+6. Design Rationale (requires understanding the "why" - often from interviews or deep history). Skip for simple modules
 7. Pre-flight Checks (add over time from mistakes)
 
 ## Spec Templates (Greenfield)
@@ -389,9 +392,10 @@ For AI scaffolding:
 ## Maintenance Discipline
 
 - **Quarterly review**: Review each node; keep only 2-5 highest-value items per section.
-- **Mistake-driven growth**: New Pitfalls/Contracts entries should come from real failures or user corrections, not speculation.
-- **Prune aggressively**: Remove items that are no longer relevant or have been fixed.
-- **Evidence required**: Each entry should reference a file path, PR, or incident that justifies it.
+- **Mistake-driven growth**: New Pitfalls/Contracts entries must come from real failures, not speculation. Git-mined bugs and PR discussions are the best sources. A contract without a failure story is just a guess.
+- **Prune aggressively**: Remove items that are no longer relevant or have been fixed. Remove Design Rationale sections that state the obvious. Remove single-file Patterns (an Entry Point suffices).
+- **Evidence required**: Each Pitfall and Contract entry should reference a commit, PR, migration, or incident that justifies it. Entries without evidence are candidates for pruning.
+- **Node quality > node count**: Don't create nodes for low-complexity directories (<5 source files, <2k tokens). A 54-line AGENTS.md for 4 markdown files is filler, not documentation.
 
 ## Scaffolding Protocol
 

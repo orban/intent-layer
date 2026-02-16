@@ -1,15 +1,15 @@
 # scripts/
 
-> 27 standalone bash scripts. CLI tools and hook handlers for the Intent Layer lifecycle.
+> 28 standalone bash scripts. CLI tools and hook handlers for the Intent Layer lifecycle.
 
 ## Purpose
 
-27 standalone bash scripts covering the Intent Layer lifecycle. Scripts fall into five categories:
+28 standalone bash scripts covering the Intent Layer lifecycle. Scripts fall into five categories:
 
 - **Detection** (7): `detect_state.sh`, `detect_changes.sh`, `detect_staleness.sh`, `audit_intent_layer.sh`, `analyze_structure.sh`, `estimate_tokens.sh`, `estimate_all_candidates.sh`
 - **Capture & Learning** (5): `learn.sh`, `report_learning.sh`, `capture_mistake.sh`, `capture_pain_points.sh`, `capture_state.sh`
 - **Display & Retrieval** (6): `show_status.sh`, `show_hierarchy.sh`, `walk_ancestors.sh`, `query_intent.sh`, `resolve_context.sh`, `generate_orientation.sh`
-- **Hook handlers** (4): `inject-learnings.sh`, `pre-edit-check.sh`, `post-edit-check.sh`, `capture-tool-failure.sh`
+- **Hook handlers** (5): `inject-learnings.sh`, `pre-edit-check.sh`, `post-edit-check.sh`, `capture-tool-failure.sh`, `stop-learning-check.sh`
 - **Mining & Review** (5): `mine_git_history.sh`, `mine_pr_reviews.sh`, `review_pr.sh`, `review_mistakes.sh`, `validate_node.sh`
 
 ## Entry Points
@@ -69,7 +69,7 @@ Hook scripts use `CLAUDE_PLUGIN_ROOT` instead of `SCRIPT_DIR`. Exception: `post-
 
 ### Hook scripts vs CLI scripts have different I/O contracts
 
-Hook scripts (`inject-learnings.sh`, `pre-edit-check.sh`, `capture-tool-failure.sh`) read JSON on stdin and output JSON via `output_context()`. They don't parse CLI args or support `--help`. Don't add `--help` to them.
+Hook scripts (`inject-learnings.sh`, `pre-edit-check.sh`, `capture-tool-failure.sh`, `stop-learning-check.sh`) read JSON on stdin and output JSON via `output_context()` or `output_block()`. They don't parse CLI args or support `--help`. Don't add `--help` to them. Exception: `post-edit-check.sh` receives file path as `$1` and outputs plain text.
 
 ### Cross-platform stat and date commands
 
