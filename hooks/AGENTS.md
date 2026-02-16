@@ -21,8 +21,9 @@ PostToolUse ──── post-edit-check.sh ────→ Reminds about covere
 PostToolUseFailure ─ capture-tool-failure.sh → Creates skeleton reports
       │                                        Reads injections.log for correlation
       ▼
-Stop ──────────── (prompt-based) ───────→ Reviews skeletons + session discoveries
-                                           Calls learn.sh to write back
+Stop ──────────── stop-learning-check.sh → Tier 1: heuristic signal check
+                                           Tier 2: Haiku classifier (if API key set)
+                                           Blocks only on explicit should_capture: true
 ```
 
 ### Injection log
@@ -36,11 +37,11 @@ Stop ──────────── (prompt-based) ───────�
 | Add a new hook | Add entry to `hooks/hooks.json`, create handler in `scripts/` |
 | Modify injection behavior | Edit `scripts/pre-edit-check.sh` |
 | Change failure capture | Edit `scripts/capture-tool-failure.sh` |
-| Adjust Stop prompt | Edit the `prompt` field in `hooks/hooks.json` Stop section |
+| Modify Stop hook behavior | Edit `scripts/stop-learning-check.sh` |
 
 ## Contracts
 
-- Hooks must complete within their timeout: SessionStart=15s, PreToolUse=10s, PostToolUse=default, PostToolUseFailure=10s, Stop=30s.
+- Hooks must complete within their timeout: SessionStart=15s, PreToolUse=10s, PostToolUse=default, PostToolUseFailure=10s, Stop=45s.
 - The `<500ms` contract in CLAUDE.md refers to typical execution, not the timeout ceiling.
 - Hook scripts read JSON on stdin (except SessionStart which reads nothing). They output JSON via `output_context()`.
 - PostToolUse (`post-edit-check.sh`) is the exception — it receives file path as a CLI arg and outputs plain text, not JSON.
@@ -53,7 +54,7 @@ Stop ──────────── (prompt-based) ───────�
 | PreToolUse | JSON (tool_name, tool_input) | JSON (output_context) |
 | PostToolUse | JSON string as CLI arg (`$1`) | plain text |
 | PostToolUseFailure | JSON (tool_name, tool_input) | JSON (output_context) |
-| Stop | prompt-based (no script) | JSON ({ok: true/false}) |
+| Stop | JSON (session_id, transcript_path, stop_hook_active) | JSON (output_block) or nothing |
 
 ## Patterns
 
@@ -72,19 +73,17 @@ Pre-edit-check extracts 4 sections: Pitfalls, Checks, Patterns, Context. Uses aw
 
 ## Pitfalls
 
-### Stop hook JSON response bypassed when agent acts directly
+### Stop hook fails open by design
 
-The Stop hook prompt expects {"ok": true/false} JSON responses, but agents may respond with natural language and tool calls instead (e.g., running learn.sh directly). This causes 'JSON validation failed'. The hook design assumes the agent will suggest actions via the reason field, not execute them inline.
+The Stop hook (`stop-learning-check.sh`) uses a two-tier architecture: Tier 1 bash heuristics, Tier 2 Haiku API classification. The only path to blocking is an explicit `should_capture: true` from Haiku. All failures (no API key, curl error, timeout, malformed response) exit 0 silently. This is intentional — the previous prompt-based hook was too aggressive and caused JSON validation failures.
 
-_Source: learn.sh | added: 2026-02-15_
+### Stop hook requires set +e around curl
+
+The script uses `set -euo pipefail` but the Haiku API call via curl can fail (timeout, connection refused, bad key). Wrap the curl call in `set +e` / `set -e` to prevent the script from dying on API errors. Without this, any API failure kills the script before the fail-open logic runs.
 
 ### hooks.json matcher is OR logic, not AND
 
 `"matcher": "Edit|Write|NotebookEdit"` means "if tool_name is Edit OR Write OR NotebookEdit". No matcher = applies to all events (SessionStart, Stop).
-
-### Stop hook is a prompt, not a script
-
-The Stop hook uses `"type": "prompt"` with inline text, not `"type": "command"`. It runs as an LLM evaluation, not a bash script. The prompt is a long single-line JSON string — editing it is error-prone. Be careful with JSON escaping.
 
 ### output_context requires jq
 
