@@ -55,6 +55,9 @@ check_mistake_history.sh → standalone (reads mistake files directly)
 | `output_context <hook> <text>` | Emit hook JSON response (requires jq) |
 | `output_block <reason>` | Emit blocking hook response |
 | `calculate_word_overlap <a> <b>` | 0-100 overlap score. Filters words <3 chars, lowercases, deduplicates. |
+| `get_plugin_root` | Auto-detect plugin root by walking up to `.claude-plugin/` |
+| `require_jq` | Assert jq is installed, exit 1 with message if not |
+| `extract_section_entries <file> <section>` | Extract entries under a `## Section` heading |
 | `date_days_ago <n>` | Cross-platform date math (macOS/Linux) |
 | `file_newer_than <file> <date>` | Cross-platform mtime check |
 

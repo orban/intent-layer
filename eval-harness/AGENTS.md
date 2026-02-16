@@ -2,6 +2,10 @@
 
 > **TL;DR**: A/B testing framework for Claude skills. Mines git history for bug-fix commits, runs Claude with/without skills, compares results.
 
+## Purpose
+
+A/B testing framework for Claude skills. Mines git history for bug-fix commits, runs Claude with and without skills against the pre-fix state, compares whether the skill helps Claude fix the bug.
+
 ## Entry Points
 
 | Task | Start Here |
@@ -23,10 +27,11 @@ lib/
 ├── git_ops.py       # Clone, checkout, diff utilities
 ├── prompt_builder.py # Constructs prompts from commit/test/issue
 ├── reporter.py      # JSON/Markdown result generation
+├── index_cache.py   # Caches Intent Layer generation per repo+skill hash
 └── models.py        # Pydantic models for tasks/configs
 ```
 
-**Data flow**: Task YAML → clone repo → checkout pre-fix commit → docker setup → (optionally) generate Intent Layer → run Claude → run tests → report
+**Data flow**: Task YAML → clone repo → checkout pre-fix commit → docker setup → check index cache → (cache miss) generate Intent Layer → run Claude → run tests → diff stats → report
 
 ## Contracts
 

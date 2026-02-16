@@ -51,7 +51,7 @@ Stop ──────────── (prompt-based) ───────�
 |------|-------|--------|
 | SessionStart | nothing | JSON (output_context) |
 | PreToolUse | JSON (tool_name, tool_input) | JSON (output_context) |
-| PostToolUse | CLI arg (file path) | plain text |
+| PostToolUse | JSON string as CLI arg (`$1`) | plain text |
 | PostToolUseFailure | JSON (tool_name, tool_input) | JSON (output_context) |
 | Stop | prompt-based (no script) | JSON ({ok: true/false}) |
 
@@ -71,6 +71,12 @@ Always check multiple fields with fallback: `FILE_PATH=$(json_get ... 'file_path
 Pre-edit-check extracts 4 sections: Pitfalls, Checks, Patterns, Context. Uses awk with exact `## Section` matching. Order in output: Checks first (actionable), then Pitfalls, Patterns, Context.
 
 ## Pitfalls
+
+### Stop hook JSON response bypassed when agent acts directly
+
+The Stop hook prompt expects {"ok": true/false} JSON responses, but agents may respond with natural language and tool calls instead (e.g., running learn.sh directly). This causes 'JSON validation failed'. The hook design assumes the agent will suggest actions via the reason field, not execute them inline.
+
+_Source: learn.sh | added: 2026-02-15_
 
 ### hooks.json matcher is OR logic, not AND
 

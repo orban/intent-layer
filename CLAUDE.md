@@ -211,6 +211,12 @@ Any tool that can read the filesystem can consume AGENTS.md nodes. The protocol 
 
 ## Pitfalls
 
+### Directory marketplace requires explicit plugin registration
+
+Symlinking a plugin into a directory-based marketplace's plugins/ folder isn't enough. The plugin must also be listed in the marketplace's .claude-plugin/marketplace.json plugins array with name, version, and source path. Without the index entry, /plugin install returns 'not found'.
+
+_Source: learn.sh | added: 2026-02-15_
+
 - Token estimation uses bytes/4 approximation - not precise for non-ASCII text
 - Scripts handle both macOS and Linux `stat` commands automatically
 - `detect_state.sh` distinguishes symlinked AGENTS.md (expected) from duplicate files (warning)

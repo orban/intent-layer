@@ -6,11 +6,11 @@
 
 27 standalone bash scripts covering the Intent Layer lifecycle. Scripts fall into five categories:
 
-- **Detection** (6): `detect_state.sh`, `detect_changes.sh`, `detect_staleness.sh`, `audit_intent_layer.sh`, `analyze_structure.sh`, `estimate_*.sh`
-- **Capture & Learning** (6): `learn.sh`, `report_learning.sh`, `capture_mistake.sh`, `capture_pain_points.sh`, `capture_state.sh`, `capture-tool-failure.sh`
-- **Display & Retrieval** (5): `show_status.sh`, `show_hierarchy.sh`, `walk_ancestors.sh`, `query_intent.sh`, `resolve_context.sh`
-- **Hook handlers** (3): `inject-learnings.sh`, `pre-edit-check.sh`, `post-edit-check.sh`
-- **Mining & Review** (3): `mine_git_history.sh`, `mine_pr_reviews.sh`, `review_pr.sh`
+- **Detection** (7): `detect_state.sh`, `detect_changes.sh`, `detect_staleness.sh`, `audit_intent_layer.sh`, `analyze_structure.sh`, `estimate_tokens.sh`, `estimate_all_candidates.sh`
+- **Capture & Learning** (5): `learn.sh`, `report_learning.sh`, `capture_mistake.sh`, `capture_pain_points.sh`, `capture_state.sh`
+- **Display & Retrieval** (6): `show_status.sh`, `show_hierarchy.sh`, `walk_ancestors.sh`, `query_intent.sh`, `resolve_context.sh`, `generate_orientation.sh`
+- **Hook handlers** (4): `inject-learnings.sh`, `pre-edit-check.sh`, `post-edit-check.sh`, `capture-tool-failure.sh`
+- **Mining & Review** (5): `mine_git_history.sh`, `mine_pr_reviews.sh`, `review_pr.sh`, `review_mistakes.sh`, `validate_node.sh`
 
 ## Entry Points
 
@@ -57,7 +57,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 ```
 
-Hook scripts use `CLAUDE_PLUGIN_ROOT` instead of `SCRIPT_DIR`.
+Hook scripts use `CLAUDE_PLUGIN_ROOT` instead of `SCRIPT_DIR`. Exception: `post-edit-check.sh` doesn't source `common.sh` at all — it's a standalone script that outputs plain text.
 
 ## Contracts
 
@@ -81,7 +81,7 @@ See `lib/common.sh` for the canonical pattern. Don't invent a new one.
 
 ### capture_mistake.sh uses eval in prompt()
 
-The `prompt()` function at line ~124 uses `eval` to set variables dynamically. This is intentional but fragile for shell parsing. Don't refactor it without understanding why it's there.
+The `prompt()` function at line 117 uses `eval` to set variables dynamically. This is intentional but fragile for shell parsing. Don't refactor it without understanding why it's there.
 
 ### find exclusions must use arrays, not string concatenation
 
