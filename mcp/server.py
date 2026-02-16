@@ -226,18 +226,6 @@ def report_learning(
 # Resources: intent:// scheme
 # ---------------------------------------------------------------------------
 
-def _find_intent_files(project_root: str) -> list[str]:
-    """Walk project_root and return relative paths to all AGENTS.md/CLAUDE.md."""
-    results = []
-    for dirpath, _dirnames, filenames in os.walk(project_root):
-        for fname in filenames:
-            if fname in ("AGENTS.md", "CLAUDE.md"):
-                full = os.path.join(dirpath, fname)
-                rel = os.path.relpath(full, project_root)
-                results.append(rel)
-    results.sort()
-    return results
-
 
 @mcp.resource("intent://{project}/{path}")
 def read_intent_resource(project: str, path: str) -> str:
@@ -251,10 +239,16 @@ def read_intent_resource(project: str, path: str) -> str:
     allowed = _get_allowed_projects()
 
     canonical_root = None
-    for candidate in allowed:
-        if os.path.basename(candidate) == project or candidate == project:
-            canonical_root = candidate
-            break
+    matches = [
+        c for c in allowed
+        if os.path.basename(c) == project or c == project
+    ]
+    if len(matches) > 1:
+        # Ambiguous basename — use exact match or first match
+        exact = [c for c in matches if c == project]
+        canonical_root = exact[0] if exact else matches[0]
+    elif matches:
+        canonical_root = matches[0]
 
     if canonical_root is None:
         raise ValueError(

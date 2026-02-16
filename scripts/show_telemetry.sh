@@ -115,57 +115,49 @@ FAILURE_EDITS=$(awk -F'\t' '$3 == "failure"' "$TMPDIR_WORK/outcomes.tsv" | wc -l
 # Strategy: convert timestamps to epoch seconds, compare.
 # We build a lookup from injections keyed by file path, then scan outcomes.
 
-# Cross-platform date-to-epoch converter
-# Input: ISO 8601 timestamp like 2026-02-15T10:30:00Z
-# Output: epoch seconds
-ts_to_epoch() {
-    local ts="$1"
-    # Strip the Z, replace T with space for date parsing
-    local clean="${ts%Z}"
-    clean="${clean/T/ }"
-    if date -jf "%Y-%m-%d %H:%M:%S" "$clean" +%s 2>/dev/null; then
-        return
-    fi
-    # Linux fallback
-    date -d "${ts}" +%s 2>/dev/null || echo "0"
+# Join outcomes to injections entirely in awk (avoids shelling out to date per line).
+# Converts ISO 8601 timestamps to approximate seconds for comparison.
+# The approximation (365-day year, 30-day month) is fine since we only compare
+# timestamps within seconds of each other.
+
+awk -F'\t' '
+function iso_to_secs(ts,    parts, dp, tp) {
+    # Input: 2026-02-15T10:30:00Z → approximate seconds
+    split(ts, parts, "T")
+    split(parts[1], dp, "-")
+    gsub(/Z$/, "", parts[2])
+    split(parts[2], tp, ":")
+    return ((dp[1] * 365 + dp[2] * 30 + dp[3]) * 86400) + tp[1] * 3600 + tp[2] * 60 + tp[3]
 }
 
-# Build injection index: file_path -> list of (epoch, node, sections)
-# We write a file with: epoch\tfile_path\tnode\tsections
-awk -F'\t' '{print $1 "\t" $2 "\t" $3 "\t" $4}' "$TMPDIR_WORK/injections.tsv" > "$TMPDIR_WORK/inj_raw.tsv"
+# Pass 1: load injections (file 1)
+NR == FNR {
+    inj_epoch[NR] = iso_to_secs($1)
+    inj_file[NR] = $2
+    inj_node[NR] = $3
+    inj_count = NR
+    next
+}
 
-# Convert injection timestamps to epoch
-while IFS=$'\t' read -r ts file node sections; do
-    [[ -z "$ts" ]] && continue
-    epoch=$(ts_to_epoch "$ts")
-    printf '%s\t%s\t%s\t%s\n' "$epoch" "$file" "$node" "$sections"
-done < "$TMPDIR_WORK/inj_raw.tsv" > "$TMPDIR_WORK/inj_epoch.tsv"
-
-# Convert outcome timestamps to epoch
-while IFS=$'\t' read -r ts tool result file; do
-    [[ -z "$ts" ]] && continue
-    epoch=$(ts_to_epoch "$ts")
-    printf '%s\t%s\t%s\t%s\n' "$epoch" "$tool" "$result" "$file"
-done < "$TMPDIR_WORK/outcomes.tsv" > "$TMPDIR_WORK/out_epoch.tsv"
-
-# For each outcome, find matching injection (same file, within 1 second)
-# Output: outcome_result \t covering_node (or "UNCOVERED")
-while IFS=$'\t' read -r o_epoch o_tool o_result o_file; do
-    [[ -z "$o_epoch" ]] && continue
-    MATCHED="UNCOVERED"
-    while IFS=$'\t' read -r i_epoch i_file i_node i_sections; do
-        [[ -z "$i_epoch" ]] && continue
-        if [[ "$i_file" == "$o_file" ]]; then
-            DIFF=$(( o_epoch - i_epoch ))
-            # Injection should be 0-1 seconds before outcome (or same second)
-            if [[ "$DIFF" -ge 0 && "$DIFF" -le 1 ]]; then
-                MATCHED="$i_node"
+# Pass 2: process outcomes (file 2)
+{
+    o_epoch = iso_to_secs($1)
+    o_result = $3
+    o_file = $4
+    matched = "UNCOVERED"
+    for (i = 1; i <= inj_count; i++) {
+        if (inj_file[i] == o_file) {
+            diff = o_epoch - inj_epoch[i]
+            # Injection happens 0-5 seconds before the outcome
+            if (diff >= 0 && diff <= 5) {
+                matched = inj_node[i]
                 break
-            fi
-        fi
-    done < "$TMPDIR_WORK/inj_epoch.tsv"
-    printf '%s\t%s\t%s\n' "$o_result" "$MATCHED" "$o_file"
-done < "$TMPDIR_WORK/out_epoch.tsv" > "$TMPDIR_WORK/joined.tsv"
+            }
+        }
+    }
+    printf "%s\t%s\t%s\n", o_result, matched, o_file
+}
+' "$TMPDIR_WORK/injections.tsv" "$TMPDIR_WORK/outcomes.tsv" > "$TMPDIR_WORK/joined.tsv"
 
 # === Compute metrics ===
 

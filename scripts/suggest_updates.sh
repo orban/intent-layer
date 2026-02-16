@@ -335,8 +335,20 @@ for node in "${AFFECTED_NODES[@]}"; do
 
     RUNNING=$((RUNNING + 1))
     if [[ $RUNNING -ge $MAX_PARALLEL ]]; then
-        wait -n 2>/dev/null || wait
-        RUNNING=$((RUNNING - 1))
+        # wait -n requires bash 4.3+; fall back to polling job count
+        if wait -n 2>/dev/null; then
+            RUNNING=$((RUNNING - 1))
+        else
+            # Fallback: poll running jobs until one finishes
+            while true; do
+                CURRENT_JOBS=$(jobs -rp | wc -l | tr -d ' ')
+                if [[ "$CURRENT_JOBS" -lt "$RUNNING" ]]; then
+                    RUNNING="$CURRENT_JOBS"
+                    break
+                fi
+                sleep 0.1
+            done
+        fi
     fi
 done
 
@@ -373,9 +385,9 @@ for node in "${AFFECTED_NODES[@]}"; do
         fi
     fi
 
-    # Third try: extract first JSON object via grep
+    # Third try: extract JSON from surrounding text by finding outermost braces
     if [[ -z "$clean_json" ]]; then
-        extracted=$(echo "$raw_json" | tr -d '\n' | grep -oE '\{[^}]*"suggestions"[^}]*\[.*\][^}]*\}' | head -1 || true)
+        extracted=$(echo "$raw_json" | tr -d '\n' | sed 's/.*\({.*"suggestions".*\)/\1/' | rev | sed 's/.*\(}.*\)/\1/' | rev || true)
         if [[ -n "$extracted" ]] && echo "$extracted" | jq -e '.suggestions' &>/dev/null; then
             clean_json="$extracted"
         fi

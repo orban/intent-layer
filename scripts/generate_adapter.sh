@@ -38,7 +38,43 @@ set -euo pipefail
 #   generate_adapter.sh /path/to/project --max-tokens 2000
 
 show_help() {
-    sed -n '3,/^$/p' "$0" | sed 's/^# //' | sed 's/^#//'
+    cat << 'EOF'
+generate_adapter.sh - Export Intent Layer context to other AI coding tools
+
+Usage: generate_adapter.sh <project_root> [options]
+
+Exports the Intent Layer hierarchy (AGENTS.md/CLAUDE.md files) into formats
+consumable by other AI coding tools like Cursor.
+
+Arguments:
+  project_root       Path to the project root (where root CLAUDE.md lives)
+
+Options:
+  --format <name>    Output format: cursor, raw (default: cursor)
+  --max-tokens <n>   Token budget per node (default: 4000)
+  --output <path>    Write to file/directory (default: stdout for raw,
+                     .cursor/rules/ for cursor)
+  -h, --help         Show this help
+
+Formats:
+  cursor   Generate .cursor/rules/*.mdc files with YAML frontmatter.
+           One file per AGENTS.md node, root as intent-layer-root.mdc.
+           Stale .mdc files from previous runs are cleaned automatically.
+
+  raw      Flat merged markdown on stdout (or to --output file).
+           All nodes concatenated in hierarchy order (root first).
+
+Exit codes:
+  0 - Success
+  1 - Invalid input (bad args, missing project root)
+  2 - No Intent Layer found in project
+
+Examples:
+  generate_adapter.sh /path/to/project
+  generate_adapter.sh /path/to/project --format raw
+  generate_adapter.sh /path/to/project --format cursor --output ./out/rules/
+  generate_adapter.sh /path/to/project --max-tokens 2000
+EOF
     exit 0
 }
 
@@ -176,6 +212,7 @@ trim_to_budget() {
 
     for section_name in "${drop_order[@]}"; do
         # Remove section: from ## <name> to next ## at same or higher level
+        local before_content="$content"
         content=$(echo "$content" | awk -v section="$section_name" '
             BEGIN { skip = 0; level = 0 }
             /^##+ / {
@@ -201,11 +238,14 @@ trim_to_budget() {
             !skip { print }
         ')
 
-        tokens=$(estimate_tokens "$content")
-        echo "Warning: Dropped section '$section_name' to fit token budget ($tokens/$budget tokens)" >&2
+        # Only warn if the section was actually removed
+        if [[ "$content" != "$before_content" ]]; then
+            tokens=$(estimate_tokens "$content")
+            echo "Warning: Dropped section '$section_name' to fit token budget ($tokens/$budget tokens)" >&2
 
-        if [[ "$tokens" -le "$budget" ]]; then
-            break
+            if [[ "$tokens" -le "$budget" ]]; then
+                break
+            fi
         fi
     done
 
