@@ -75,8 +75,10 @@ echo "Test 2: Log line matches expected format"
 
 if [[ -f "$LOG_FILE" ]]; then
     LINE=$(tail -1 "$LOG_FILE")
-    # Expected format: YYYY-MM-DDTHH:MM:SSZ /path/to/file /path/to/node Sections
-    if echo "$LINE" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z .+ .+ Pitfalls'; then
+    # Expected tab-delimited format: TIMESTAMP\tFILE\tNODE\tSECTIONS
+    FIELD_COUNT=$(echo "$LINE" | awk -F'\t' '{print NF}')
+    LAST_FIELD=$(echo "$LINE" | awk -F'\t' '{print $NF}')
+    if [[ "$FIELD_COUNT" -eq 4 ]] && [[ "$LAST_FIELD" == "Pitfalls" ]]; then
         pass "Log line format: timestamp, file, node, sections"
     else
         fail "Unexpected log format: $LINE"
@@ -125,7 +127,7 @@ echo "Test 4: Failure-injection correlation in skeleton report"
 
 # Write a mock injection log entry
 mkdir -p "$TEST_DIR/.intent-layer/hooks"
-echo "2026-02-09T10:00:00Z $TEST_DIR/src/api/handlers.ts $TEST_DIR/src/api/AGENTS.md Pitfalls" \
+printf '%s\t%s\t%s\t%s\n' "2026-02-09T10:00:00Z" "$TEST_DIR/src/api/handlers.ts" "$TEST_DIR/src/api/AGENTS.md" "Pitfalls" \
     > "$TEST_DIR/.intent-layer/hooks/injections.log"
 
 # Mock a tool failure on the same file

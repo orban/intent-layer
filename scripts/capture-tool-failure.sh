@@ -128,7 +128,7 @@ EOF
 INJECTION_LOG="$PROJECT_ROOT/.intent-layer/hooks/injections.log"
 INJECTED_CONTEXT=""
 if [[ -f "$INJECTION_LOG" && -n "$FILE_PATH" ]]; then
-    RECENT=$(awk -v file="$FILE_PATH" '$2 == file' "$INJECTION_LOG" 2>/dev/null | tail -3 || true)
+    RECENT=$(awk -F'\t' -v file="$FILE_PATH" '$2 == file' "$INJECTION_LOG" 2>/dev/null | tail -3 || true)
     if [[ -n "$RECENT" ]]; then
         INJECTED_CONTEXT="
 **Injection history**: Entries from covering AGENTS.md were injected before this edit.

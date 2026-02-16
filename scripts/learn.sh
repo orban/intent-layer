@@ -203,6 +203,7 @@ fi
 # Insert entry after section header using temp-file swap
 TEMP_FILE=$(mktemp)
 ENTRY_FILE=$(mktemp)
+trap 'rm -f "$TEMP_FILE" "$ENTRY_FILE"' EXIT
 
 printf '%s\n\n' "$ENTRY" > "$ENTRY_FILE"
 
@@ -235,7 +236,6 @@ if [[ "$NEXT_LINE" -lt "$TOTAL_LINES" ]]; then
     tail -n "+$((NEXT_LINE + 1))" "$COVERING_NODE" >> "$TEMP_FILE"
 fi
 
-rm -f "$ENTRY_FILE"
 mv "$TEMP_FILE" "$COVERING_NODE"
 
 echo "✓ $LEARNING_TYPE added to ## $TARGET_SECTION in $COVERING_NODE"
