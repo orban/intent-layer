@@ -211,6 +211,7 @@ def test_summary_three_success_rates(three_condition_results):
 
     summary = eval_results.summary
     assert summary["total_tasks"] == 1
+    assert summary["infrastructure_errors"] == 0
     assert summary["none_success_rate"] == 0.0
     assert summary["flat_llm_success_rate"] == 1.0
     assert summary["intent_layer_success_rate"] == 1.0
@@ -278,3 +279,42 @@ def test_json_output(tmp_path, three_condition_results):
     assert "flat_llm" in task
     assert "intent_layer" in task
     assert "deltas" in task
+
+
+def test_infrastructure_errors_excluded_from_success_rate():
+    """Infrastructure errors should not count toward success rates."""
+    results = [
+        TaskResult(
+            task_id="fix-good",
+            condition=Condition.NONE,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=50.0,
+            input_tokens=2000,
+            output_tokens=1000,
+            tool_calls=10,
+            lines_changed=20,
+            files_touched=["a.py"]
+        ),
+        TaskResult(
+            task_id="fix-infra-fail",
+            condition=Condition.NONE,
+            success=False,
+            test_output="",
+            wall_clock_seconds=0,
+            input_tokens=0,
+            output_tokens=0,
+            tool_calls=0,
+            lines_changed=0,
+            files_touched=[],
+            error="[infrastructure] clone failed: network timeout"
+        ),
+    ]
+
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(results)
+
+    summary = eval_results.summary
+    assert summary["infrastructure_errors"] == 1
+    # Only fix-good counts — 1 success out of 1 valid = 1.0
+    assert summary["none_success_rate"] == 1.0

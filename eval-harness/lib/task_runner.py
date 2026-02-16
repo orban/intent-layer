@@ -1,5 +1,6 @@
 # lib/task_runner.py
 from __future__ import annotations
+import logging
 import os
 import tempfile
 import shutil
@@ -9,6 +10,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 from lib.models import Task, RepoConfig
 from lib.git_ops import clone_repo, checkout_commit, get_commit_message, get_diff_stats
@@ -107,8 +110,11 @@ class TaskRunner:
 
         # Per-repo extras
         if strip_extra:
+            resolved_workspace = workspace_path.resolve()
             for extra in strip_extra:
-                target = workspace_path / extra
+                target = (workspace_path / extra).resolve()
+                if not target.is_relative_to(resolved_workspace):
+                    continue
                 if target.is_file():
                     target.unlink()
                     removed.append(extra)
@@ -123,7 +129,8 @@ class TaskRunner:
         workspace: str,
         repo_url: str,
         commit: str,
-        condition: str = ""
+        condition: str = "",
+        model: str | None = None
     ) -> SkillGenerationMetrics:
         """Check cache or generate index. Returns metrics.
 
@@ -157,7 +164,7 @@ class TaskRunner:
         from lib.prompt_builder import build_skill_generation_prompt
 
         prompt = build_skill_generation_prompt()
-        result = run_claude(workspace, prompt, timeout=600)
+        result = run_claude(workspace, prompt, timeout=600, model=model)
 
         # Find generated AGENTS.md files
         agents_files = self._find_agents_files(workspace)
@@ -265,7 +272,8 @@ class TaskRunner:
                     workspace=workspace,
                     repo_url=self.repo.url,
                     commit=task.pre_fix_commit,
-                    condition=condition.value
+                    condition=condition.value,
+                    model=model
                 )
                 cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
                 self._progress(task.id, cond_str, "skill_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
@@ -327,6 +335,7 @@ class TaskRunner:
                 agents_files_read=agents_files_read
             )
         except Exception as e:
+            logger.error("Infrastructure error in task %s (%s): %s", task.id, cond_str, e, exc_info=True)
             return TaskResult(
                 task_id=task.id,
                 condition=condition,
@@ -338,7 +347,7 @@ class TaskRunner:
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
-                error=str(e)
+                error=f"[infrastructure] {e}"
             )
 
     def _setup_workspace(self, task: Task, condition: Condition) -> str:

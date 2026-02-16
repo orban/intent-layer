@@ -347,6 +347,50 @@ def test_generate_flat_context_dual_write(sample_repo):
         assert os.path.exists(os.path.join(workspace, "CLAUDE.md"))
 
 
+def test_strip_extra_rejects_path_traversal(sample_repo):
+    """Test that strip_extra blocks paths escaping the workspace."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(workspace)
+
+        # File outside workspace that must NOT be deleted
+        outside_file = os.path.join(tmpdir, "important.txt")
+        with open(outside_file, "w") as f:
+            f.write("don't delete me")
+
+        removed = runner._strip_context_files(
+            workspace, strip_extra=["../important.txt"]
+        )
+
+        assert "../important.txt" not in removed
+        assert os.path.exists(outside_file)
+
+
+def test_strip_extra_rejects_prefix_confusion(sample_repo):
+    """Test that /work doesn't match /work-evil (prefix collision)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "work")
+        os.makedirs(workspace)
+
+        # Sibling directory with shared prefix
+        sibling = os.path.join(tmpdir, "work-evil")
+        os.makedirs(sibling)
+        sibling_file = os.path.join(sibling, "secret.txt")
+        with open(sibling_file, "w") as f:
+            f.write("sensitive data")
+
+        removed = runner._strip_context_files(
+            workspace, strip_extra=["../work-evil/secret.txt"]
+        )
+
+        assert "../work-evil/secret.txt" not in removed
+        assert os.path.exists(sibling_file)
+
+
 def test_strip_context_files_with_universal_and_extras(sample_repo):
     """Test stripping universal context files AND strip_extra simultaneously."""
     with tempfile.TemporaryDirectory() as tmpdir:

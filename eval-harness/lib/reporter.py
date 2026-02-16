@@ -149,17 +149,34 @@ class Reporter:
             "lines_changed_percent": f"{lines_pct:+.1f}%"
         }
 
+    @staticmethod
+    def _is_infra_error(r: TaskResult) -> bool:
+        return r.error is not None and r.error.startswith("[infrastructure]")
+
     def _compute_summary(self, results: list[TaskResult]) -> dict:
-        """Compute overall summary statistics."""
+        """Compute overall summary statistics.
+
+        Infrastructure errors (clone/docker/workspace failures) are excluded
+        from success rate calculations to avoid corrupting experimental data.
+        """
+        def success_rate(task_results: list[TaskResult]) -> float:
+            valid = [r for r in task_results if not self._is_infra_error(r)]
+            if not valid:
+                return 0
+            return round(sum(1 for r in valid if r.success) / len(valid), 2)
+
         none_results = [r for r in results if r.condition == Condition.NONE]
         flat_results = [r for r in results if r.condition == Condition.FLAT_LLM]
         il_results = [r for r in results if r.condition == Condition.INTENT_LAYER]
 
+        infra_errors = sum(1 for r in results if self._is_infra_error(r))
+
         return {
             "total_tasks": len(set(r.task_id for r in results)),
-            "none_success_rate": round(sum(1 for r in none_results if r.success) / len(none_results), 2) if none_results else 0,
-            "flat_llm_success_rate": round(sum(1 for r in flat_results if r.success) / len(flat_results), 2) if flat_results else 0,
-            "intent_layer_success_rate": round(sum(1 for r in il_results if r.success) / len(il_results), 2) if il_results else 0,
+            "infrastructure_errors": infra_errors,
+            "none_success_rate": success_rate(none_results),
+            "flat_llm_success_rate": success_rate(flat_results),
+            "intent_layer_success_rate": success_rate(il_results),
         }
 
     def write_json(self, results: EvalResults) -> str:
