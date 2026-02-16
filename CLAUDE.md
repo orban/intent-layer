@@ -217,6 +217,15 @@ Any tool that can read the filesystem can consume AGENTS.md nodes. The protocol 
 - `mine_pr_reviews.sh` requires `gh` CLI and `jq` - other scripts only need coreutils + bc
 - Hook script receives tool input as JSON - parse carefully to avoid breaking on special characters
 
+## Intent Layer
+
+This project uses its own Intent Layer for documentation. Child nodes:
+
+- `scripts/AGENTS.md` — Script categories, arg parsing patterns, cross-platform gotchas
+- `lib/AGENTS.md` — Library functions, dependency graph, common.sh API
+- `hooks/AGENTS.md` — Hook slots, data flow, stdin/stdout contracts, injection log
+- `eval-harness/AGENTS.md` — Evaluation framework for A/B testing Claude skills
+
 ## Learning Loop
 
 When you discover a non-obvious gotcha while working in this codebase:
