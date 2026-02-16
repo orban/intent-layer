@@ -1,0 +1,2866 @@
+# Brainstorm a Feature or Improvement
+
+**Note: The current year is 2026.** Use this when dating brainstorm documents.
+
+Brainstorming helps answer **WHAT** to build through collaborative dialogue. It precedes `/workflows:plan`, which answers **HOW** to build it.
+
+**Process knowledge:** Load the `brainstorming` skill for detailed question techniques, approach exploration patterns, and YAGNI principles.
+
+## Feature Description
+
+<feature_description> # </feature_description>
+
+**If the feature description above is empty, ask the user:** "What would you like to explore? Please describe the feature, problem, or improvement you're thinking about."
+
+Do not proceed until you have a feature description from the user.
+
+## Execution Flow
+
+### Phase 0: Assess Requirements Clarity
+
+Evaluate whether brainstorming is needed based on the feature description.
+
+**Clear requirements indicators:**
+- Specific acceptance criteria provided
+- Referenced existing patterns to follow
+- Described exact expected behavior
+- Constrained, well-defined scope
+
+**If requirements are already clear:**
+Use **AskUserQuestion tool** to suggest: "Your requirements seem detailed enough to proceed directly to planning. Should I run `/workflows:plan` instead, or would you like to explore the idea further?"
+
+### Phase 1: Understand the Idea
+
+#### 1.1 Repository Research (Lightweight)
+
+Run a quick repo scan to understand existing patterns:
+
+- Task repo-research-analyst("Understand existing patterns related to: <feature_description>")
+
+Focus on: similar features, established patterns, CLAUDE.md guidance.
+
+#### 1.2 Collaborative Dialogue
+
+Use the **AskUserQuestion tool** to ask questions **one at a time**.
+
+**Guidelines (see `brainstorming` skill for detailed techniques):**
+- Prefer multiple choice when natural options exist
+- Start broad (purpose, users) then narrow (constraints, edge cases)
+- Validate assumptions explicitly
+- Ask about success criteria
+
+**Exit condition:** Continue until the idea is clear OR user says "proceed"
+
+### Phase 2: Explore Approaches
+
+Propose **2-3 concrete approaches** based on research and conversation.
+
+For each approach, provide:
+- Brief description (2-3 sentences)
+- Pros and cons
+- When it's best suited
+
+Lead with your recommendation and explain why. Apply YAGNI—prefer simpler solutions.
+
+Use **AskUserQuestion tool** to ask which approach the user prefers.
+
+### Phase 3: Capture the Design
+
+Write a brainstorm document to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`.
+
+**Document structure:** See the `brainstorming` skill for the template format. Key sections: What We're Building, Why This Approach, Key Decisions, Open Questions.
+
+Ensure `docs/brainstorms/` directory exists before writing.
+
+### Phase 4: Handoff
+
+Use **AskUserQuestion tool** to present next steps:
+
+**Question:** "Brainstorm captured. What would you like to do next?"
+
+**Options:**
+1. **Proceed to planning** - Run `/workflows:plan` (will auto-detect this brainstorm)
+2. **Refine design further** - Continue exploring
+3. **Done for now** - Return later
+
+## Output Summary
+
+When complete, display:
+
+```
+Brainstorm complete!
+
+Document: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md
+
+Key decisions:
+- [Decision 1]
+- [Decision 2]
+
+Next: Run `/workflows:plan` when ready to implement.
+```
+
+## Important Guidelines
+
+- **Stay focused on WHAT, not HOW** - Implementation details belong in the plan
+- **Ask one question at a time** - Don't overwhelm
+- **Apply YAGNI** - Prefer simpler approaches
+- **Keep outputs concise** - 200-300 words per section max
+
+NEVER CODE! Just explore and document decisions.
+
+---
+
+Create a brainstorming swarm to generate new feature ideas and then rank them for feasibility and usefulness
+
+---
+
+Base directory for this skill: /Users/ryo/.claude/plugins/cache/claude-plugins-official/superpowers/4.3.0/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+## Overview
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+3. **Propose 2-3 approaches** — with trade-offs and your recommendation
+4. **Present design** — in sections scaled to their complexity, get user approval after each section
+5. **Write design doc** — save to `docs/plans/YYYY-MM-DD-<topic>-design.md` and commit
+6. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Invoke writing-plans skill";
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+- Check out the current project state first (files, docs, recent commits)
+- Ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+## After the Design
+
+**Documentation:**
+- Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Implementation:**
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+---
+
+# Create a plan for a new feature or bug fix
+
+## Introduction
+
+**Note: The current year is 2026.** Use this when dating plans and searching for recent documentation.
+
+Transform feature descriptions, bug reports, or improvement ideas into well-structured markdown files issues that follow project conventions and best practices. This command provides flexible detail levels to match your needs.
+
+## Feature Description
+
+<feature_description> #Plan implementation for the top 5 features from docs/brainstorms/2026-02-15-feature-ideas-brainstorm.md: (1) Cursorrules/Tool Adapter Generator, (2) MCP Context Server, (3) Context Relevance Telemetry, (4) Diff-to-Intent Suggester, (5) Templates Marketplace </feature_description>
+
+**If the feature description above is empty, ask the user:** "What would you like to plan? Please describe the feature, bug fix, or improvement you have in mind."
+
+Do not proceed until you have a clear feature description from the user.
+
+### 0. Idea Refinement
+
+**Check for brainstorm output first:**
+
+Before asking questions, look for recent brainstorm documents in `docs/brainstorms/` that match this feature:
+
+```bash
+ls -la docs/brainstorms/*.md 2>/dev/null | head -10
+```
+
+**Relevance criteria:** A brainstorm is relevant if:
+- The topic (from filename or YAML frontmatter) semantically matches the feature description
+- Created within the last 14 days
+- If multiple candidates match, use the most recent one
+
+**If a relevant brainstorm exists:**
+1. Read the brainstorm document
+2. Announce: "Found brainstorm from [date]: [topic]. Using as context for planning."
+3. Extract key decisions, chosen approach, and open questions
+4. **Skip the idea refinement questions below** - the brainstorm already answered WHAT to build
+5. Use brainstorm decisions as input to the research phase
+
+**If multiple brainstorms could match:**
+Use **AskUserQuestion tool** to ask which brainstorm to use, or whether to proceed without one.
+
+**If no brainstorm found (or not relevant), run idea refinement:**
+
+Refine the idea through collaborative dialogue using the **AskUserQuestion tool**:
+
+- Ask questions one at a time to understand the idea fully
+- Prefer multiple choice questions when natural options exist
+- Focus on understanding: purpose, constraints and success criteria
+- Continue until the idea is clear OR user says "proceed"
+
+**Gather signals for research decision.** During refinement, note:
+
+- **User's familiarity**: Do they know the codebase patterns? Are they pointing to examples?
+- **User's intent**: Speed vs thoroughness? Exploration vs execution?
+- **Topic risk**: Security, payments, external APIs warrant more caution
+- **Uncertainty level**: Is the approach clear or open-ended?
+
+**Skip option:** If the feature description is already detailed, offer:
+"Your description is clear. Should I proceed with research, or would you like to refine it further?"
+
+## Main Tasks
+
+### 1. Local Research (Always Runs - Parallel)
+
+<thinking>
+First, I need to understand the project's conventions, existing patterns, and any documented learnings. This is fast and local - it informs whether external research is needed.
+</thinking>
+
+Run these agents **in parallel** to gather local context:
+
+- Task repo-research-analyst(feature_description)
+- Task learnings-researcher(feature_description)
+
+**What to look for:**
+- **Repo research:** existing patterns, CLAUDE.md guidance, technology familiarity, pattern consistency
+- **Learnings:** documented solutions in `docs/solutions/` that might apply (gotchas, patterns, lessons learned)
+
+These findings inform the next step.
+
+### 1.5. Research Decision
+
+Based on signals from Step 0 and findings from Step 1, decide on external research.
+
+**High-risk topics → always research.** Security, payments, external APIs, data privacy. The cost of missing something is too high. This takes precedence over speed signals.
+
+**Strong local context → skip external research.** Codebase has good patterns, CLAUDE.md has guidance, user knows what they want. External research adds little value.
+
+**Uncertainty or unfamiliar territory → research.** User is exploring, codebase has no examples, new technology. External perspective is valuable.
+
+**Announce the decision and proceed.** Brief explanation, then continue. User can redirect if needed.
+
+Examples:
+- "Your codebase has solid patterns for this. Proceeding without external research."
+- "This involves payment processing, so I'll research current best practices first."
+
+### 1.5b. External Research (Conditional)
+
+**Only run if Step 1.5 indicates external research is valuable.**
+
+Run these agents in parallel:
+
+- Task best-practices-researcher(feature_description)
+- Task framework-docs-researcher(feature_description)
+
+### 1.6. Consolidate Research
+
+After all research steps complete, consolidate findings:
+
+- Document relevant file paths from repo research (e.g., `app/services/example_service.rb:42`)
+- **Include relevant institutional learnings** from `docs/solutions/` (key insights, gotchas to avoid)
+- Note external documentation URLs and best practices (if external research was done)
+- List related issues or PRs discovered
+- Capture CLAUDE.md conventions
+
+**Optional validation:** Briefly summarize findings and ask if anything looks off or missing before proceeding to planning.
+
+### 2. Issue Planning & Structure
+
+<thinking>
+Think like a product manager - what would make this issue clear and actionable? Consider multiple perspectives
+</thinking>
+
+**Title & Categorization:**
+
+- [ ] Draft clear, searchable issue title using conventional format (e.g., `feat: Add user authentication`, `fix: Cart total calculation`)
+- [ ] Determine issue type: enhancement, bug, refactor
+- [ ] Convert title to filename: add today's date prefix, strip prefix colon, kebab-case, add `-plan` suffix
+  - Example: `feat: Add User Authentication` → `2026-01-21-feat-add-user-authentication-plan.md`
+  - Keep it descriptive (3-5 words after prefix) so plans are findable by context
+
+**Stakeholder Analysis:**
+
+- [ ] Identify who will be affected by this issue (end users, developers, operations)
+- [ ] Consider implementation complexity and required expertise
+
+**Content Planning:**
+
+- [ ] Choose appropriate detail level based on issue complexity and audience
+- [ ] List all necessary sections for the chosen template
+- [ ] Gather supporting materials (error logs, screenshots, design mockups)
+- [ ] Prepare code examples or reproduction steps if applicable, name the mock filenames in the lists
+
+### 3. SpecFlow Analysis
+
+After planning the issue structure, run SpecFlow Analyzer to validate and refine the feature specification:
+
+- Task spec-flow-analyzer(feature_description, research_findings)
+
+**SpecFlow Analyzer Output:**
+
+- [ ] Review SpecFlow analysis results
+- [ ] Incorporate any identified gaps or edge cases into the issue
+- [ ] Update acceptance criteria based on SpecFlow findings
+
+### 4. Choose Implementation Detail Level
+
+Select how comprehensive you want the issue to be, simpler is mostly better.
+
+#### 📄 MINIMAL (Quick Issue)
+
+**Best for:** Simple bugs, small improvements, clear features
+
+**Includes:**
+
+- Problem statement or feature description
+- Basic acceptance criteria
+- Essential context only
+
+**Structure:**
+
+````markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+[Brief problem/feature description]
+
+## Acceptance Criteria
+
+- [ ] Core requirement 1
+- [ ] Core requirement 2
+
+## Context
+
+[Any critical information]
+
+## MVP
+
+### test.rb
+
+```ruby
+class Test
+  def initialize
+    @name = "test"
+  end
+end
+```
+
+## References
+
+- Related issue: #[issue_number]
+- Documentation: [relevant_docs_url]
+````
+
+#### 📋 MORE (Standard Issue)
+
+**Best for:** Most features, complex bugs, team collaboration
+
+**Includes everything from MINIMAL plus:**
+
+- Detailed background and motivation
+- Technical considerations
+- Success metrics
+- Dependencies and risks
+- Basic implementation suggestions
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Comprehensive description]
+
+## Problem Statement / Motivation
+
+[Why this matters]
+
+## Proposed Solution
+
+[High-level approach]
+
+## Technical Considerations
+
+- Architecture impacts
+- Performance implications
+- Security considerations
+
+## Acceptance Criteria
+
+- [ ] Detailed requirement 1
+- [ ] Detailed requirement 2
+- [ ] Testing requirements
+
+## Success Metrics
+
+[How we measure success]
+
+## Dependencies & Risks
+
+[What could block or complicate this]
+
+## References & Research
+
+- Similar implementations: [file_path:line_number]
+- Best practices: [documentation_url]
+- Related PRs: #[pr_number]
+```
+
+#### 📚 A LOT (Comprehensive Issue)
+
+**Best for:** Major features, architectural changes, complex integrations
+
+**Includes everything from MORE plus:**
+
+- Detailed implementation plan with phases
+- Alternative approaches considered
+- Extensive technical specifications
+- Resource requirements and timeline
+- Future considerations and extensibility
+- Risk mitigation strategies
+- Documentation requirements
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Executive summary]
+
+## Problem Statement
+
+[Detailed problem analysis]
+
+## Proposed Solution
+
+[Comprehensive solution design]
+
+## Technical Approach
+
+### Architecture
+
+[Detailed technical design]
+
+### Implementation Phases
+
+#### Phase 1: [Foundation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 2: [Core Implementation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 3: [Polish & Optimization]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+## Alternative Approaches Considered
+
+[Other solutions evaluated and why rejected]
+
+## Acceptance Criteria
+
+### Functional Requirements
+
+- [ ] Detailed functional criteria
+
+### Non-Functional Requirements
+
+- [ ] Performance targets
+- [ ] Security requirements
+- [ ] Accessibility standards
+
+### Quality Gates
+
+- [ ] Test coverage requirements
+- [ ] Documentation completeness
+- [ ] Code review approval
+
+## Success Metrics
+
+[Detailed KPIs and measurement methods]
+
+## Dependencies & Prerequisites
+
+[Detailed dependency analysis]
+
+## Risk Analysis & Mitigation
+
+[Comprehensive risk assessment]
+
+## Resource Requirements
+
+[Team, time, infrastructure needs]
+
+## Future Considerations
+
+[Extensibility and long-term vision]
+
+## Documentation Plan
+
+[What docs need updating]
+
+## References & Research
+
+### Internal References
+
+- Architecture decisions: [file_path:line_number]
+- Similar features: [file_path:line_number]
+- Configuration: [file_path:line_number]
+
+### External References
+
+- Framework documentation: [url]
+- Best practices guide: [url]
+- Industry standards: [url]
+
+### Related Work
+
+- Previous PRs: #[pr_numbers]
+- Related issues: #[issue_numbers]
+- Design documents: [links]
+```
+
+### 5. Issue Creation & Formatting
+
+<thinking>
+Apply best practices for clarity and actionability, making the issue easy to scan and understand
+</thinking>
+
+**Content Formatting:**
+
+- [ ] Use clear, descriptive headings with proper hierarchy (##, ###)
+- [ ] Include code examples in triple backticks with language syntax highlighting
+- [ ] Add screenshots/mockups if UI-related (drag & drop or use image hosting)
+- [ ] Use task lists (- [ ]) for trackable items that can be checked off
+- [ ] Add collapsible sections for lengthy logs or optional details using `<details>` tags
+- [ ] Apply appropriate emoji for visual scanning (🐛 bug, ✨ feature, 📚 docs, ♻️ refactor)
+
+**Cross-Referencing:**
+
+- [ ] Link to related issues/PRs using #number format
+- [ ] Reference specific commits with SHA hashes when relevant
+- [ ] Link to code using GitHub's permalink feature (press 'y' for permanent link)
+- [ ] Mention relevant team members with @username if needed
+- [ ] Add links to external resources with descriptive text
+
+**Code & Examples:**
+
+````markdown
+# Good example with syntax highlighting and line references
+
+
+```ruby
+# app/services/user_service.rb:42
+def process_user(user)
+
+# Implementation here
+
+end
+```
+
+# Collapsible error logs
+
+<details>
+<summary>Full error stacktrace</summary>
+
+`Error details here...`
+
+</details>
+````
+
+**AI-Era Considerations:**
+
+- [ ] Account for accelerated development with AI pair programming
+- [ ] Include prompts or instructions that worked well during research
+- [ ] Note which AI tools were used for initial exploration (Claude, Copilot, etc.)
+- [ ] Emphasize comprehensive testing given rapid implementation
+- [ ] Document any AI-generated code that needs human review
+
+### 6. Final Review & Submission
+
+**Pre-submission Checklist:**
+
+- [ ] Title is searchable and descriptive
+- [ ] Labels accurately categorize the issue
+- [ ] All template sections are complete
+- [ ] Links and references are working
+- [ ] Acceptance criteria are measurable
+- [ ] Add names of files in pseudo code examples and todo lists
+- [ ] Add an ERD mermaid diagram if applicable for new model changes
+
+## Output Format
+
+**Filename:** Use the date and kebab-case filename from Step 2 Title & Categorization.
+
+```
+docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md
+```
+
+Examples:
+- ✅ `docs/plans/2026-01-15-feat-user-authentication-flow-plan.md`
+- ✅ `docs/plans/2026-02-03-fix-checkout-race-condition-plan.md`
+- ✅ `docs/plans/2026-03-10-refactor-api-client-extraction-plan.md`
+- ❌ `docs/plans/2026-01-15-feat-thing-plan.md` (not descriptive - what "thing"?)
+- ❌ `docs/plans/2026-01-15-feat-new-feature-plan.md` (too vague - what feature?)
+- ❌ `docs/plans/2026-01-15-feat: user auth-plan.md` (invalid characters - colon and space)
+- ❌ `docs/plans/feat-user-auth-plan.md` (missing date prefix)
+
+## Post-Generation Options
+
+After writing the plan file, use the **AskUserQuestion tool** to present these options:
+
+**Question:** "Plan ready at `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`. What would you like to do next?"
+
+**Options:**
+1. **Open plan in editor** - Open the plan file for review
+2. **Run `/deepen-plan`** - Enhance each section with parallel research agents (best practices, performance, UI)
+3. **Run `/plan_review`** - Get feedback from reviewers (DHH, Kieran, Simplicity)
+4. **Start `/workflows:work`** - Begin implementing this plan locally
+5. **Start `/workflows:work` on remote** - Begin implementing in Claude Code on the web (use `&` to run in background)
+6. **Create Issue** - Create issue in project tracker (GitHub/Linear)
+7. **Simplify** - Reduce detail level
+
+Based on selection:
+- **Open plan in editor** → Run `open docs/plans/<plan_filename>.md` to open the file in the user's default editor
+- **`/deepen-plan`** → Call the /deepen-plan command with the plan file path to enhance with research
+- **`/plan_review`** → Call the /plan_review command with the plan file path
+- **`/workflows:work`** → Call the /workflows:work command with the plan file path
+- **`/workflows:work` on remote** → Run `/workflows:work docs/plans/<plan_filename>.md &` to start work in background for Claude Code web
+- **Create Issue** → See "Issue Creation" section below
+- **Simplify** → Ask "What should I simplify?" then regenerate simpler version
+- **Other** (automatically provided) → Accept free text for rework or specific changes
+
+**Note:** If running `/workflows:plan` with ultrathink enabled, automatically run `/deepen-plan` after plan creation for maximum depth and grounding.
+
+Loop back to options after Simplify or Other changes until user selects `/workflows:work` or `/plan_review`.
+
+## Issue Creation
+
+When user selects "Create Issue", detect their project tracker from CLAUDE.md:
+
+1. **Check for tracker preference** in user's CLAUDE.md (global or project):
+   - Look for `project_tracker: github` or `project_tracker: linear`
+   - Or look for mentions of "GitHub Issues" or "Linear" in their workflow section
+
+2. **If GitHub:**
+
+   Use the title and type from Step 2 (already in context - no need to re-read the file):
+
+   ```bash
+   gh issue create --title "<type>: <title>" --body-file <plan_path>
+   ```
+
+3. **If Linear:**
+
+   ```bash
+   linear issue create --title "<title>" --description "$(cat <plan_path>)"
+   ```
+
+4. **If no tracker configured:**
+   Ask user: "Which project tracker do you use? (GitHub/Linear/Other)"
+   - Suggest adding `project_tracker: github` or `project_tracker: linear` to their CLAUDE.md
+
+5. **After creation:**
+   - Display the issue URL
+   - Ask if they want to proceed to `/workflows:work` or `/plan_review`
+
+NEVER CODE! Just research and write the plan.
+
+---
+
+# Deepen Plan - Power Enhancement Mode
+
+## Introduction
+
+**Note: The current year is 2026.** Use this when searching for recent documentation and best practices.
+
+This command takes an existing plan (from `/workflows:plan`) and enhances each section with parallel research agents. Each major element gets its own dedicated research sub-agent to find:
+- Best practices and industry patterns
+- Performance optimizations
+- UI/UX improvements (if applicable)
+- Quality enhancements and edge cases
+- Real-world implementation examples
+
+The result is a deeply grounded, production-ready plan with concrete implementation details.
+
+## Plan File
+
+<plan_path> #docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md </plan_path>
+
+**If the plan path above is empty:**
+1. Check for recent plans: `ls -la docs/plans/`
+2. Ask the user: "Which plan would you like to deepen? Please provide the path (e.g., `docs/plans/2026-01-15-feat-my-feature-plan.md`)."
+
+Do not proceed until you have a valid plan file path.
+
+## Main Tasks
+
+### 1. Parse and Analyze Plan Structure
+
+<thinking>
+First, read and parse the plan to identify each major section that can be enhanced with research.
+</thinking>
+
+**Read the plan file and extract:**
+- [ ] Overview/Problem Statement
+- [ ] Proposed Solution sections
+- [ ] Technical Approach/Architecture
+- [ ] Implementation phases/steps
+- [ ] Code examples and file references
+- [ ] Acceptance criteria
+- [ ] Any UI/UX components mentioned
+- [ ] Technologies/frameworks mentioned (Rails, React, Python, TypeScript, etc.)
+- [ ] Domain areas (data models, APIs, UI, security, performance, etc.)
+
+**Create a section manifest:**
+```
+Section 1: [Title] - [Brief description of what to research]
+Section 2: [Title] - [Brief description of what to research]
+...
+```
+
+### 2. Discover and Apply Available Skills
+
+<thinking>
+Dynamically discover all available skills and match them to plan sections. Don't assume what skills exist - discover them at runtime.
+</thinking>
+
+**Step 1: Discover ALL available skills from ALL sources**
+
+```bash
+# 1. Project-local skills (highest priority - project-specific)
+ls .claude/skills/
+
+# 2. User's global skills (~/.claude/)
+ls ~/.claude/skills/
+
+# 3. compound-engineering plugin skills
+ls ~/.claude/plugins/cache/*/compound-engineering/*/skills/
+
+# 4. ALL other installed plugins - check every plugin for skills
+find ~/.claude/plugins/cache -type d -name "skills" 2>/dev/null
+
+# 5. Also check installed_plugins.json for all plugin locations
+cat ~/.claude/plugins/installed_plugins.json
+```
+
+**Important:** Check EVERY source. Don't assume compound-engineering is the only plugin. Use skills from ANY installed plugin that's relevant.
+
+**Step 2: For each discovered skill, read its SKILL.md to understand what it does**
+
+```bash
+# For each skill directory found, read its documentation
+cat [skill-path]/SKILL.md
+```
+
+**Step 3: Match skills to plan content**
+
+For each skill discovered:
+- Read its SKILL.md description
+- Check if any plan sections match the skill's domain
+- If there's a match, spawn a sub-agent to apply that skill's knowledge
+
+**Step 4: Spawn a sub-agent for EVERY matched skill**
+
+**CRITICAL: For EACH skill that matches, spawn a separate sub-agent and instruct it to USE that skill.**
+
+For each matched skill:
+```
+Task general-purpose: "You have the [skill-name] skill available at [skill-path].
+
+YOUR JOB: Use this skill on the plan.
+
+1. Read the skill: cat [skill-path]/SKILL.md
+2. Follow the skill's instructions exactly
+3. Apply the skill to this content:
+
+[relevant plan section or full plan]
+
+4. Return the skill's full output
+
+The skill tells you what to do - follow it. Execute the skill completely."
+```
+
+**Spawn ALL skill sub-agents in PARALLEL:**
+- 1 sub-agent per matched skill
+- Each sub-agent reads and uses its assigned skill
+- All run simultaneously
+- 10, 20, 30 skill sub-agents is fine
+
+**Each sub-agent:**
+1. Reads its skill's SKILL.md
+2. Follows the skill's workflow/instructions
+3. Applies the skill to the plan
+4. Returns whatever the skill produces (code, recommendations, patterns, reviews, etc.)
+
+**Example spawns:**
+```
+Task general-purpose: "Use the dhh-rails-style skill at ~/.claude/plugins/.../dhh-rails-style. Read SKILL.md and apply it to: [Rails sections of plan]"
+
+Task general-purpose: "Use the frontend-design skill at ~/.claude/plugins/.../frontend-design. Read SKILL.md and apply it to: [UI sections of plan]"
+
+Task general-purpose: "Use the agent-native-architecture skill at ~/.claude/plugins/.../agent-native-architecture. Read SKILL.md and apply it to: [agent/tool sections of plan]"
+
+Task general-purpose: "Use the security-patterns skill at ~/.claude/skills/security-patterns. Read SKILL.md and apply it to: [full plan]"
+```
+
+**No limit on skill sub-agents. Spawn one for every skill that could possibly be relevant.**
+
+### 3. Discover and Apply Learnings/Solutions
+
+<thinking>
+Check for documented learnings from /workflows:compound. These are solved problems stored as markdown files. Spawn a sub-agent for each learning to check if it's relevant.
+</thinking>
+
+**LEARNINGS LOCATION - Check these exact folders:**
+
+```
+docs/solutions/           <-- PRIMARY: Project-level learnings (created by /workflows:compound)
+├── performance-issues/
+│   └── *.md
+├── debugging-patterns/
+│   └── *.md
+├── configuration-fixes/
+│   └── *.md
+├── integration-issues/
+│   └── *.md
+├── deployment-issues/
+│   └── *.md
+└── [other-categories]/
+    └── *.md
+```
+
+**Step 1: Find ALL learning markdown files**
+
+Run these commands to get every learning file:
+
+```bash
+# PRIMARY LOCATION - Project learnings
+find docs/solutions -name "*.md" -type f 2>/dev/null
+
+# If docs/solutions doesn't exist, check alternate locations:
+find .claude/docs -name "*.md" -type f 2>/dev/null
+find ~/.claude/docs -name "*.md" -type f 2>/dev/null
+```
+
+**Step 2: Read frontmatter of each learning to filter**
+
+Each learning file has YAML frontmatter with metadata. Read the first ~20 lines of each file to get:
+
+```yaml
+---
+title: "N+1 Query Fix for Briefs"
+category: performance-issues
+tags: [activerecord, n-plus-one, includes, eager-loading]
+module: Briefs
+symptom: "Slow page load, multiple queries in logs"
+root_cause: "Missing includes on association"
+---
+```
+
+**For each .md file, quickly scan its frontmatter:**
+
+```bash
+# Read first 20 lines of each learning (frontmatter + summary)
+head -20 docs/solutions/**/*.md
+```
+
+**Step 3: Filter - only spawn sub-agents for LIKELY relevant learnings**
+
+Compare each learning's frontmatter against the plan:
+- `tags:` - Do any tags match technologies/patterns in the plan?
+- `category:` - Is this category relevant? (e.g., skip deployment-issues if plan is UI-only)
+- `module:` - Does the plan touch this module?
+- `symptom:` / `root_cause:` - Could this problem occur with the plan?
+
+**SKIP learnings that are clearly not applicable:**
+- Plan is frontend-only → skip `database-migrations/` learnings
+- Plan is Python → skip `rails-specific/` learnings
+- Plan has no auth → skip `authentication-issues/` learnings
+
+**SPAWN sub-agents for learnings that MIGHT apply:**
+- Any tag overlap with plan technologies
+- Same category as plan domain
+- Similar patterns or concerns
+
+**Step 4: Spawn sub-agents for filtered learnings**
+
+For each learning that passes the filter:
+
+```
+Task general-purpose: "
+LEARNING FILE: [full path to .md file]
+
+1. Read this learning file completely
+2. This learning documents a previously solved problem
+
+Check if this learning applies to this plan:
+
+---
+[full plan content]
+---
+
+If relevant:
+- Explain specifically how it applies
+- Quote the key insight or solution
+- Suggest where/how to incorporate it
+
+If NOT relevant after deeper analysis:
+- Say 'Not applicable: [reason]'
+"
+```
+
+**Example filtering:**
+```
+# Found 15 learning files, plan is about "Rails API caching"
+
+# SPAWN (likely relevant):
+docs/solutions/performance-issues/n-plus-one-queries.md      # tags: [activerecord] ✓
+docs/solutions/performance-issues/redis-cache-stampede.md    # tags: [caching, redis] ✓
+docs/solutions/configuration-fixes/redis-connection-pool.md  # tags: [redis] ✓
+
+# SKIP (clearly not applicable):
+docs/solutions/deployment-issues/heroku-memory-quota.md      # not about caching
+docs/solutions/frontend-issues/stimulus-race-condition.md    # plan is API, not frontend
+docs/solutions/authentication-issues/jwt-expiry.md           # plan has no auth
+```
+
+**Spawn sub-agents in PARALLEL for all filtered learnings.**
+
+**These learnings are institutional knowledge - applying them prevents repeating past mistakes.**
+
+### 4. Launch Per-Section Research Agents
+
+<thinking>
+For each major section in the plan, spawn dedicated sub-agents to research improvements. Use the Explore agent type for open-ended research.
+</thinking>
+
+**For each identified section, launch parallel research:**
+
+```
+Task Explore: "Research best practices, patterns, and real-world examples for: [section topic].
+Find:
+- Industry standards and conventions
+- Performance considerations
+- Common pitfalls and how to avoid them
+- Documentation and tutorials
+Return concrete, actionable recommendations."
+```
+
+**Also use Context7 MCP for framework documentation:**
+
+For any technologies/frameworks mentioned in the plan, query Context7:
+```
+mcp__plugin_compound-engineering_context7__resolve-library-id: Find library ID for [framework]
+mcp__plugin_compound-engineering_context7__query-docs: Query documentation for specific patterns
+```
+
+**Use WebSearch for current best practices:**
+
+Search for recent (2024-2026) articles, blog posts, and documentation on topics in the plan.
+
+### 5. Discover and Run ALL Review Agents
+
+<thinking>
+Dynamically discover every available agent and run them ALL against the plan. Don't filter, don't skip, don't assume relevance. 40+ parallel agents is fine. Use everything available.
+</thinking>
+
+**Step 1: Discover ALL available agents from ALL sources**
+
+```bash
+# 1. Project-local agents (highest priority - project-specific)
+find .claude/agents -name "*.md" 2>/dev/null
+
+# 2. User's global agents (~/.claude/)
+find ~/.claude/agents -name "*.md" 2>/dev/null
+
+# 3. compound-engineering plugin agents (all subdirectories)
+find ~/.claude/plugins/cache/*/compound-engineering/*/agents -name "*.md" 2>/dev/null
+
+# 4. ALL other installed plugins - check every plugin for agents
+find ~/.claude/plugins/cache -path "*/agents/*.md" 2>/dev/null
+
+# 5. Check installed_plugins.json to find all plugin locations
+cat ~/.claude/plugins/installed_plugins.json
+
+# 6. For local plugins (isLocal: true), check their source directories
+# Parse installed_plugins.json and find local plugin paths
+```
+
+**Important:** Check EVERY source. Include agents from:
+- Project `.claude/agents/`
+- User's `~/.claude/agents/`
+- compound-engineering plugin (but SKIP workflow/ agents - only use review/, research/, design/, docs/)
+- ALL other installed plugins (agent-sdk-dev, frontend-design, etc.)
+- Any local plugins
+
+**For compound-engineering plugin specifically:**
+- USE: `agents/review/*` (all reviewers)
+- USE: `agents/research/*` (all researchers)
+- USE: `agents/design/*` (design agents)
+- USE: `agents/docs/*` (documentation agents)
+- SKIP: `agents/workflow/*` (these are workflow orchestrators, not reviewers)
+
+**Step 2: For each discovered agent, read its description**
+
+Read the first few lines of each agent file to understand what it reviews/analyzes.
+
+**Step 3: Launch ALL agents in parallel**
+
+For EVERY agent discovered, launch a Task in parallel:
+
+```
+Task [agent-name]: "Review this plan using your expertise. Apply all your checks and patterns. Plan content: [full plan content]"
+```
+
+**CRITICAL RULES:**
+- Do NOT filter agents by "relevance" - run them ALL
+- Do NOT skip agents because they "might not apply" - let them decide
+- Launch ALL agents in a SINGLE message with multiple Task tool calls
+- 20, 30, 40 parallel agents is fine - use everything
+- Each agent may catch something others miss
+- The goal is MAXIMUM coverage, not efficiency
+
+**Step 4: Also discover and run research agents**
+
+Research agents (like `best-practices-researcher`, `framework-docs-researcher`, `git-history-analyzer`, `repo-research-analyst`) should also be run for relevant plan sections.
+
+### 6. Wait for ALL Agents and Synthesize Everything
+
+<thinking>
+Wait for ALL parallel agents to complete - skills, research agents, review agents, everything. Then synthesize all findings into a comprehensive enhancement.
+</thinking>
+
+**Collect outputs from ALL sources:**
+
+1. **Skill-based sub-agents** - Each skill's full output (code examples, patterns, recommendations)
+2. **Learnings/Solutions sub-agents** - Relevant documented learnings from /workflows:compound
+3. **Research agents** - Best practices, documentation, real-world examples
+4. **Review agents** - All feedback from every reviewer (architecture, security, performance, simplicity, etc.)
+5. **Context7 queries** - Framework documentation and patterns
+6. **Web searches** - Current best practices and articles
+
+**For each agent's findings, extract:**
+- [ ] Concrete recommendations (actionable items)
+- [ ] Code patterns and examples (copy-paste ready)
+- [ ] Anti-patterns to avoid (warnings)
+- [ ] Performance considerations (metrics, benchmarks)
+- [ ] Security considerations (vulnerabilities, mitigations)
+- [ ] Edge cases discovered (handling strategies)
+- [ ] Documentation links (references)
+- [ ] Skill-specific patterns (from matched skills)
+- [ ] Relevant learnings (past solutions that apply - prevent repeating mistakes)
+
+**Deduplicate and prioritize:**
+- Merge similar recommendations from multiple agents
+- Prioritize by impact (high-value improvements first)
+- Flag conflicting advice for human review
+- Group by plan section
+
+### 7. Enhance Plan Sections
+
+<thinking>
+Merge research findings back into the plan, adding depth without changing the original structure.
+</thinking>
+
+**Enhancement format for each section:**
+
+```markdown
+## [Original Section Title]
+
+[Original content preserved]
+
+### Research Insights
+
+**Best Practices:**
+- [Concrete recommendation 1]
+- [Concrete recommendation 2]
+
+**Performance Considerations:**
+- [Optimization opportunity]
+- [Benchmark or metric to target]
+
+**Implementation Details:**
+```[language]
+// Concrete code example from research
+```
+
+**Edge Cases:**
+- [Edge case 1 and how to handle]
+- [Edge case 2 and how to handle]
+
+**References:**
+- [Documentation URL 1]
+- [Documentation URL 2]
+```
+
+### 8. Add Enhancement Summary
+
+At the top of the plan, add a summary section:
+
+```markdown
+## Enhancement Summary
+
+**Deepened on:** [Date]
+**Sections enhanced:** [Count]
+**Research agents used:** [List]
+
+### Key Improvements
+1. [Major improvement 1]
+2. [Major improvement 2]
+3. [Major improvement 3]
+
+### New Considerations Discovered
+- [Important finding 1]
+- [Important finding 2]
+```
+
+### 9. Update Plan File
+
+**Write the enhanced plan:**
+- Preserve original filename
+- Add `-deepened` suffix if user prefers a new file
+- Update any timestamps or metadata
+
+## Output Format
+
+Update the plan file in place (or if user requests a separate file, append `-deepened` after `-plan`, e.g., `2026-01-15-feat-auth-plan-deepened.md`).
+
+## Quality Checks
+
+Before finalizing:
+- [ ] All original content preserved
+- [ ] Research insights clearly marked and attributed
+- [ ] Code examples are syntactically correct
+- [ ] Links are valid and relevant
+- [ ] No contradictions between sections
+- [ ] Enhancement summary accurately reflects changes
+
+## Post-Enhancement Options
+
+After writing the enhanced plan, use the **AskUserQuestion tool** to present these options:
+
+**Question:** "Plan deepened at `[plan_path]`. What would you like to do next?"
+
+**Options:**
+1. **View diff** - Show what was added/changed
+2. **Run `/plan_review`** - Get feedback from reviewers on enhanced plan
+3. **Start `/workflows:work`** - Begin implementing this enhanced plan
+4. **Deepen further** - Run another round of research on specific sections
+5. **Revert** - Restore original plan (if backup exists)
+
+Based on selection:
+- **View diff** → Run `git diff [plan_path]` or show before/after
+- **`/plan_review`** → Call the /plan_review command with the plan file path
+- **`/workflows:work`** → Call the /workflows:work command with the plan file path
+- **Deepen further** → Ask which sections need more research, then re-run those agents
+- **Revert** → Restore from git or backup
+
+## Example Enhancement
+
+**Before (from /workflows:plan):**
+```markdown
+## Technical Approach
+
+Use React Query for data fetching with optimistic updates.
+```
+
+**After (from /workflows:deepen-plan):**
+```markdown
+## Technical Approach
+
+Use React Query for data fetching with optimistic updates.
+
+### Research Insights
+
+**Best Practices:**
+- Configure `staleTime` and `cacheTime` based on data freshness requirements
+- Use `queryKey` factories for consistent cache invalidation
+- Implement error boundaries around query-dependent components
+
+**Performance Considerations:**
+- Enable `refetchOnWindowFocus: false` for stable data to reduce unnecessary requests
+- Use `select` option to transform and memoize data at query level
+- Consider `placeholderData` for instant perceived loading
+
+**Implementation Details:**
+```typescript
+// Recommended query configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+```
+
+**Edge Cases:**
+- Handle race conditions with `cancelQueries` on component unmount
+- Implement retry logic for transient network failures
+- Consider offline support with `persistQueryClient`
+
+**References:**
+- https://tanstack.com/query/latest/docs/react/guides/optimistic-updates
+- https://tkdodo.eu/blog/practical-react-query
+```
+
+NEVER CODE! Just research and enhance the plan.
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>ad9fb4e</task-id>
+<status>completed</status>
+<summary>Agent "Analyze current plugin state" completed</summary>
+<result>Now I have a thorough picture. Let me compile the analysis.
+
+---
+
+## Repository Research Summary: intent-layer
+
+**Repository**: `orban/intent-layer` (GitHub)
+**Version**: 1.2.0 (as of Feb 15, 2026)
+**License**: MIT
+**Age**: ~25 days of active development (Jan 22 - Feb 15, 2026)
+**Codebase size**: ~8,100 lines of bash scripts, ~2,300 lines of tests, plus a Python eval-harness
+
+---
+
+### 1. Current Feature Set -- What Works Well
+
+**The learning loop is the standout feature.** The full cycle from mistake capture through integration is implemented end-to-end:
+
+- `PostToolUseFailure` auto-creates skeleton reports in `.intent-layer/mistakes/pending/`
+- `PreToolUse` injects relevant AGENTS.md sections (Pitfalls, Checks, Patterns, Context) before edits, with an injection log for failure correlation
+- `SessionStart` injects recent learnings
+- `Stop` hook uses a two-tier classifier (bash heuristics + Haiku API) to prompt for learning capture
+- `learn.sh` does direct-write to AGENTS.md with word-overlap dedup (60% threshold)
+- `report_learning.sh` provides a concurrent-safe pending queue for multi-agent swarms
+- `/intent-layer-compound` skill does end-of-session AI conversation scanning + structured prompts + direct integration
+
+**The script library is substantial.** 29 scripts across five categories (detection, capture, display, hooks, mining/review) totaling 8,107 lines. Every script supports `--help`, uses `set -euo pipefail`, and handles macOS/Linux differences.
+
+**The agent protocol is well-specified.** `references/agent-protocol.md` defines read (`resolve_context.sh`), write (`report_learning.sh`), and the T-shaped loading model. It's tool-agnostic by design -- any filesystem-reading agent can consume it.
+
+**Skills cover the full lifecycle:**
+- `/intent-layer` -- initial setup (26k SKILL.md, the most detailed)
+- `/intent-layer-maintenance` -- ongoing updates (10k)
+- `/intent-layer-onboarding` -- developer orientation (15k)
+- `/intent-layer-query` -- question answering (13k)
+- `/intent-layer-compound` -- end-of-session learning capture (6.6k)
+- `/intent-layer-health` -- quick audit (4.6k)
+- `/review-mistakes` -- interactive triage (5.4k)
+
+**The hooks system is complete.** All five Claude Code hook slots are wired:
+- `SessionStart` -- inject-learnings.sh
+- `PreToolUse` -- pre-edit-check.sh (matcher: Edit|Write|NotebookEdit)
+- `PostToolUse` -- post-edit-check.sh (matcher: Write|Edit)
+- `PostToolUseFailure` -- capture-tool-failure.sh (matcher: Edit|Write|NotebookEdit|Bash)
+- `Stop` -- stop-learning-check.sh (two-tier: bash heuristics + Haiku classifier)
+
+---
+
+### 2. Recent Development Activity
+
+The project is 25 days old. Development happened in two bursts:
+
+**Burst 1 (Jan 22-23):** Rapid foundation. 15 commits in 2 days. Plugin conversion from standalone, eval harness, learning layer automation, multi-type learning support, clean sub-skill, GitHub installation support.
+
+**Burst 2 (Feb 9-15):** Maturation. Context protocol for agent swarms, compound learning skill, feedback loop with injection logs, `learn.sh` direct-write pipeline, two-tier Stop hook replacing a problematic prompt-based approach.
+
+The most recent PR (#19, merged Feb 15) replaced a prompt-based Stop hook with a command-based two-tier architecture because the prompt approach "was too aggressive and caused JSON validation failures."
+
+**There are zero open GitHub issues.** All 19 PRs have been merged or closed. No issue templates exist (no `.github/` directory at all).
+
+---
+
+### 3. Gaps and Underdeveloped Areas
+
+**A. No CI/CD or automated testing pipeline.**
+The README documents GitHub Actions and GitLab CI YAML for *users* of the plugin, but the plugin itself has no CI. The 10 test files in `tests/` (2,305 lines of bash tests) appear to be run manually. There's a known pre-existing failure (Test 9 in `test_hooks.sh`).
+
+**B. The eval-harness is stalled.**
+It has a Python codebase (`eval-harness/lib/`, 12 modules), pytest tests, one task file (`express.yaml`), and one result from Jan 23. The `.pytest_cache/lastfailed` file has content, suggesting some tests are failing. Only one actual evaluation has been run. The eval-harness got index caching and metrics separation (PR #14) but hasn't been used for real A/B testing since.
+
+**C. Agents are documentation, not code.**
+The four agent markdown files (`explorer.md`, `validator.md`, `auditor.md`, `change-tracker.md`) are instructions for Claude to follow, not executable code. They describe processes but rely entirely on Claude interpreting the markdown and running the right scripts. There's no verification that Claude actually follows these agent protocols correctly. The `change-tracker.md` agent (8.4k, the largest) was added Feb 9 but isn't referenced from the README or CLAUDE.md's agent list.
+
+**D. No GitHub presence infrastructure.**
+No `.github/` directory means no issue templates, no PR templates, no contributing guidelines beyond what's in CLAUDE.md, no release automation, no CI workflows.
+
+**E. Sub-skills are listed but not deeply integrated.**
+The main `/intent-layer` skill references sub-skills (`git-history`, `pr-review`, `pr-review-mining`), but they sit as sibling directories and rely on Claude's judgment about when to invoke them. There's no programmatic dispatch.
+
+**F. The `intent-layer/` top-level directory is mysterious.**
+There's a `/Users/ryo/dev/intent-layer/intent-layer/` directory at the repo root that doesn't appear in the plugin structure documentation or CLAUDE.md. It's not referenced by any script.
+
+**G. `.conductor/` is empty, `.serena/` is unexplained.**
+The `.conductor/` directory is empty. `.serena/` has a `project.yml` (7.3k) and cache/memories directories -- suggesting integration with another tool -- but isn't documented anywhere.
+
+**H. Query skill tests are minimal.**
+`test_query_intent.sh` is only 49 lines, the smallest test file by far. `query_intent.sh` itself is 458 lines, so test coverage is thin.
+
+**I. No versioned changelog.**
+Version bumps (1.0.1, 1.1.0, 1.1.1, 1.2.0) happen via commits but there's no CHANGELOG.md or GitHub Releases tracking what changed between versions.
+
+---
+
+### 4. Component Maturity Assessment
+
+| Component | Maturity | Evidence |
+|-----------|----------|----------|
+| **Scripts (29)** | High | 8,107 lines, consistent patterns, cross-platform, all have --help. Five categories well-organized. `detect_staleness.sh` (631 lines) and `audit_intent_layer.sh` (663 lines) are the most substantial. |
+| **Hooks (5 slots)** | High | All hook slots wired. The Stop hook went through a significant redesign (prompt -> two-tier command). Injection log, failure correlation, and log rotation all implemented. AGENTS.md for hooks is detailed and accurate. |
+| **Learning Loop** | High | The signature feature. Full cycle: auto-capture -> pending queue -> review -> integration -> injection. Two write modes (direct `learn.sh` vs queued `report_learning.sh`). Dedup gate. Concurrency-safe. |
+| **Main Setup Skill** | High | 26k SKILL.md with sub-skills, detailed workflow, git history mining, PR review mining. |
+| **Maintenance Skill** | Medium | 10k SKILL.md. Exists but the actual maintenance workflow is less tested than setup. |
+| **Compound Skill** | Medium | Recent addition (Feb 9). Three-layer workflow (AI scan, structured prompts, direct integration). Has a prompts/ subdirectory. But no dedicated tests. |
+| **Health Skill** | Medium | New (Feb 9). Wraps `audit_intent_layer.sh`. Good design but thin. |
+| **Query Skill** | Medium | 13k SKILL.md, 458-line script, but only 49 lines of tests. |
+| **Onboarding Skill** | Medium-Low | 15k SKILL.md but the `generate_orientation.sh` (458 lines) it depends on hasn't been updated since Jan 27. |
+| **Agents** | Low | Pure documentation (markdown instructions). No runtime, no tests, no verification. `change-tracker.md` isn't in the README. The explorer/validator/auditor trio describes a workflow that depends entirely on Claude's compliance. |
+| **Eval Harness** | Low | Python framework exists, one task, one result. `.pytest_cache` shows failures. Stalled since Jan 28 (only got caching). |
+| **References** | Medium-High | 13 reference documents totaling ~80k+ chars. `section-schema.md`, `templates.md`, `agent-protocol.md`, `compression-techniques.md` are all thorough. But `taxonomy.md` and `query-synonyms.txt` feel like support files that aren't heavily used. |
+| **Tests** | Medium | 10 test files, 2,305 lines. Good coverage for core scripts (`validate_node`, `learn`, `e2e`, `accumulation_loop`, `stop_hook`). Weak coverage for query, hooks have a known failure. No test runner or CI. |
+| **Documentation** | Medium-High | CLAUDE.md is 10.7k, README is 8.6k, four AGENTS.md child nodes exist. But the README's plugin structure diagram is stale (doesn't list `change-tracker`, `intent-layer-compound`, `intent-layer-health`). |
+| **Plugin Infra** | Low | `plugin.json` is minimal (name, version, description, author, keywords, repo, license). No `.github/`, no releases, no changelog. |
+
+---
+
+### 5. Key Files for Reference
+
+| File | Path | Purpose |
+|------|------|---------|
+| Plugin manifest | `/Users/ryo/dev/intent-layer/.claude-plugin/plugin.json` | Name, version (1.2.0), metadata |
+| Root docs | `/Users/ryo/dev/intent-layer/CLAUDE.md` | Primary project documentation (10.7k) |
+| Hook config | `/Users/ryo/dev/intent-layer/hooks/hooks.json` | All 5 hook slot wiring |
+| Stop hook | `/Users/ryo/dev/intent-layer/scripts/stop-learning-check.sh` | Two-tier Haiku classifier (172 lines) |
+| Learn script | `/Users/ryo/dev/intent-layer/scripts/learn.sh` | Direct-write with dedup (255 lines) |
+| Agent protocol | `/Users/ryo/dev/intent-layer/references/agent-protocol.md` | v1.0 read/write spec |
+| Main skill | `/Users/ryo/dev/intent-layer/skills/intent-layer/SKILL.md` | Setup workflow (26k) |
+| Compound skill | `/Users/ryo/dev/intent-layer/skills/intent-layer-compound/SKILL.md` | End-of-session capture (6.6k) |
+| Section schema | `/Users/ryo/dev/intent-layer/references/section-schema.md` | Formal node section spec |
+| Eval harness | `/Users/ryo/dev/intent-layer/eval-harness/` | Python A/B testing framework (stalled) |
+| Codex plan | `/Users/ryo/dev/intent-layer/CODEX_PLAN.md` | Response plan from Jan 27 review |
+
+---
+
+### 6. Summary of What EXISTS vs What's MISSING
+
+**Exists and is solid:**
+- The learning loop (capture -> dedup -> integrate -> inject)
+- Bash script library (29 scripts, consistent conventions)
+- All 5 hook slots wired with real logic
+- Agent protocol specification (read/write/concurrency)
+- Skills for setup, maintenance, querying, compound capture
+- Self-dogfooding (the repo uses its own Intent Layer with 4 child AGENTS.md nodes)
+
+**Exists but underdeveloped:**
+- Agents (pure markdown, no runtime or tests)
+- Eval harness (framework built, barely used)
+- GitHub project infrastructure (no issues, templates, CI, releases)
+- Test automation (tests exist but run manually, no CI)
+- Onboarding skill (large SKILL.md but static)
+- README (doesn't reflect current state of skills, agents, hooks)
+
+**Doesn't exist:**
+- CI/CD pipeline for the plugin itself
+- Changelog or release notes
+- Any form of metrics dashboard or usage analytics
+- Integration tests that verify agent markdown actually produces correct behavior
+- Cross-tool testing (Cursor, Copilot, Gemini CLI compatibility claims are untested)
+- User-facing error reporting or telemetry
+- Contribution guidelines beyond CLAUDE.md
+- GitHub issue tracker usage (zero issues ever filed)
+- Any MCP server or API surface (everything is filesystem-based bash)</result>
+<usage>total_tokens: 83335
+tool_uses: 39
+duration_ms: 133208</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/ad9fb4e.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>a633155</task-id>
+<status>completed</status>
+<summary>Agent "Brainstorm: ecosystem integrations" completed</summary>
+<result># Intent Layer Plugin — Ecosystem Integration Ideas
+
+## 1. MCP Context Server
+
+**Problem**: LLM tools using Model Context Protocol can't automatically discover and use Intent Layer context — they'd need custom scripts or manual file reading.
+
+**Solution**: Ship an MCP server that exposes Intent Layer as resources/tools: `read_intent(path)` returns ancestor chain, `search_intent(query)` finds relevant nodes, `report_learning(...)` queues feedback. Works with any MCP client (Claude Desktop, Zed, Continue, etc.).
+
+**Effort**: Medium  
+**Impact**: High
+
+---
+
+## 2. LSP Hover Provider
+
+**Problem**: Developers working in VS Code/JetBrains see no Intent Layer context while reading code — they'd have to manually open AGENTS.md files to check boundaries or pitfalls.
+
+**Solution**: Language Server Protocol extension that shows Intent Layer context on hover: file-specific boundaries, covering node's key facts, recent pitfalls. Reads from resolved ancestor chain, updates on file save.
+
+**Effort**: Medium  
+**Impact**: Medium
+
+---
+
+## 3. Pre-Commit Boundary Enforcer
+
+**Problem**: "Never Edit" boundaries in AGENTS.md are advisory — nothing stops accidental commits to protected files until PR review or CI catches it.
+
+**Solution**: Git pre-commit hook (install via skill) that blocks commits touching Never Edit paths, shows Ask First warnings, auto-runs `review_pr.sh` on staged changes. Optional bypass with `--no-verify` for emergencies.
+
+**Effort**: Small  
+**Impact**: Medium
+
+---
+
+## 4. Cross-Repo Intent Bridge
+
+**Problem**: Monorepos or multi-repo projects share patterns (auth flows, API contracts) but Intent Layer is per-repo — duplication leads to drift and stale context.
+
+**Solution**: Reference syntax in AGENTS.md: `@repo:auth-service/src/AGENTS.md#authentication-flow` loads external nodes as read-only inclusions. Scripts resolve refs via filesystem (monorepo) or git submodules/worktrees (multi-repo).
+
+**Effort**: Large  
+**Impact**: High
+
+---
+
+## 5. Cursor/Windsurf/.cursorrules Generator
+
+**Problem**: Cursor, Windsurf, and similar tools use `.cursorrules` or custom context files — teams using Intent Layer need to manually duplicate context into these formats.
+
+**Solution**: Script (`generate_cursorrules.sh`) that flattens Intent Layer hierarchy into a single `.cursorrules` file: contracts, boundaries, pitfalls aggregated from all nodes. Run on-demand or via git hook to keep in sync.
+
+**Effort**: Small  
+**Impact**: Medium
+
+---
+
+## 6. IDE Quick Actions Panel
+
+**Problem**: Running Intent Layer skills requires switching to terminal and typing `/intent-layer-maintenance` — breaks flow for developers who live in their IDE.
+
+**Solution**: VS Code/JetBrains extension with command palette actions: "Intent Layer: Update Node", "Intent Layer: Query", "Intent Layer: Review PR". Executes skills via Claude Code CLI, shows results inline.
+
+**Effort**: Medium  
+**Impact**: Low
+
+---
+
+## 7. GitHub Action: Auto-Suggest Node Updates
+
+**Problem**: PRs that change many files in a covered area don't automatically trigger Intent Layer updates — reviewer must manually remember to ask for AGENTS.md edits.
+
+**Solution**: GitHub Action that runs `detect_changes.sh` on PR, posts a comment suggesting affected nodes with pre-filled capture template. Optional: auto-create follow-up issue for maintenance if PR merges without updating Intent Layer.
+
+**Effort**: Small  
+**Impact**: Medium
+
+---
+
+## 8. Documentation Site Generator
+
+**Problem**: AGENTS.md files are great for AI, harder for humans browsing on the web — no navigation, search, or visual hierarchy without opening every file.
+
+**Solution**: Static site generator (`generate_docs.sh`) that builds a searchable web UI from Intent Layer: tree navigation, cross-references, pitfall index, token budget metrics. Deploy to GitHub Pages or internal docs portal.
+
+**Effort**: Large  
+**Impact**: Medium</result>
+<usage>total_tokens: 30161
+tool_uses: 0
+duration_ms: 25482</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a633155.output
+
+---
+
+<task-notification>
+<task-id>abfe0a9</task-id>
+<status>completed</status>
+<summary>Agent "Research repo patterns for planning" completed</summary>
+<result>I now have a thorough understanding of the codebase. Here is my structured analysis for each planned feature.
+
+---
+
+## Repository Research: Reusable Patterns for 5 Planned Features
+
+---
+
+### Feature 1: Cursorrules / Tool Adapter Generator
+
+**Goal**: Flatten Intent Layer hierarchy into `.cursorrules` or similar single-file formats for non-Claude tools.
+
+#### Existing scripts that can be reused or extended
+
+**`/Users/ryo/dev/intent-layer/scripts/resolve_context.sh`** is the primary reuse candidate. It already:
+- Walks ancestors root-first (lines 105-131)
+- Merges sections across multiple nodes (lines 220-258)
+- Has a `--compact` flag that strips hierarchy metadata (line 232-235)
+- Has a `--sections` filter to include only specific sections (line 189-194)
+- Outputs plain markdown to stdout
+
+The `--compact` mode already produces something close to a flattened format. The adapter would call `resolve_context.sh` for every leaf directory and concatenate results.
+
+**`/Users/ryo/dev/intent-layer/scripts/show_hierarchy.sh`** provides the node discovery pattern: find root (`CLAUDE.md` or `AGENTS.md`), then find all child `AGENTS.md` files, sorted and filtered by exclusion list (line 90-111). This same traversal logic is needed to enumerate all nodes for flattening.
+
+**`/Users/ryo/dev/intent-layer/scripts/generate_orientation.sh`** is the closest existing "flatten and export" script. It already:
+- Finds all nodes (`find_all_nodes()` at line 96-102)
+- Extracts sections with variant-name matching (`extract_section()` at line 159-192)
+- Outputs assembled markdown in different formats (`--format overview|full|checklist`)
+- Has an `--output <file>` flag for file writing (line 447-458)
+
+The `generate_orientation.sh` script's `generate_full()` function (lines 294-344) does exactly what a Cursorrules adapter would do: iterate all nodes, extract key sections, concatenate into a single document.
+
+#### How current scripts handle similar problems
+
+Output is always stdout markdown. The pattern is: discover nodes -> extract sections with `awk` -> assemble into output document -> optional write to file. Section extraction uses `awk` with heading-level tracking (matching `^## Section` and stopping at the next heading of equal or lesser depth).
+
+#### Applicable contracts
+
+From `/Users/ryo/dev/intent-layer/CLAUDE.md`:
+- Scripts must work standalone (no external dependencies beyond coreutils + bc)
+- `set -euo pipefail` required
+- All scripts support `-h`/`--help`
+- Error messages to stderr with remediation hints
+- Use `$TARGET_PATH` or `${CLAUDE_PLUGIN_ROOT}` variables for paths
+
+#### Infrastructure to leverage
+
+The `extract_section()` awk pattern is duplicated across at least 5 scripts. A new adapter script would source `lib/common.sh` for `json_get`, `output_context`, etc. but the section extraction itself would use the same awk pattern found in `resolve_context.sh` (lines 162-183).
+
+#### Recommendation
+
+Build `scripts/export_cursorrules.sh` following the same structure as `generate_orientation.sh`. Use `resolve_context.sh --compact` internally to get merged context per path, then format the output for `.cursorrules` syntax. The `show_hierarchy.sh` node discovery loop (lines 107-111) can be reused verbatim for finding all nodes to flatten.
+
+---
+
+### Feature 2: MCP Context Server
+
+**Goal**: Expose Intent Layer as MCP resources/tools so any MCP-compatible client can read context.
+
+#### Existing scripts that can be reused
+
+The agent protocol spec at `/Users/ryo/dev/intent-layer/references/agent-protocol.md` already defines the read/write interface:
+
+- **Read**: `resolve_context.sh <project_root> <target_path>` (lines 82-91 of agent-protocol.md)
+- **Write**: `report_learning.sh --project <p> --path <f> --type <t> --title <x> --detail <d>` (lines 153-161)
+- **Query**: `query_intent.sh <target_path> <search_term>` with `--json` output mode (lines 382-384)
+
+The `show_status.sh --json` flag (lines 239-281) demonstrates the existing JSON output pattern: manual string building with heredocs, no jq templating. This works but is fragile.
+
+Key scripts that map directly to MCP tools:
+
+| MCP Tool | Backing Script | Existing JSON Support |
+|----------|---------------|----------------------|
+| `resolve_context` | `resolve_context.sh` | No (markdown only) |
+| `query_intent` | `query_intent.sh --json` | Yes (jq-based) |
+| `show_status` | `show_status.sh --json` | Yes (manual JSON) |
+| `report_learning` | `report_learning.sh` | No (stdout text) |
+| `detect_changes` | `detect_changes.sh` | No (markdown only) |
+| `walk_ancestors` | `walk_ancestors.sh` | No (text only) |
+
+#### How data flows in the current system
+
+From `/Users/ryo/dev/intent-layer/hooks/AGENTS.md` (the data flow diagram at lines 9-27):
+
+```
+SessionStart -> inject-learnings.sh -> outputs JSON via output_context()
+PreToolUse   -> pre-edit-check.sh   -> outputs JSON via output_context()
+PostToolUse  -> post-edit-check.sh  -> outputs plain text
+```
+
+The `output_context()` function in `/Users/ryo/dev/intent-layer/lib/common.sh` (lines 83-97) outputs the standard hook JSON format:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "<event>",
+    "additionalContext": "<markdown content>"
+  }
+}
+```
+
+This is the closest existing JSON output pattern, though MCP resources would use a different schema.
+
+#### MCP resource mapping
+
+Intent Layer nodes map naturally to MCP resources:
+- Each `AGENTS.md` / `CLAUDE.md` file = an MCP resource with URI `intent-layer://project/path/AGENTS.md`
+- The hierarchy itself = a resource listing
+- `resolve_context.sh` output = a computed resource (merged context for a path)
+
+#### Applicable contracts
+
+- Scripts require no external dependencies beyond coreutils + bc, but an MCP server will need a runtime (Node.js/Python)
+- The `references/agent-protocol.md` spec (lines 95-123) includes a Python pseudocode example of context resolution that could serve as the MCP server's core logic
+- Token budget contract: each node <4k tokens, so MCP resources are naturally sized for context windows
+
+#### Recommendation
+
+The MCP server would be a thin wrapper. Core logic stays in bash scripts (called via subprocess) or gets reimplemented from the algorithm in `resolve_context.sh`. The `agent-protocol.md` pseudocode (lines 98-123) is a direct template for a Python/TypeScript implementation. The `query_intent.sh --json` flag shows the existing JSON output contract. Add `--json` to `resolve_context.sh`, `detect_changes.sh`, and `walk_ancestors.sh` to make them MCP-ready without needing a full reimplementation.
+
+---
+
+### Feature 3: Context Relevance Telemetry
+
+**Goal**: Track which AGENTS.md nodes are injected and correlate with tool success/failure.
+
+#### Existing infrastructure -- this is already partially built
+
+**Injection log**: `/Users/ryo/dev/intent-layer/scripts/pre-edit-check.sh` lines 176-193 write to `.intent-layer/hooks/injections.log`:
+
+```
+Format: {ISO-timestamp}\t{edited-file}\t{covering-node}\t{injected-sections}
+Example: 2026-02-15T10:30:00Z	src/api/handler.ts	src/api/AGENTS.md	Pitfalls,Checks
+```
+
+Key details:
+- Tab-separated, 4 fields
+- Auto-rotates at 1000 lines, keeping last 500 (lines 188-191)
+- Only writes when `.intent-layer/` directory exists (avoids polluting clean projects)
+
+**Failure correlation**: `/Users/ryo/dev/intent-layer/scripts/capture-tool-failure.sh` already reads the injection log (lines 128-146) and correlates:
+
+```bash
+RECENT=$(awk -F'\t' -v file="$FILE_PATH" '$2 == file' "$INJECTION_LOG" 2>/dev/null | tail -3 || true)
+```
+
+When a failure occurs despite active AGENTS.md guidance, the skeleton report gets enriched with injection history. This is the existing "failure despite injection" signal.
+
+**Skeleton reports**: Created in `.intent-layer/mistakes/pending/SKELETON-*.md` with structured fields including `**Covering node**:` and injection history.
+
+**Stop hook classification**: `/Users/ryo/dev/intent-layer/scripts/stop-learning-check.sh` already checks three signals at session end (lines 44-78):
+1. Uncommitted changes to AGENTS.md files
+2. Skeleton report count in pending/
+3. Injection log size
+
+#### What's missing for full telemetry
+
+The existing system captures *injection events* and *failure events* separately. What's missing:
+- **Success tracking**: No PostToolUse hook logs "success after injection" events. The current `post-edit-check.sh` only outputs a text reminder, doesn't log.
+- **Correlation analysis**: No script aggregates injection log + failure reports to compute per-entry hit/miss ratios.
+- **Entry-level attribution**: The injection log records section names (Pitfalls, Checks) but not individual entry titles. To know *which specific pitfall* helped or failed, you'd need more granular logging.
+
+#### Applicable contracts
+
+From `/Users/ryo/dev/intent-layer/hooks/AGENTS.md`:
+- Hooks must complete within timeout: PreToolUse=10s, PostToolUse=default, PostToolUseFailure=10s
+- The `<500ms` typical execution contract still applies
+- Hook scripts read JSON on stdin (except PostToolUse which gets a CLI arg)
+- `output_context()` requires jq
+
+From `/Users/ryo/dev/intent-layer/CLAUDE.md`:
+- Hook scripts must complete in <500ms
+
+#### Recommendation
+
+Extend `pre-edit-check.sh` to log individual entry headers (not just section names) into the injections.log. Add a success column to the injection log format. Build a new `scripts/telemetry_report.sh` that joins injection events with failure reports from `.intent-layer/mistakes/` and computes per-node and per-section effectiveness metrics. The existing `awk`-based log parsing in `capture-tool-failure.sh` (line 131) is the pattern to follow.
+
+---
+
+### Feature 4: Diff-to-Intent Suggester
+
+**Goal**: Scan git diffs and suggest which AGENTS.md entries need updates.
+
+#### Existing scripts that solve adjacent problems
+
+**`/Users/ryo/dev/intent-layer/scripts/detect_changes.sh`** is the primary building block. It already:
+- Accepts `BASE_REF` and `HEAD_REF` arguments (or uses uncommitted changes)
+- Gets changed file list via `git diff --name-only` (lines 72-102)
+- Maps each changed file to its covering AGENTS.md via `find_covering_node()` (lines 125-147, 156-175)
+- Tracks files per node using associative arrays `NODE_FILES` and `NODE_DEPTH` (lines 150-175)
+- Outputs affected nodes in leaf-first review order (lines 216-228)
+- Detects directly modified nodes separately (lines 178-191)
+
+**`/Users/ryo/dev/intent-layer/scripts/detect_staleness.sh`** adds entry-level analysis. Its `--entries` mode (lines 193-421):
+- Extracts file references from AGENTS.md entries using regex: `extract_file_refs()` (lines 216-226)
+- Extracts code identifiers from backticked text: `extract_code_refs()` (lines 232-236)
+- Checks if references still exist: `check_file_exists()` (lines 241-264) and `check_code_exists()` (lines 268-295)
+- Reports broken references per section per node
+
+**`/Users/ryo/dev/intent-layer/scripts/review_pr.sh`** (not read in full, but referenced in CLAUDE.md) reviews PRs against Intent Layer contracts.
+
+**`/Users/ryo/dev/intent-layer/scripts/mine_git_history.sh`** extracts insights from git commits.
+
+#### How detect_changes.sh maps diffs to nodes
+
+The `find_covering_node()` function (lines 125-147 of detect_changes.sh) walks up directories checking for AGENTS.md or CLAUDE.md. This is the same algorithm as `lib/find_covering_node.sh` but inlined. The standalone library version at `/Users/ryo/dev/intent-layer/lib/find_covering_node.sh` (lines 82-96) adds `.git` boundary detection and symlink resolution.
+
+The diff-to-intent flow would be:
+1. Get changed files (from `detect_changes.sh` pattern)
+2. Map to covering nodes (from `find_covering_node.sh`)
+3. For each covering node, extract entry-level references (from `detect_staleness.sh` pattern)
+4. Check if changed files overlap with referenced files in entries
+5. If an entry references a changed file, suggest reviewing that entry
+
+#### Applicable contracts
+
+From `/Users/ryo/dev/intent-layer/scripts/AGENTS.md`:
+- CLI scripts support `--help`
+- Exit code 2 means "duplicate detected" in learning scripts (could reuse for "suggestions found")
+- Cross-platform stat and date commands: always try macOS first, fall back to Linux
+
+#### Recommendation
+
+Build `scripts/suggest_updates.sh` that combines `detect_changes.sh` (diff-to-node mapping) with `detect_staleness.sh` entry-level analysis. The diff file list gets intersected with file references extracted from AGENTS.md entries. When a referenced file changes, the containing entry is flagged as "potentially stale." Use the `extract_file_refs()` and `extract_code_refs()` functions from `detect_staleness.sh` directly. The `learn.sh` script shows how to format suggestions for AGENTS.md entries (type mapping at lines 107-112, entry formatting at lines 115-137).
+
+---
+
+### Feature 5: Templates Marketplace
+
+**Goal**: Curated starter templates for different tech stacks.
+
+#### Existing template infrastructure
+
+**`/Users/ryo/dev/intent-layer/references/templates.md`** contains the full template library (542 lines). It defines:
+
+- **Root templates** by project size:
+  - Small (<=5 areas): lines 9-34
+  - Medium (6-15 areas): lines 38-77
+  - Large (>15 areas, monorepo): lines 80-146
+
+- **Child node template** (agent-optimized): lines 148-263, with section-by-section guidance table (lines 266-278) and generation order (lines 280-289)
+
+- **Spec templates** (greenfield): Root spec template (lines 296-336) and component spec template (lines 340-387)
+
+- **Measurements table format**: Token thresholds and recommendations (lines 429-443)
+
+- **Three-tier boundaries pattern**: Always/Ask First/Never (lines 444-477)
+
+- **Pre-flight check patterns**: Five pattern types with examples (lines 507-528)
+
+- **Cross-tool compatibility**: Symlink guidance for CLAUDE.md/AGENTS.md (lines 529-541)
+
+#### How templates are currently used
+
+Templates are referenced by skills (in `skills/intent-layer/SKILL.md` etc.) and presented to the agent as markdown. The agent fills in the template based on codebase analysis. There's no programmatic template engine; templates are documentation-as-instruction.
+
+#### Plugin manifest format
+
+From `/Users/ryo/dev/intent-layer/.claude-plugin/plugin.json`:
+
+```json
+{
+  "name": "intent-layer",
+  "version": "1.2.0",
+  "description": "...",
+  "author": { "name": "Intent Layer Contributors" },
+  "keywords": [...],
+  "repository": "https://github.com/orban/intent-layer",
+  "license": "MIT"
+}
+```
+
+This is the canonical format for Claude Code plugins. A templates marketplace would need its own manifest schema for template packages.
+
+#### CLAUDE.md pitfall about marketplace registration
+
+From the Pitfalls section in `/Users/ryo/dev/intent-layer/CLAUDE.md`:
+
+> **Directory marketplace requires explicit plugin registration**: Symlinking a plugin into a directory-based marketplace's plugins/ folder isn't enough. The plugin must also be listed in the marketplace's .claude-plugin/marketplace.json plugins array with name, version, and source path. Without the index entry, /plugin install returns 'not found'.
+
+This directly applies to the templates marketplace. Each template package needs an index entry, not just a directory.
+
+#### Existing patterns for different output formats
+
+The `generate_orientation.sh` script shows three output formats from the same data:
+- `overview`: Summary with TL;DR, structure, global rules, pitfalls (lines 205-291)
+- `full`: Overview + subsystem deep dives with entry points, contracts, pitfalls per node (lines 293-344)
+- `checklist`: Interactive onboarding worksheet (lines 347-405)
+
+A templates marketplace could follow this pattern: same template content, adapted for different tech stacks via parameterization.
+
+#### Role-based filtering
+
+`generate_orientation.sh` has a `filter_by_role()` function (lines 408-426) that uses keyword matching to filter output by role (frontend, backend, devops). A templates marketplace could use similar tech-stack detection (looking at `package.json`, `Cargo.toml`, `go.mod`, etc.) to suggest relevant templates.
+
+#### Stack detection pattern
+
+`/Users/ryo/dev/intent-layer/scripts/estimate_tokens.sh` lists file extensions by language (lines 109-118) and uses them for directory analysis. This extension-to-stack mapping could be reused for auto-detecting which template to suggest.
+
+#### Recommendation
+
+Structure the marketplace as a `references/marketplace/` directory with subdirectories per tech stack (e.g., `references/marketplace/express/`, `references/marketplace/nextjs/`). Each contains a `template.md` following the existing template format from `references/templates.md` but pre-filled with stack-specific patterns. Add a `manifest.json` per template with name, version, required stack, and applicable sections. Build a `scripts/list_templates.sh` that detects the project's stack (by checking for `package.json`, `pyproject.toml`, `Cargo.toml`, etc.) and recommends matching templates. The marketplace pitfall in CLAUDE.md means each template must be indexed in a central registry file.
+
+---
+
+### Cross-Cutting Patterns Summary
+
+#### Shared patterns across all features
+
+1. **Node discovery**: `find "$TARGET_PATH" \( -name "AGENTS.md" -o -name "CLAUDE.md" \) ...` with exclusion list. Used in `show_hierarchy.sh`, `detect_staleness.sh`, `generate_orientation.sh`, `show_status.sh`. Always exclude node_modules, .git, dist, build.
+
+2. **Section extraction awk pattern**: This appears in at least 6 scripts with minor variations:
+   ```awk
+   /^## / {
+       if (in_section) exit
+       if ($0 == "## " section) { in_section=1; next }
+   }
+   in_section { print }
+   ```
+   Location: `resolve_context.sh:162-183`, `pre-edit-check.sh:83-92`, `walk_ancestors.sh:96-118`, `lib/common.sh:152-166`, `detect_staleness.sh:199-212`, `query_intent.sh:275-300`
+
+3. **Covering node lookup**: Walk up directory tree until finding AGENTS.md or CLAUDE.md. Canonical implementation: `/Users/ryo/dev/intent-layer/lib/find_covering_node.sh`. Inlined versions in `detect_changes.sh:125-147` and `post-edit-check.sh:40-61`.
+
+4. **Cross-platform date/stat**: Always try macOS `stat -f` / `date -v` first, fall back to Linux `stat -c` / `date -d`. Canonical implementation: `lib/common.sh:58-80`.
+
+5. **JSON output**: Two patterns exist:
+   - `output_context()` from `lib/common.sh` using jq (for hooks)
+   - Manual string-building in `show_status.sh` (for `--json` flags)
+   
+   New scripts should use jq via `output_context()` where possible.
+
+6. **Dedup quality gate**: `calculate_word_overlap()` from `lib/common.sh:108-149` computes word-level overlap (0-100%). Used by `learn.sh` and `integrate_pitfall.sh` with a 60% threshold. Any feature that writes to AGENTS.md should use this gate.
+
+7. **Error output pattern**: All scripts write errors to stderr with remediation hints. Example format from `detect_changes.sh:78-90`:
+   ```
+   Error: Invalid git ref: $BASE_REF
+   
+      Please check:
+        * The branch/tag/commit exists
+        * The spelling is correct
+   ```</result>
+<usage>total_tokens: 122854
+tool_uses: 30
+duration_ms: 162320</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/abfe0a9.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>ae2ef68</task-id>
+<status>completed</status>
+<summary>Agent "Brainstorm: intelligence/automation" completed</summary>
+<result># Intelligence & Automation Feature Ideas
+
+## 1. Mistake Pattern Clustering
+**Problem**: Same mistakes happen repeatedly across different directories, but each gets reported individually. No visibility into systemic issues.
+
+**Solution**: Analyze `.intent-layer/mistakes/` using simple text similarity (e.g., common error messages, file patterns) to group related mistakes. Surface clusters with >3 instances for bulk resolution.
+
+**Effort**: Medium  
+**Impact**: High
+
+---
+
+## 2. Predictive Staleness Scoring
+**Problem**: Current staleness detection is binary (changed/unchanged). Doesn't predict which nodes are about to become stale based on change velocity.
+
+**Solution**: Track edit frequency per directory over time (commits/week, lines changed/commit). Assign staleness risk scores (0-100) based on recent acceleration in change rate. Surface top 5 high-risk nodes weekly.
+
+**Effort**: Small  
+**Impact**: Medium
+
+---
+
+## 3. Auto-Capture from Test Failures
+**Problem**: Test suite failures contain valuable context about what breaks, but require manual investigation to turn into learnings.
+
+**Solution**: Add a hook that parses test output (pytest, jest, etc.) for assertion failures. Auto-generate mistake reports with: failing test name, assertion message, file path. Human just adds the "why" and solution.
+
+**Effort**: Medium  
+**Impact**: High
+
+---
+
+## 4. Context Relevance Telemetry
+**Problem**: No signal on whether AGENTS.md files actually help. Are agents reading them? Are they reducing errors?
+
+**Solution**: Track which AGENTS.md nodes were loaded before each tool call via hooks. Correlate with tool success/failure rates. Generate monthly report: "auth/AGENTS.md was loaded 47 times, 12% failure rate (vs 23% baseline)."
+
+**Effort**: Medium  
+**Impact**: High
+
+---
+
+## 5. Cross-Repo Pattern Mining
+**Problem**: Insights learned in one project (e.g., "Always validate JWT expiry") could apply to other projects, but stay siloed.
+
+**Solution**: Build opt-in aggregation: hash pitfall text, anonymize, submit to shared database. Query on setup: "15 other TypeScript projects have auth-related pitfalls — review for applicability?"
+
+**Effort**: Large  
+**Impact**: Medium
+
+---
+
+## 6. Auto-Permission Inference
+**Problem**: Writing Always/Ask First/Never sections requires guessing what's safe. Gets stale as codebase matures.
+
+**Solution**: Analyze git history for files that (a) never get touched, (b) touched by same author, (c) touched by everyone. Auto-suggest permission tiers. Example: "migrations/ has 0 edits in 6 months → suggest 'Ask First'."
+
+**Effort**: Small  
+**Impact**: Medium
+
+---
+
+## 7. Dependency-Based Staleness Propagation
+**Problem**: When a core module changes, dependent nodes don't flag as stale even though their assumptions may be broken.
+
+**Solution**: Parse import/require statements to build dependency graph. When `lib/auth.ts` changes, mark all nodes covering files that import it as "needs review." Surfaces cascading staleness.
+
+**Effort**: Large  
+**Impact**: High
+
+---
+
+## 8. Smart Contract Auto-Sync
+**Problem**: Contracts section (coding standards, conventions) is manually written. Drifts from actual practice detected by linters/formatters.
+
+**Solution**: Parse `.eslintrc`, `.prettierrc`, `pyproject.toml` on repo init and periodically. Auto-generate Contracts entries like "Use 2-space indents (Prettier)" or "Max line length: 100 (Flake8)." Diff against current text, suggest updates.
+
+**Effort**: Small  
+**Impact**: Medium</result>
+<usage>total_tokens: 30072
+tool_uses: 0
+duration_ms: 24998</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/ae2ef68.output
+
+---
+
+<task-notification>
+<task-id>a00b2e4</task-id>
+<status>completed</status>
+<summary>Agent "Brainstorm: developer experience" completed</summary>
+<result>Perfect, now I have enough context. Let me generate specific, concrete feature ideas based on the current state.
+
+## Developer Experience Feature Ideas for Intent Layer Plugin
+
+Based on my analysis of the plugin architecture, here are 8 concrete features that would improve day-to-day developer experience:
+
+---
+
+### 1. **Live Accuracy Monitor**
+**Problem**: Developers don't know if their AGENTS.md files are actually helping or just rotting. There's no feedback loop showing "this pitfall prevented 3 mistakes this week" vs "this section hasn't been read in 2 months."
+
+**Solution**: Add a dashboard showing per-section usage metrics: how often each Pitfall/Contract/Pattern was injected before an edit, and whether the edit succeeded or failed. Track coverage score: what % of recent edits were covered by Intent Layer context.
+
+**Effort**: Medium (requires instrumenting pre-edit-check.sh to log which sections were injected, then aggregating + visualizing)
+
+**Impact**: High (makes the learning loop visible, shows ROI, identifies dead documentation)
+
+---
+
+### 2. **Diff-to-Intent Suggester**
+**Problem**: When reviewing a PR or git diff, it's manual work to map changes back to "should I update AGENTS.md?" The detect_changes.sh script finds affected nodes but doesn't suggest what to add.
+
+**Solution**: After a PR/merge, scan the diff and use a small model to suggest specific additions: "This commit added retry logic → suggest adding to Patterns" or "This error handling change → suggest adding to Pitfalls." Present as reviewable suggestions, not auto-commits.
+
+**Effort**: Medium (extend detect_changes.sh, add Haiku-based classifier for change type, format as actionable suggestions)
+
+**Impact**: High (reduces friction in keeping Intent Layer current, turns passive "you should update" into active "here's what to add")
+
+---
+
+### 3. **Interactive Setup Wizard (TUI)**
+**Problem**: The current `/intent-layer` skill requires back-and-forth with Claude. For teams without Claude Code access, there's no standalone way to set up Intent Layer. The CLI scripts exist but aren't orchestrated.
+
+**Solution**: Build a terminal UI wizard using `dialog` or similar (bash-only, no deps) that walks through: state detection → measure candidates → pick directories → mine git history → fill templates → validate. Runs standalone without Claude.
+
+**Effort**: Large (need to orchestrate existing scripts into interactive flow, handle user input, show progress)
+
+**Impact**: Medium (expands audience beyond Claude Code users, makes setup reproducible, but doesn't change core workflow)
+
+---
+
+### 4. **Pre-flight Check Validator (CI Mode)**
+**Problem**: Pre-flight checks in AGENTS.md are freeform text. Developers write "Before deploying, check DB migrations are applied" but there's no enforcement or verification that the check is actually runnable.
+
+**Solution**: Extend validate_node.sh to parse Pre-flight Checks for executable snippets (```` ```bash````), then offer to run them in dry-run mode. Flag checks that can't be executed. Add CI mode: `validate_node.sh --ci` fails if checks aren't executable.
+
+**Effort**: Small (parse markdown code blocks, attempt execution with --dry-run flag, report success/failure)
+
+**Impact**: Medium (increases quality of Pre-flight Checks, makes them actionable rather than decorative)
+
+---
+
+### 5. **Learning Loop Digest Email**
+**Problem**: The stop hook prompts at session end, but developers might be in a hurry or forget to review. Pending mistakes pile up. There's no periodic "you have 12 pending learnings" nudge.
+
+**Solution**: Add `generate_digest.sh` that runs on cron/CI and sends a weekly summary email: "5 pending learnings, 3 stale nodes, 2 high-value pitfalls from last week." Include links to `review_mistakes.sh` command. No email server required—just generate markdown that can be piped to `mail` or posted to Slack.
+
+**Effort**: Small (aggregate existing data from .intent-layer/mistakes/, format as markdown, support output to file/stdout)
+
+**Impact**: Medium (improves learning loop completion rate, keeps Intent Layer fresh without active monitoring)
+
+---
+
+### 6. **Onboarding Buddy Mode**
+**Problem**: When a new developer joins, the `/intent-layer-onboarding` skill generates a static orientation doc. But the real value is interactive: "show me where auth happens" → load covering AGENTS.md, highlight relevant sections, show actual files.
+
+**Solution**: Add `onboard_buddy.sh` (or extend query_intent.sh) that takes natural language questions, maps them to Intent Layer sections, and returns: (1) the relevant AGENTS.md excerpt, (2) the specific files mentioned in Entry Points/Code Map, (3) git blame context for "who wrote this."
+
+**Effort**: Medium (extend query_intent.sh with file path extraction, add git blame integration, format as "here's the docs + here's the code" combo)
+
+**Impact**: High (turns static docs into interactive exploration tool, accelerates new developer ramp-up)
+
+---
+
+### 7. **Staleness Heat Map**
+**Problem**: `detect_staleness.sh` flags stale nodes but doesn't show the big picture. Which areas of the codebase are well-documented vs abandoned? Where should maintenance effort focus?
+
+**Solution**: Generate a visual heat map (ASCII art tree or HTML) showing all nodes color-coded by staleness: green (<30 days), yellow (30-90 days), red (>90 days). Include token count and change frequency. Save to `.intent-layer/heatmap.txt` or `.html`.
+
+**Effort**: Small (extend show_hierarchy.sh with age + color coding, add HTML renderer)
+
+**Impact**: Medium (makes maintenance priorities visible at a glance, helps answer "where do we need audit focus?")
+
+---
+
+### 8. **Context Budget Warning (Editor Integration)**
+**Problem**: When editing a file deep in the hierarchy, developers don't know how much Intent Layer context will be injected. If ancestors are too verbose, the agent's context window is squeezed before it even sees the code.
+
+**Solution**: Add `.claude-context` file generator that runs on save (via editor hook or manual command). Shows: "Editing src/api/billing/charge.ts → will inject 2.3k tokens from ancestors (68% of 4k budget)." Warns if >75% of budget is consumed by Intent Layer.
+
+**Effort**: Small (extend resolve_context.sh to output token counts, add warning threshold, generate .claude-context file)
+
+**Impact**: Low (nice visibility but doesn't change workflow; most developers won't hit budget unless hierarchy is pathological)
+
+---
+
+## Summary Table
+
+| Feature | Problem Addressed | Effort | Impact |
+|---------|-------------------|--------|--------|
+| **Live Accuracy Monitor** | No feedback on Intent Layer effectiveness | Medium | High |
+| **Diff-to-Intent Suggester** | Manual work mapping diffs to doc updates | Medium | High |
+| **Interactive Setup Wizard** | Setup requires Claude, no standalone flow | Large | Medium |
+| **Pre-flight Check Validator** | Checks are decorative, not executable | Small | Medium |
+| **Learning Loop Digest** | Pending learnings pile up, no nudges | Small | Medium |
+| **Onboarding Buddy Mode** | Static orientation vs interactive Q&A | Medium | High |
+| **Staleness Heat Map** | No big-picture view of maintenance needs | Small | Medium |
+| **Context Budget Warning** | No visibility into context consumption | Small | Low |
+
+**Top 3 for immediate impact**: Live Accuracy Monitor, Diff-to-Intent Suggester, Onboarding Buddy Mode.</result>
+<usage>total_tokens: 60682
+tool_uses: 12
+duration_ms: 68740</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a00b2e4.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+Continue from where you left off.
+
+---
+
+# Deepen Plan - Power Enhancement Mode
+
+## Introduction
+
+**Note: The current year is 2026.** Use this when searching for recent documentation and best practices.
+
+This command takes an existing plan (from `/workflows:plan`) and enhances each section with parallel research agents. Each major element gets its own dedicated research sub-agent to find:
+- Best practices and industry patterns
+- Performance optimizations
+- UI/UX improvements (if applicable)
+- Quality enhancements and edge cases
+- Real-world implementation examples
+
+The result is a deeply grounded, production-ready plan with concrete implementation details.
+
+## Plan File
+
+<plan_path> # </plan_path>
+
+**If the plan path above is empty:**
+1. Check for recent plans: `ls -la docs/plans/`
+2. Ask the user: "Which plan would you like to deepen? Please provide the path (e.g., `docs/plans/2026-01-15-feat-my-feature-plan.md`)."
+
+Do not proceed until you have a valid plan file path.
+
+## Main Tasks
+
+### 1. Parse and Analyze Plan Structure
+
+<thinking>
+First, read and parse the plan to identify each major section that can be enhanced with research.
+</thinking>
+
+**Read the plan file and extract:**
+- [ ] Overview/Problem Statement
+- [ ] Proposed Solution sections
+- [ ] Technical Approach/Architecture
+- [ ] Implementation phases/steps
+- [ ] Code examples and file references
+- [ ] Acceptance criteria
+- [ ] Any UI/UX components mentioned
+- [ ] Technologies/frameworks mentioned (Rails, React, Python, TypeScript, etc.)
+- [ ] Domain areas (data models, APIs, UI, security, performance, etc.)
+
+**Create a section manifest:**
+```
+Section 1: [Title] - [Brief description of what to research]
+Section 2: [Title] - [Brief description of what to research]
+...
+```
+
+### 2. Discover and Apply Available Skills
+
+<thinking>
+Dynamically discover all available skills and match them to plan sections. Don't assume what skills exist - discover them at runtime.
+</thinking>
+
+**Step 1: Discover ALL available skills from ALL sources**
+
+```bash
+# 1. Project-local skills (highest priority - project-specific)
+ls .claude/skills/
+
+# 2. User's global skills (~/.claude/)
+ls ~/.claude/skills/
+
+# 3. compound-engineering plugin skills
+ls ~/.claude/plugins/cache/*/compound-engineering/*/skills/
+
+# 4. ALL other installed plugins - check every plugin for skills
+find ~/.claude/plugins/cache -type d -name "skills" 2>/dev/null
+
+# 5. Also check installed_plugins.json for all plugin locations
+cat ~/.claude/plugins/installed_plugins.json
+```
+
+**Important:** Check EVERY source. Don't assume compound-engineering is the only plugin. Use skills from ANY installed plugin that's relevant.
+
+**Step 2: For each discovered skill, read its SKILL.md to understand what it does**
+
+```bash
+# For each skill directory found, read its documentation
+cat [skill-path]/SKILL.md
+```
+
+**Step 3: Match skills to plan content**
+
+For each skill discovered:
+- Read its SKILL.md description
+- Check if any plan sections match the skill's domain
+- If there's a match, spawn a sub-agent to apply that skill's knowledge
+
+**Step 4: Spawn a sub-agent for EVERY matched skill**
+
+**CRITICAL: For EACH skill that matches, spawn a separate sub-agent and instruct it to USE that skill.**
+
+For each matched skill:
+```
+Task general-purpose: "You have the [skill-name] skill available at [skill-path].
+
+YOUR JOB: Use this skill on the plan.
+
+1. Read the skill: cat [skill-path]/SKILL.md
+2. Follow the skill's instructions exactly
+3. Apply the skill to this content:
+
+[relevant plan section or full plan]
+
+4. Return the skill's full output
+
+The skill tells you what to do - follow it. Execute the skill completely."
+```
+
+**Spawn ALL skill sub-agents in PARALLEL:**
+- 1 sub-agent per matched skill
+- Each sub-agent reads and uses its assigned skill
+- All run simultaneously
+- 10, 20, 30 skill sub-agents is fine
+
+**Each sub-agent:**
+1. Reads its skill's SKILL.md
+2. Follows the skill's workflow/instructions
+3. Applies the skill to the plan
+4. Returns whatever the skill produces (code, recommendations, patterns, reviews, etc.)
+
+**Example spawns:**
+```
+Task general-purpose: "Use the dhh-rails-style skill at ~/.claude/plugins/.../dhh-rails-style. Read SKILL.md and apply it to: [Rails sections of plan]"
+
+Task general-purpose: "Use the frontend-design skill at ~/.claude/plugins/.../frontend-design. Read SKILL.md and apply it to: [UI sections of plan]"
+
+Task general-purpose: "Use the agent-native-architecture skill at ~/.claude/plugins/.../agent-native-architecture. Read SKILL.md and apply it to: [agent/tool sections of plan]"
+
+Task general-purpose: "Use the security-patterns skill at ~/.claude/skills/security-patterns. Read SKILL.md and apply it to: [full plan]"
+```
+
+**No limit on skill sub-agents. Spawn one for every skill that could possibly be relevant.**
+
+### 3. Discover and Apply Learnings/Solutions
+
+<thinking>
+Check for documented learnings from /workflows:compound. These are solved problems stored as markdown files. Spawn a sub-agent for each learning to check if it's relevant.
+</thinking>
+
+**LEARNINGS LOCATION - Check these exact folders:**
+
+```
+docs/solutions/           <-- PRIMARY: Project-level learnings (created by /workflows:compound)
+├── performance-issues/
+│   └── *.md
+├── debugging-patterns/
+│   └── *.md
+├── configuration-fixes/
+│   └── *.md
+├── integration-issues/
+│   └── *.md
+├── deployment-issues/
+│   └── *.md
+└── [other-categories]/
+    └── *.md
+```
+
+**Step 1: Find ALL learning markdown files**
+
+Run these commands to get every learning file:
+
+```bash
+# PRIMARY LOCATION - Project learnings
+find docs/solutions -name "*.md" -type f 2>/dev/null
+
+# If docs/solutions doesn't exist, check alternate locations:
+find .claude/docs -name "*.md" -type f 2>/dev/null
+find ~/.claude/docs -name "*.md" -type f 2>/dev/null
+```
+
+**Step 2: Read frontmatter of each learning to filter**
+
+Each learning file has YAML frontmatter with metadata. Read the first ~20 lines of each file to get:
+
+```yaml
+---
+title: "N+1 Query Fix for Briefs"
+category: performance-issues
+tags: [activerecord, n-plus-one, includes, eager-loading]
+module: Briefs
+symptom: "Slow page load, multiple queries in logs"
+root_cause: "Missing includes on association"
+---
+```
+
+**For each .md file, quickly scan its frontmatter:**
+
+```bash
+# Read first 20 lines of each learning (frontmatter + summary)
+head -20 docs/solutions/**/*.md
+```
+
+**Step 3: Filter - only spawn sub-agents for LIKELY relevant learnings**
+
+Compare each learning's frontmatter against the plan:
+- `tags:` - Do any tags match technologies/patterns in the plan?
+- `category:` - Is this category relevant? (e.g., skip deployment-issues if plan is UI-only)
+- `module:` - Does the plan touch this module?
+- `symptom:` / `root_cause:` - Could this problem occur with the plan?
+
+**SKIP learnings that are clearly not applicable:**
+- Plan is frontend-only → skip `database-migrations/` learnings
+- Plan is Python → skip `rails-specific/` learnings
+- Plan has no auth → skip `authentication-issues/` learnings
+
+**SPAWN sub-agents for learnings that MIGHT apply:**
+- Any tag overlap with plan technologies
+- Same category as plan domain
+- Similar patterns or concerns
+
+**Step 4: Spawn sub-agents for filtered learnings**
+
+For each learning that passes the filter:
+
+```
+Task general-purpose: "
+LEARNING FILE: [full path to .md file]
+
+1. Read this learning file completely
+2. This learning documents a previously solved problem
+
+Check if this learning applies to this plan:
+
+---
+[full plan content]
+---
+
+If relevant:
+- Explain specifically how it applies
+- Quote the key insight or solution
+- Suggest where/how to incorporate it
+
+If NOT relevant after deeper analysis:
+- Say 'Not applicable: [reason]'
+"
+```
+
+**Example filtering:**
+```
+# Found 15 learning files, plan is about "Rails API caching"
+
+# SPAWN (likely relevant):
+docs/solutions/performance-issues/n-plus-one-queries.md      # tags: [activerecord] ✓
+docs/solutions/performance-issues/redis-cache-stampede.md    # tags: [caching, redis] ✓
+docs/solutions/configuration-fixes/redis-connection-pool.md  # tags: [redis] ✓
+
+# SKIP (clearly not applicable):
+docs/solutions/deployment-issues/heroku-memory-quota.md      # not about caching
+docs/solutions/frontend-issues/stimulus-race-condition.md    # plan is API, not frontend
+docs/solutions/authentication-issues/jwt-expiry.md           # plan has no auth
+```
+
+**Spawn sub-agents in PARALLEL for all filtered learnings.**
+
+**These learnings are institutional knowledge - applying them prevents repeating past mistakes.**
+
+### 4. Launch Per-Section Research Agents
+
+<thinking>
+For each major section in the plan, spawn dedicated sub-agents to research improvements. Use the Explore agent type for open-ended research.
+</thinking>
+
+**For each identified section, launch parallel research:**
+
+```
+Task Explore: "Research best practices, patterns, and real-world examples for: [section topic].
+Find:
+- Industry standards and conventions
+- Performance considerations
+- Common pitfalls and how to avoid them
+- Documentation and tutorials
+Return concrete, actionable recommendations."
+```
+
+**Also use Context7 MCP for framework documentation:**
+
+For any technologies/frameworks mentioned in the plan, query Context7:
+```
+mcp__plugin_compound-engineering_context7__resolve-library-id: Find library ID for [framework]
+mcp__plugin_compound-engineering_context7__query-docs: Query documentation for specific patterns
+```
+
+**Use WebSearch for current best practices:**
+
+Search for recent (2024-2026) articles, blog posts, and documentation on topics in the plan.
+
+### 5. Discover and Run ALL Review Agents
+
+<thinking>
+Dynamically discover every available agent and run them ALL against the plan. Don't filter, don't skip, don't assume relevance. 40+ parallel agents is fine. Use everything available.
+</thinking>
+
+**Step 1: Discover ALL available agents from ALL sources**
+
+```bash
+# 1. Project-local agents (highest priority - project-specific)
+find .claude/agents -name "*.md" 2>/dev/null
+
+# 2. User's global agents (~/.claude/)
+find ~/.claude/agents -name "*.md" 2>/dev/null
+
+# 3. compound-engineering plugin agents (all subdirectories)
+find ~/.claude/plugins/cache/*/compound-engineering/*/agents -name "*.md" 2>/dev/null
+
+# 4. ALL other installed plugins - check every plugin for agents
+find ~/.claude/plugins/cache -path "*/agents/*.md" 2>/dev/null
+
+# 5. Check installed_plugins.json to find all plugin locations
+cat ~/.claude/plugins/installed_plugins.json
+
+# 6. For local plugins (isLocal: true), check their source directories
+# Parse installed_plugins.json and find local plugin paths
+```
+
+**Important:** Check EVERY source. Include agents from:
+- Project `.claude/agents/`
+- User's `~/.claude/agents/`
+- compound-engineering plugin (but SKIP workflow/ agents - only use review/, research/, design/, docs/)
+- ALL other installed plugins (agent-sdk-dev, frontend-design, etc.)
+- Any local plugins
+
+**For compound-engineering plugin specifically:**
+- USE: `agents/review/*` (all reviewers)
+- USE: `agents/research/*` (all researchers)
+- USE: `agents/design/*` (design agents)
+- USE: `agents/docs/*` (documentation agents)
+- SKIP: `agents/workflow/*` (these are workflow orchestrators, not reviewers)
+
+**Step 2: For each discovered agent, read its description**
+
+Read the first few lines of each agent file to understand what it reviews/analyzes.
+
+**Step 3: Launch ALL agents in parallel**
+
+For EVERY agent discovered, launch a Task in parallel:
+
+```
+Task [agent-name]: "Review this plan using your expertise. Apply all your checks and patterns. Plan content: [full plan content]"
+```
+
+**CRITICAL RULES:**
+- Do NOT filter agents by "relevance" - run them ALL
+- Do NOT skip agents because they "might not apply" - let them decide
+- Launch ALL agents in a SINGLE message with multiple Task tool calls
+- 20, 30, 40 parallel agents is fine - use everything
+- Each agent may catch something others miss
+- The goal is MAXIMUM coverage, not efficiency
+
+**Step 4: Also discover and run research agents**
+
+Research agents (like `best-practices-researcher`, `framework-docs-researcher`, `git-history-analyzer`, `repo-research-analyst`) should also be run for relevant plan sections.
+
+### 6. Wait for ALL Agents and Synthesize Everything
+
+<thinking>
+Wait for ALL parallel agents to complete - skills, research agents, review agents, everything. Then synthesize all findings into a comprehensive enhancement.
+</thinking>
+
+**Collect outputs from ALL sources:**
+
+1. **Skill-based sub-agents** - Each skill's full output (code examples, patterns, recommendations)
+2. **Learnings/Solutions sub-agents** - Relevant documented learnings from /workflows:compound
+3. **Research agents** - Best practices, documentation, real-world examples
+4. **Review agents** - All feedback from every reviewer (architecture, security, performance, simplicity, etc.)
+5. **Context7 queries** - Framework documentation and patterns
+6. **Web searches** - Current best practices and articles
+
+**For each agent's findings, extract:**
+- [ ] Concrete recommendations (actionable items)
+- [ ] Code patterns and examples (copy-paste ready)
+- [ ] Anti-patterns to avoid (warnings)
+- [ ] Performance considerations (metrics, benchmarks)
+- [ ] Security considerations (vulnerabilities, mitigations)
+- [ ] Edge cases discovered (handling strategies)
+- [ ] Documentation links (references)
+- [ ] Skill-specific patterns (from matched skills)
+- [ ] Relevant learnings (past solutions that apply - prevent repeating mistakes)
+
+**Deduplicate and prioritize:**
+- Merge similar recommendations from multiple agents
+- Prioritize by impact (high-value improvements first)
+- Flag conflicting advice for human review
+- Group by plan section
+
+### 7. Enhance Plan Sections
+
+<thinking>
+Merge research findings back into the plan, adding depth without changing the original structure.
+</thinking>
+
+**Enhancement format for each section:**
+
+```markdown
+## [Original Section Title]
+
+[Original content preserved]
+
+### Research Insights
+
+**Best Practices:**
+- [Concrete recommendation 1]
+- [Concrete recommendation 2]
+
+**Performance Considerations:**
+- [Optimization opportunity]
+- [Benchmark or metric to target]
+
+**Implementation Details:**
+```[language]
+// Concrete code example from research
+```
+
+**Edge Cases:**
+- [Edge case 1 and how to handle]
+- [Edge case 2 and how to handle]
+
+**References:**
+- [Documentation URL 1]
+- [Documentation URL 2]
+```
+
+### 8. Add Enhancement Summary
+
+At the top of the plan, add a summary section:
+
+```markdown
+## Enhancement Summary
+
+**Deepened on:** [Date]
+**Sections enhanced:** [Count]
+**Research agents used:** [List]
+
+### Key Improvements
+1. [Major improvement 1]
+2. [Major improvement 2]
+3. [Major improvement 3]
+
+### New Considerations Discovered
+- [Important finding 1]
+- [Important finding 2]
+```
+
+### 9. Update Plan File
+
+**Write the enhanced plan:**
+- Preserve original filename
+- Add `-deepened` suffix if user prefers a new file
+- Update any timestamps or metadata
+
+## Output Format
+
+Update the plan file in place (or if user requests a separate file, append `-deepened` after `-plan`, e.g., `2026-01-15-feat-auth-plan-deepened.md`).
+
+## Quality Checks
+
+Before finalizing:
+- [ ] All original content preserved
+- [ ] Research insights clearly marked and attributed
+- [ ] Code examples are syntactically correct
+- [ ] Links are valid and relevant
+- [ ] No contradictions between sections
+- [ ] Enhancement summary accurately reflects changes
+
+## Post-Enhancement Options
+
+After writing the enhanced plan, use the **AskUserQuestion tool** to present these options:
+
+**Question:** "Plan deepened at `[plan_path]`. What would you like to do next?"
+
+**Options:**
+1. **View diff** - Show what was added/changed
+2. **Run `/plan_review`** - Get feedback from reviewers on enhanced plan
+3. **Start `/workflows:work`** - Begin implementing this enhanced plan
+4. **Deepen further** - Run another round of research on specific sections
+5. **Revert** - Restore original plan (if backup exists)
+
+Based on selection:
+- **View diff** → Run `git diff [plan_path]` or show before/after
+- **`/plan_review`** → Call the /plan_review command with the plan file path
+- **`/workflows:work`** → Call the /workflows:work command with the plan file path
+- **Deepen further** → Ask which sections need more research, then re-run those agents
+- **Revert** → Restore from git or backup
+
+## Example Enhancement
+
+**Before (from /workflows:plan):**
+```markdown
+## Technical Approach
+
+Use React Query for data fetching with optimistic updates.
+```
+
+**After (from /workflows:deepen-plan):**
+```markdown
+## Technical Approach
+
+Use React Query for data fetching with optimistic updates.
+
+### Research Insights
+
+**Best Practices:**
+- Configure `staleTime` and `cacheTime` based on data freshness requirements
+- Use `queryKey` factories for consistent cache invalidation
+- Implement error boundaries around query-dependent components
+
+**Performance Considerations:**
+- Enable `refetchOnWindowFocus: false` for stable data to reduce unnecessary requests
+- Use `select` option to transform and memoize data at query level
+- Consider `placeholderData` for instant perceived loading
+
+**Implementation Details:**
+```typescript
+// Recommended query configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+```
+
+**Edge Cases:**
+- Handle race conditions with `cancelQueries` on component unmount
+- Implement retry logic for transient network failures
+- Consider offline support with `persistQueryClient`
+
+**References:**
+- https://tanstack.com/query/latest/docs/react/guides/optimistic-updates
+- https://tkdodo.eu/blog/practical-react-query
+```
+
+NEVER CODE! Just research and enhance the plan.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **User invoked `/compound-engineering:workflows:brainstorm`** with an empty feature description
+2. I asked the user what they'd like to explore
+3. **User said: "Create a brainstorming swarm to generate new feature ideas and then rank them for feasibility and usefulness"**
+4. I loaded the brainstorming skill, did repo research, checked GitHub issues (none open)
+5. I asked the user about scope - they chose "All angles"
+6. I launched 4 parallel brainstorming agents (dx-brainstorm, ecosystem-brainstorm, intelligence-brainstorm, scale-brainstorm)
+7. Collected all 32 ideas from the 4 agents
+8. Wrote brainstorm document to `docs/brainstorms/2026-02-15-feature-ideas-brainstorm.md`
+9. Presented top 5 ranked features and asked next steps
+10. **User chose "Plan top features"** - I invoked `/workflows:plan`
+11. The planning workflow loaded, I found the brainstorm doc, did repo research
+12. Read key files: `references/templates.md`, `.claude-plugin/plugin.json`, injection log format, `detect_changes.sh`, `resolve_context.sh`
+13. Ran SpecFlow analysis in background
+14. Wrote the plan to `docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md`
+15. **User chose "Deepen the plan"** - I invoked `/compound-engineering:deepen-plan`
+16. The deepen-plan skill loaded
+17. **User said "Continue from where you left off"** - I read the plan file
+18. Discovered all available skills and agents
+19. Launched parallel research/review agents:
+    - Context7 MCP SDK docs (completed - got MCPServer decorator pattern)
+    - WebSearch for cursorrules format (failed - API error)
+    - WebSearch for aider format (failed - API error)
+    - Architecture strategist agent (completed - detailed review with critical/important/nice-to-have recommendations)
+    - Performance oracle agent (running)
+    - Security sentinel agent (running)
+    - Code simplicity reviewer agent (running)
+    - Best practices researcher agent (running)
+20. Got MCP SDK docs showing stdio transport
+21. Collected architecture review output (very detailed, with critical findings about correlation IDs, concurrency, etc.)
+22. Other agents still running when summary was requested
+
+Key files created:
+- `docs/brainstorms/2026-02-15-feature-ideas-brainstorm.md` - brainstorm with 26 ranked ideas
+- `docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md` - implementation plan for top 5 features
+
+Key technical findings from MCP SDK:
+- MCPServer class with @mcp.tool() and @mcp.resource() decorators
+- stdio transport via mcp.run(transport="stdio")
+- Auto schema generation from type hints
+
+Architecture review critical findings:
+1. MCP concurrency: Use $BASHPID not $ for report IDs
+2. Correlation ID collision: Use timestamp prefix, not just RANDOM
+3. Error propagation: Define exit code contract
+4. Correlation ID passing: Use temp file, not env vars
+5. Consider reversing Phase 1 and 2 (MCP first)
+6. Token budget priority should be format-specific
+
+Still running agents: performance-oracle, security-sentinel, code-simplicity-reviewer, best-practices-researcher
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/compound-engineering:workflows:brainstorm` to create a brainstorming swarm that generates new feature ideas for the Intent Layer plugin and ranks them by feasibility and usefulness. After the brainstorm completed, the user chose to "Plan top features" (top 5), and after the plan was written, chose "Deepen the plan" to enhance it with parallel research agents. The overall flow was: brainstorm → plan → deepen.
+
+2. Key Technical Concepts:
+   - **Intent Layer Plugin**: Claude Code plugin for managing hierarchical AGENTS.md/CLAUDE.md files
+   - **Brainstorming Swarm**: 4 parallel agents exploring different angles (DX, Ecosystem, Intelligence, Scale)
+   - **MCP (Model Context Protocol)**: Protocol for LLM tool integration; Python SDK uses `MCPServer` class with `@mcp.tool()` and `@mcp.resource()` decorators, supports stdio transport via `mcp.run(transport="stdio")`
+   - **Injection Log Format**: TSV at `.intent-layer/hooks/injections.log` — `timestamp\tfile_path\tcovering_node\tinjected_sections`
+   - **Correlation IDs for Telemetry**: Linking PreToolUse injections to PostToolUse outcomes via temp files (env vars won't work across hook boundaries)
+   - **Hook Timeouts**: SessionStart=15s, PreToolUse=10s, PostToolUse=default, PostToolUseFailure=10s, Stop=45s; <500ms is typical execution target, not ceiling
+   - **resolve_context.sh**: Core primitive that all 5 features build upon — merges ancestor AGENTS.md context
+   - **Feasibility × Usefulness Scoring**: 3-point scale each (max 9), ties broken by leverage of existing infrastructure
+
+3. Files and Code Sections:
+   - **`docs/brainstorms/2026-02-15-feature-ideas-brainstorm.md`** (CREATED)
+     - Contains 26 deduplicated feature ideas from 4-agent swarm, ranked by composite score
+     - Top 5: Cursorrules Adapter (score 9), MCP Context Server (6), Context Relevance Telemetry (6), Diff-to-Intent Suggester (6), Templates Marketplace (6)
+     - Includes key decisions, open questions, and next steps
+
+   - **`docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md`** (CREATED)
+     - Full implementation plan for 5 phases with acceptance criteria, edge cases, files to create/modify
+     - Phase 1: `scripts/generate_adapter.sh` — flatten Intent Layer to .cursorrules format
+     - Phase 2: `mcp/server.py` — Python MCP server wrapping existing bash scripts
+     - Phase 3: Telemetry via correlation IDs in injection/outcomes logs
+     - Phase 4: `scripts/suggest_updates.sh` — Haiku-powered AGENTS.md update suggestions
+     - Phase 5: `scripts/apply_template.sh` + `references/templates/` directory structure
+
+   - **`references/templates.md`** (READ, first 60 lines)
+     - Existing template infrastructure with small/medium/large project templates
+     - Shows how root and child node templates are structured
+
+   - **`.claude-plugin/plugin.json`** (READ)
+     - Simple JSON manifest: name "intent-layer", version "1.2.0", MIT license
+     - No hooks field (known Test 9 issue)
+
+   - **`hooks/AGENTS.md`** (READ by architecture agent)
+     - Documents hook slots, data flow, stdin/stdout contracts, injection log format
+     - Key: PostToolUse receives file path as CLI arg ($1), not stdin JSON
+
+   - **`scripts/resolve_context.sh`** (READ, first 50 lines)
+     - Supports `--sections LIST`, `--compact`, `--with-pending` flags
+     - Exit codes: 0=success, 1=error, 2=no coverage
+
+   - **`scripts/detect_changes.sh`** (READ, first 50 lines)
+     - Takes `[base_ref] [head_ref]`, outputs affected nodes in leaf-first order
+
+   - **`.intent-layer/hooks/injections.log`** (READ)
+     - TSV format confirmed: `2026-02-16T01:42:44Z\t/path/to/file\t/path/to/AGENTS.md\tPitfalls,Patterns`
+
+   - **MCP Python SDK docs** (fetched via Context7)
+     - Key pattern: `from mcp.server.mcpserver import MCPServer; mcp = MCPServer("name"); @mcp.tool() def add(a: int, b: int) -> int: ...`
+     - stdio transport: `mcp.run(transport="stdio")`
+     - Resources: `@mcp.resource("intent://{path}") def read_node(path: str) -> str: ...`
+
+4. Errors and fixes:
+   - **WebSearch API errors**: Both cursorrules and aider format searches returned 400 errors ("long context beta not available"). Not yet resolved — will need to use WebFetch on specific URLs or rely on existing knowledge.
+   - **JSON parsing errors extracting agent output**: Initial attempt to parse agent output files with grep + python3 JSON decoding failed with `JSONDecodeError`. Fixed by switching to a Python script that iterates JSONL lines in reverse looking for assistant messages with text content >200 chars.
+   - **Repo research agent timeout**: First background agent timed out at 60s. Proceeded with available context rather than waiting.
+
+5. Problem Solving:
+   - Successfully orchestrated a 4-agent parallel brainstorm swarm to generate 32 feature ideas
+   - Synthesized and deduplicated ideas down to 26, ranked by feasibility × usefulness composite score
+   - Created a phased implementation plan with dependency ordering (each phase enables the next)
+   - Currently deepening the plan with 5+ parallel review/research agents (architecture, performance, security, simplicity, best practices)
+   - Architecture review completed with critical findings about concurrency, correlation IDs, and error handling
+
+6. All user messages:
+   - "Create a brainstorming swarm to generate new feature ideas and then rank them for feasibility and usefulness"
+   - Selected "All angles" for brainstorm scope
+   - Selected "Plan top features" as next step after brainstorm
+   - Selected "Deepen the plan" as next step after planning
+   - "Continue from where you left off" (after session continuation with deepen-plan skill loaded)
+
+7. Pending Tasks:
+   - **Complete the /deepen-plan workflow**: Still waiting on 4 background agents to finish:
+     - Performance oracle (agent `ac7c551`) — reviewing hook latency, MCP subprocess costs
+     - Security sentinel (agent `ad4afe3`) — reviewing path traversal, API key handling, template injection
+     - Code simplicity reviewer (agent `a258806`) — completed, output collected (still needs extraction of final text)
+     - Best practices researcher (agent `af9bee9`) — researching MCP patterns, telemetry design, template systems
+   - **Synthesize all agent findings** into the plan enhancement
+   - **Write the deepened plan** back to the plan file with research insights added to each section
+
+8. Current Work:
+   Actively running the `/compound-engineering:deepen-plan` workflow on `docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md`. Have completed:
+   - Read and parsed the plan file
+   - Fetched MCP Python SDK documentation via Context7 (decorator pattern, stdio transport)
+   - Launched 5 parallel review/research agents (architecture strategist, performance oracle, security sentinel, simplicity reviewer, best practices researcher)
+   - Collected the architecture strategist's detailed output with critical/important/nice-to-have recommendations
+   - Collected the simplicity reviewer's raw output (needs text extraction)
+   
+   The architecture strategist returned these critical findings to incorporate:
+   1. Use `$BASHPID` or timestamp-based IDs instead of `$` for MCP concurrency safety
+   2. Correlation ID collision risk is ~12.5% with current approach; fix: use `"$(date +%s)-$((RANDOM % 1000))"`
+   3. Temp file approach for correlation ID passing (env vars won't work across hook boundaries)
+   4. Consider reversing Phase 1/2 order (MCP server first, adapter consumes it)
+   5. Token budget priority should be format-specific, not hardcoded
+   6. Need exit code contract standardization across scripts
+   
+   Still waiting for: performance-oracle, security-sentinel, best-practices-researcher outputs.
+
+9. Optional Next Step:
+   Collect remaining agent outputs (performance, security, best practices), extract their final text recommendations, then synthesize ALL findings into an enhanced version of `docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md` with "Research Insights" subsections added to each phase. This directly continues the `/deepen-plan` workflow the user requested when they selected "Deepen the plan."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
