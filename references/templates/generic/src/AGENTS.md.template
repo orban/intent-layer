@@ -1,0 +1,29 @@
+# src/
+
+> [Brief description of what this directory contains]
+
+## Purpose
+
+[What this directory owns and why it exists]
+
+## Code Map
+
+### Find It Fast
+
+| Looking for... | Go to |
+|----------------|-------|
+| [Key concept] | `path/to/file` |
+
+## Entry Points
+
+| Task | Start Here |
+|------|------------|
+| [Common task] | `path/to/file` |
+
+## Contracts
+
+- [Key contract 1]
+
+## Pitfalls
+
+- [Non-obvious gotcha 1]

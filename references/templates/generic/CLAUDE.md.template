@@ -1,0 +1,37 @@
+# CLAUDE.md
+
+> **TL;DR**: [Project name] — [brief description]
+
+## Overview
+
+[What this project does and why it exists]
+
+## Development
+
+[How to set up, build, and run locally]
+
+## Entry Points
+
+| Task | Start Here |
+|------|------------|
+| [Common task 1] | `path/to/file` |
+| [Common task 2] | `path/to/file` |
+
+## Contracts
+
+- [Key invariant or rule 1]
+- [Key invariant or rule 2]
+
+## Pitfalls
+
+- [Non-obvious gotcha 1]
+
+## Intent Layer
+
+This project uses Intent Layer for AI-navigable documentation.
+
+### Downlinks
+
+| Area | Node | Description |
+|------|------|-------------|
+| Source | `src/AGENTS.md` | Source code contracts and patterns |
