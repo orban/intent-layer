@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "57f99f28cdb3",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "docs/brainstorms/2026-02-15-feature-ideas-brainstorm.md",
+    "docs/brainstorms/2026-02-15-ux-refactor-brainstorm.md",
+    "docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md",
+    "mcp/server.py",
+    "scripts/generate_adapter.sh",
+    "scripts/show_telemetry.sh",
+    "scripts/suggest_updates.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/57/f99f28cdb3/0/metadata.json",
+      "transcript": "/57/f99f28cdb3/0/full.jsonl",
+      "context": "/57/f99f28cdb3/0/context.md",
+      "content_hash": "/57/f99f28cdb3/0/content_hash.txt",
+      "prompt": "/57/f99f28cdb3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 166,
+    "cache_creation_tokens": 436963,
+    "cache_read_tokens": 14301820,
+    "output_tokens": 5880,
+    "api_call_count": 110
+  }
+}
