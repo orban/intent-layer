@@ -50,9 +50,9 @@
       {
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "Evaluate this session for Intent Layer learnings. Your response MUST be ONLY a JSON object, nothing else.\n\nContext: $ARGUMENTS\n\nCheck for:\n1. Skeleton reports: Any SKELETON-*.md in .intent-layer/mistakes/pending/ that reveal genuine gotchas (discard exploratory failures)\n2. Session learnings: User corrections, unexpected behaviors, better approaches, important context discovered\n\nLearning types: pitfall (gotchas), check (pre-action verifications), pattern (preferred approaches), insight (background context)\n\nBe conservative — only flag genuine documentation gaps, not normal development activities.\n\nRespond with ONLY one of these JSON objects (no other text, no markdown, no explanation):\n\n{\"ok\": true}\n\n{\"ok\": false, \"reason\": \"Before ending: run learn.sh --project <project> --path <affected-path> --type <type> --title \\\"<title>\\\" --detail \\\"<detail>\\\" to capture: [brief description]\"}\n\nDo NOT run learn.sh yourself. Do NOT use tools. Do NOT add any text outside the JSON object. Return ONLY the JSON.",
-            "timeout": 30
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/stop-learning-check.sh",
+            "timeout": 45
           }
         ]
       }
