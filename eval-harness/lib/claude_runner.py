@@ -17,6 +17,7 @@ class ClaudeResult:
     stdout: str
     stderr: str
     timed_out: bool = False
+    cost_usd: float = 0.0
 
 
 def parse_claude_output(stdout: str) -> dict:
@@ -54,14 +55,22 @@ def parse_claude_output(stdout: str) -> dict:
                 "tool_calls": tool_calls
             }
 
-        # Handle dict output (single response with aggregated stats)
+        # Handle dict output (--print --output-format json)
+        # Keys: type, usage, num_turns, result, total_cost_usd, etc.
         if isinstance(data, dict):
             usage = data.get("usage", {})
+            if not isinstance(usage, dict):
+                usage = {}
+            # num_turns is the best proxy for tool calls in this format
+            # (each turn = one agent loop iteration with tool use)
+            num_turns = data.get("num_turns", 0)
             tools = data.get("tool_calls", [])
+            tool_count = len(tools) if isinstance(tools, list) else (num_turns if num_turns else 0)
             return {
-                "input_tokens": usage.get("input_tokens", 0) if isinstance(usage, dict) else 0,
-                "output_tokens": usage.get("output_tokens", 0) if isinstance(usage, dict) else 0,
-                "tool_calls": len(tools) if isinstance(tools, list) else 0
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "tool_calls": tool_count,
+                "cost_usd": data.get("total_cost_usd", 0),
             }
 
         return {"input_tokens": 0, "output_tokens": 0, "tool_calls": 0}
@@ -114,7 +123,8 @@ def run_claude(
             tool_calls=metrics["tool_calls"],
             stdout=result.stdout,
             stderr=result.stderr,
-            timed_out=False
+            timed_out=False,
+            cost_usd=metrics.get("cost_usd", 0),
         )
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start

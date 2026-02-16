@@ -1,0 +1,113 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/jlowin/fastmcp
+# Tasks found: 10
+
+repo:
+  url: https://github.com/jlowin/fastmcp
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install -e '.[dev]'
+    test_command: pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+tasks:
+- id: merge-pull-request-3198-from-jlowinfixty-errors
+  category: complex_fix
+  pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
+  fix_commit: 5dc2432950889d98454500c59df43e015de1fc00
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #3198 from jlowin/fix/ty-errors'
+  _lines_changed: 852
+  _files_changed: 10
+  test_file: tests/client/telemetry/test_client_tracing.py
+  issue_number: 3198
+- id: fix-ty-0017-diagnostics-and-bump-lockfile
+  category: complex_fix
+  pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
+  fix_commit: 564b4c0d5c692df0231b9f1b35a647f1ea880684
+  prompt_source: failing_test
+  _commit_message: Fix ty 0.0.17 diagnostics and bump lockfile
+  _lines_changed: 852
+  _files_changed: 10
+  test_file: tests/client/telemetry/test_client_tracing.py
+- id: merge-pull-request-3195-from-jlowinfixstateless
+  category: simple_fix
+  pre_fix_commit: 453dcbe808fc942a55b04c49a0e9478249fb2655
+  fix_commit: b4eb1adbeb80f12e8d85c7a8b32f51e39cbc66fa
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #3195 from jlowin/fix/stateless-http-disable-get-sse'
+  _lines_changed: 29
+  _files_changed: 2
+  test_file: tests/client/test_streamable_http.py
+  issue_number: 3195
+- id: merge-pull-request-3193-from-jfbiswajitfixreadm
+  category: simple_fix
+  pre_fix_commit: b14b137fddc3145d6b4abd0b3a3f1a11dfc370b0
+  fix_commit: d3032c10a2379aac35cce718b0e6062dbd1d2e37
+  prompt_source: commit_message
+  _commit_message: 'Merge pull request #3193 from jfBiswajit/fix/readme-logo'
+  _lines_changed: 2
+  _files_changed: 1
+  issue_number: 3193
+- id: fix-correct-dark-mode-logo-file-extension-in-read
+  category: simple_fix
+  pre_fix_commit: b14b137fddc3145d6b4abd0b3a3f1a11dfc370b0
+  fix_commit: 964ba12bc5e8d9c5e065bd65befaf3d1742c61de
+  prompt_source: commit_message
+  _commit_message: 'fix: correct dark mode logo file extension in README'
+  _lines_changed: 2
+  _files_changed: 1
+- id: fix-include_tagsexclude_tags-ignored-without-tool
+  category: targeted_refactor
+  pre_fix_commit: bb60287005039725da5a7be6f3b474b8c5cf597f
+  fix_commit: ccfe5047bfa150bc10c4689f7c608051c77fe577
+  prompt_source: failing_test
+  _commit_message: Fix include_tags/exclude_tags ignored without tools in MCPConfig
+    (#3186)
+  _lines_changed: 109
+  _files_changed: 3
+  test_file: tests/test_mcp_config.py
+  issue_number: 3186
+- id: fix-stale-request-context-in-statefulproxyclient-h
+  category: complex_fix
+  pre_fix_commit: b62ed3408b3f1550c29f7b1eac13ec8b7f7bc386
+  fix_commit: 5f941be5a31d210d09a0f94780d3077f9b32f697
+  prompt_source: failing_test
+  _commit_message: Fix stale request context in StatefulProxyClient handlers (#3172)
+  _lines_changed: 206
+  _files_changed: 3
+  test_file: tests/server/providers/proxy/test_stateful_proxy_client.py
+  issue_number: 3172
+- id: docs-fix-stale-get_-references-now-list_-316
+  category: targeted_refactor
+  pre_fix_commit: 175479f65fb8ccf92661700b9dfec333b2af8100
+  fix_commit: 3907a4f9b6ec59c3ad9e3606e47e7f2d65763c0c
+  prompt_source: commit_message
+  _commit_message: 'docs: fix stale get_* references, now list_* (#3168)'
+  _lines_changed: 101
+  _files_changed: 5
+  issue_number: 3168
+- id: fix-guard-client-pagination-loops-against-misbeha
+  category: complex_fix
+  pre_fix_commit: 359575b12f90990154864cb1bb3fc9e99d32a495
+  fix_commit: 175479f65fb8ccf92661700b9dfec333b2af8100
+  prompt_source: failing_test
+  _commit_message: 'fix: guard client pagination loops against misbehaving servers
+    (#3167)'
+  _lines_changed: 338
+  _files_changed: 9
+  test_file: tests/server/test_pagination.py
+  issue_number: 3167
+- id: fix-snapshot-access-token-for-background-tasks
+  category: complex_fix
+  pre_fix_commit: f75cd05e502061503d24e5e5cffdac763a6f9f45
+  fix_commit: 263e0bf6e0262149269863e09a99b8de1f08bbf0
+  prompt_source: failing_test
+  _commit_message: 'fix: snapshot access token for background tasks (#3095) (#3138)'
+  _lines_changed: 235
+  _files_changed: 4
+  test_file: tests/server/tasks/test_context_background_task.py
+  issue_number: 3095

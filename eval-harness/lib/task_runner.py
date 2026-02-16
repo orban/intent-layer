@@ -304,13 +304,17 @@ class TaskRunner:
             claude_result = run_claude(workspace, prompt, model=model)
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
-            # Run tests
+            # Run tests (chain setup commands so pip installs persist in same container)
+            test_cmd = self.repo.docker.test_command
+            if self.repo.docker.setup:
+                setup_chain = " && ".join(self.repo.docker.setup)
+                test_cmd = f"{setup_chain} && {test_cmd}"
             self._progress(task.id, cond_str, "test", f"running tests: {self.repo.docker.test_command}")
             test_result = run_in_docker(
                 workspace,
                 self.repo.docker.image,
-                self.repo.docker.test_command,
-                timeout=120
+                test_cmd,
+                timeout=300
             )
             test_status = "PASSED" if test_result.exit_code == 0 else "FAILED"
             self._progress(task.id, cond_str, "test_done", f"tests {test_status}")
@@ -384,11 +388,16 @@ class TaskRunner:
             if task.test_pattern:
                 test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
 
+            # Chain setup so pip installs are available
+            if self.repo.docker.setup:
+                setup_chain = " && ".join(self.repo.docker.setup)
+                test_cmd = f"{setup_chain} && {test_cmd}"
+
             result = run_in_docker(
                 workspace,
                 self.repo.docker.image,
                 test_cmd,
-                timeout=60
+                timeout=120
             )
             return build_prompt_from_failing_test(
                 result.stdout + result.stderr, preamble=preamble
