@@ -1,5 +1,5 @@
 ---
-name: intent-layer-health
+name: intent-layer:health
 description: Quick health check for Intent Layer - validates nodes, checks staleness, reports coverage gaps
 argument-hint: "[/path/to/project] [--full]"
 ---

@@ -1,5 +1,5 @@
 ---
-name: intent-layer-query
+name: intent-layer:query
 description: >
   Query the Intent Layer to answer questions about the codebase.
   Use when asking "what owns X?", "where should I put Y?", "what constraints apply to Z?",

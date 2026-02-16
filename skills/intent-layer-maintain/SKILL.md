@@ -1,5 +1,5 @@
 ---
-name: intent-layer-maintenance
+name: intent-layer:maintain
 description: >
   Use when maintaining an existing Intent Layer, during quarterly reviews,
   after significant code changes, when something confused you, or when
