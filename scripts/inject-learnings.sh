@@ -17,6 +17,10 @@ PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
 CONTEXT_PARTS=()
 STATE="unknown"
 
+# --- Cleanup stale dedup files from PreToolUse hook ---
+# Remove dedup files older than 24h to avoid accumulation in $TMPDIR.
+find "${TMPDIR:-/tmp}" -maxdepth 1 -name "intent-layer-dedup-*" -type f -mmin +1440 -delete 2>/dev/null || true
+
 # --- Check 1: Does Intent Layer exist? ---
 DETECT_STATE="$PLUGIN_ROOT/scripts/detect_state.sh"
 if [[ -x "$DETECT_STATE" ]]; then
