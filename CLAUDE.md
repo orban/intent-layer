@@ -54,7 +54,10 @@ intent-layer-plugin/
 │   └── change-tracker.md     # Maps code changes to covering nodes
 ├── hooks/
 │   └── hooks.json            # 5 hook slots (SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop)
-├── scripts/                  # 28 standalone bash scripts
+├── mcp/                      # MCP context server (Python)
+│   ├── server.py             # FastMCP server wrapping bash scripts
+│   └── requirements.txt      # Python dependencies (mcp SDK)
+├── scripts/                  # 32 standalone bash scripts
 ├── lib/                      # 5 internal library scripts
 ├── tests/                    # Bash test scripts
 └── references/               # Templates, protocols, examples
@@ -68,11 +71,12 @@ intent-layer-plugin/
 | **Agents** | Specialized analysis tasks | Auto-invoked by Claude when relevant |
 | **Hooks** | Learning loop: auto-capture, pitfall injection, staleness check | 5 hooks: SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop |
 
-- **Injection log**: `.intent-layer/hooks/injections.log` — tracks which AGENTS.md entries were injected before edits (for feedback analysis)
+- **Injection log**: `.intent-layer/hooks/injections.log` — tracks which AGENTS.md entries were injected before edits
+- **Outcome log**: `.intent-layer/hooks/outcomes.log` — tracks edit success/failure (telemetry). Opt out with `.intent-layer/disable-telemetry`
 
 ### Scripts
 
-28 standalone bash tools in `scripts/`. CLI scripts support `-h`/`--help`; hook scripts don't.
+32 standalone bash tools in `scripts/`. CLI scripts support `-h`/`--help`; hook scripts don't.
 
 | Script | Purpose |
 |--------|---------|
@@ -104,6 +108,10 @@ intent-layer-plugin/
 | `resolve_context.sh` | Single-call context resolver for agent swarms |
 | `report_learning.sh` | Swarm-friendly non-interactive write-back |
 | `learn.sh` | Direct-write learning to AGENTS.md (dedup-gated, single-agent only) |
+| `generate_adapter.sh` | Export Intent Layer to other AI tools (cursor `.mdc`, raw markdown) |
+| `show_telemetry.sh` | Dashboard: per-node success/failure rates, coverage gaps |
+| `suggest_updates.sh` | AI-powered AGENTS.md update suggestions from git diffs (requires `curl`, `jq`, `ANTHROPIC_API_KEY`) |
+| `apply_template.sh` | Apply starter templates to new projects |
 
 ### Library Scripts (lib/)
 
@@ -200,13 +208,37 @@ Intent Layer serves as a context protocol for agent swarms:
 
 Any tool that can read the filesystem can consume AGENTS.md nodes. The protocol is orchestrator-agnostic.
 
+### MCP Context Server
+
+Python MCP server (`mcp/server.py`) wrapping existing bash scripts via `FastMCP`. Exposes:
+
+- `read_intent(project_root, target_path, sections?)` — merged ancestor context
+- `report_learning(project_root, path, type, title, detail, agent_id?)` — queue a learning report
+- `intent://{project}/{path}` resource — individual AGENTS.md/CLAUDE.md files
+
+Requires `INTENT_LAYER_ALLOWED_PROJECTS` env var (colon-separated paths). All paths canonicalized with `os.path.realpath()` and validated for containment before use.
+
+### Tool Adapter
+
+`generate_adapter.sh` exports Intent Layer context to other AI tools:
+
+- `--format cursor` → `.cursor/rules/*.mdc` files with YAML frontmatter
+- `--format raw` → flat merged markdown on stdout
+
+### Templates
+
+Starter templates in `references/templates/` applied via `apply_template.sh`. v1 ships a `generic` template (root + src/ nodes). No variable engine — templates are static content.
+
 ## Entry Points
 
 | Task | Start Here |
 |------|------------|
 | Create new skill | Copy `skills/intent-layer/`, edit `SKILL.md` frontmatter |
 | Add/modify scripts | `scripts/` - standalone bash, no dependencies |
-| Update templates | `references/templates.md` |
+| Update templates | `references/templates/` — static `.template` files |
+| Apply a template | `scripts/apply_template.sh <project> generic` |
+| Export to Cursor | `scripts/generate_adapter.sh <project> --format cursor` |
+| View telemetry | `scripts/show_telemetry.sh <project>` |
 | Add new agent | Create `agents/<name>.md` with frontmatter |
 | Modify hook behavior | Edit `hooks/hooks.json` or `scripts/post-edit-check.sh` |
 | Test a script | Run directly: `./scripts/detect_state.sh --help` |
@@ -234,6 +266,8 @@ _Source: learn.sh | added: 2026-02-15_
 - Scripts handle both macOS and Linux `stat` commands automatically
 - `detect_state.sh` distinguishes symlinked AGENTS.md (expected) from duplicate files (warning)
 - `mine_pr_reviews.sh` requires `gh` CLI and `jq` - other scripts only need coreutils + bc
+- `suggest_updates.sh` requires `curl`, `jq`, and `ANTHROPIC_API_KEY` — falls back to dry-run without API key
+- MCP server (`mcp/server.py`) requires `INTENT_LAYER_ALLOWED_PROJECTS` env var — refuses all requests without it
 - Hook script receives tool input as JSON - parse carefully to avoid breaking on special characters
 
 ## Intent Layer
@@ -250,6 +284,8 @@ This project uses its own Intent Layer for documentation.
 | Skills | `skills/AGENTS.md` | Skill map, sub-skill invocation, state routing |
 | Agents | `agents/AGENTS.md` | Subagent definitions, pipeline, frontmatter contracts |
 | Eval Harness | `eval-harness/AGENTS.md` | A/B testing framework for Claude skills |
+| MCP Server | `mcp/` | Python MCP server, path security, FastMCP patterns |
+| Templates | `references/templates/` | Starter templates for new projects |
 
 ## Learning Loop
 
