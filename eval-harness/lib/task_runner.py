@@ -14,7 +14,7 @@ from typing import Callable
 logger = logging.getLogger(__name__)
 
 from lib.models import Task, RepoConfig
-from lib.git_ops import clone_repo, checkout_commit, get_commit_message, get_diff_stats
+from lib.git_ops import clone_repo, checkout_commit, get_commit_message, get_diff_stats, create_baseline_commit
 from lib.docker_runner import run_in_docker
 from lib.claude_runner import run_claude
 from lib.prompt_builder import (
@@ -290,6 +290,10 @@ class TaskRunner:
                 self._progress(task.id, cond_str, "flat_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
             # NONE: no generation, stripping already happened
+
+            # Baseline commit: snapshot workspace state so diff stats
+            # only measure changes made by Claude, not by the harness
+            create_baseline_commit(workspace)
 
             # Build prompt with condition-appropriate preamble
             self._progress(task.id, cond_str, "prompt", "building prompt")

@@ -89,6 +89,8 @@ def run_claude(
     cmd.append(prompt)
 
     env = {**os.environ, "CLAUDE_NO_TELEMETRY": "1"}
+    # Allow running from within a Claude session (e.g. smoke tests)
+    env.pop("CLAUDECODE", None)
 
     start = time.time()
     try:

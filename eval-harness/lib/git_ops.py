@@ -58,20 +58,49 @@ def get_commit_message(repo_path: str, commit: str) -> str:
     return result.stdout.strip()
 
 
+def create_baseline_commit(repo_path: str) -> None:
+    """Stage and commit all current changes as a baseline.
+
+    Called after strip + context generation so that get_diff_stats
+    only measures changes made by Claude, not by the harness itself.
+    """
+    subprocess.run(
+        ["git", "add", "-A"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", "eval-harness baseline"],
+        cwd=repo_path,
+        capture_output=True  # don't check — nothing to commit is fine
+    )
+
+
 def get_diff_stats(repo_path: str) -> DiffStats:
-    """Get diff stats for uncommitted changes."""
-    # Get list of changed files
+    """Get diff stats for uncommitted changes (tracked + untracked).
+
+    Stages all changes first so new files created by Claude are included.
+    """
+    # Stage everything so untracked files show up in the diff
+    subprocess.run(
+        ["git", "add", "-A"],
+        cwd=repo_path,
+        capture_output=True
+    )
+
+    # Get list of changed files (staged vs HEAD)
     result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD"],
+        ["git", "diff", "--cached", "--name-only", "HEAD"],
         cwd=repo_path,
         capture_output=True,
         text=True
     )
     files = [f for f in result.stdout.strip().split("\n") if f]
 
-    # Get line counts
+    # Get line counts (staged vs HEAD)
     result = subprocess.run(
-        ["git", "diff", "--shortstat", "HEAD"],
+        ["git", "diff", "--cached", "--shortstat", "HEAD"],
         cwd=repo_path,
         capture_output=True,
         text=True
