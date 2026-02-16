@@ -2,6 +2,7 @@
 import pytest
 import tempfile
 import os
+import shutil
 from dataclasses import dataclass
 from lib.task_runner import (
     TaskRunner,
@@ -9,7 +10,11 @@ from lib.task_runner import (
     Condition,
     SkillGenerationMetrics,
 )
-from lib.prompt_builder import build_skill_generation_prompt
+from lib.prompt_builder import (
+    build_skill_generation_prompt,
+    FLAT_PREAMBLE,
+    INTENT_LAYER_PREAMBLE,
+)
 from lib.models import Task, RepoConfig, DockerConfig
 
 
@@ -40,7 +45,7 @@ def sample_repo():
 def test_task_result_structure():
     result = TaskResult(
         task_id="fix-123",
-        condition=Condition.WITHOUT_SKILL,
+        condition=Condition.NONE,
         success=True,
         test_output="All tests passed",
         wall_clock_seconds=45.0,
@@ -51,7 +56,7 @@ def test_task_result_structure():
         files_touched=["src/main.py"]
     )
     assert result.task_id == "fix-123"
-    assert result.condition == Condition.WITHOUT_SKILL
+    assert result.condition == Condition.NONE
     assert result.success is True
     assert result.agents_files_read is None
 
@@ -59,7 +64,7 @@ def test_task_result_structure():
 def test_task_result_with_agents_files():
     result = TaskResult(
         task_id="fix-123",
-        condition=Condition.WITH_SKILL,
+        condition=Condition.INTENT_LAYER,
         success=True,
         test_output="All tests passed",
         wall_clock_seconds=45.0,
@@ -86,7 +91,6 @@ def test_skill_generation_metrics():
 
 def test_skill_generation_metrics_with_cache_hit():
     """Test that SkillGenerationMetrics tracks cache_hit status."""
-    # Cache miss (fresh generation)
     metrics_fresh = SkillGenerationMetrics(
         wall_clock_seconds=120.0,
         input_tokens=5000,
@@ -96,7 +100,6 @@ def test_skill_generation_metrics_with_cache_hit():
     )
     assert metrics_fresh.cache_hit is False
 
-    # Cache hit (restored from cache)
     metrics_cached = SkillGenerationMetrics(
         wall_clock_seconds=2.0,
         input_tokens=0,
@@ -108,7 +111,6 @@ def test_skill_generation_metrics_with_cache_hit():
 
 
 def test_skill_generation_prompt_content():
-    # Verify the prompt contains key instructions
     prompt = build_skill_generation_prompt()
     assert "Intent Layer" in prompt
     assert "CLAUDE.md" in prompt
@@ -118,8 +120,10 @@ def test_skill_generation_prompt_content():
 
 
 def test_condition_enum():
-    assert Condition.WITH_SKILL.value == "with_skill"
-    assert Condition.WITHOUT_SKILL.value == "without_skill"
+    assert Condition.NONE.value == "none"
+    assert Condition.FLAT_LLM.value == "flat_llm"
+    assert Condition.INTENT_LAYER.value == "intent_layer"
+    assert len(Condition) == 3
 
 
 def test_find_agents_files(sample_repo):
@@ -127,12 +131,10 @@ def test_find_agents_files(sample_repo):
     with tempfile.TemporaryDirectory() as tmpdir:
         runner = TaskRunner(sample_repo, tmpdir)
 
-        # Create a mock workspace with AGENTS.md files
         workspace = os.path.join(tmpdir, "test-workspace")
         os.makedirs(os.path.join(workspace, "lib"))
         os.makedirs(os.path.join(workspace, "src", "utils"))
 
-        # Create the files
         open(os.path.join(workspace, "CLAUDE.md"), "w").close()
         open(os.path.join(workspace, "lib", "AGENTS.md"), "w").close()
         open(os.path.join(workspace, "src", "utils", "AGENTS.md"), "w").close()
@@ -150,7 +152,6 @@ def test_extract_agents_files_read(sample_repo):
         runner = TaskRunner(sample_repo, tmpdir)
         workspace = "/test/workspace"
 
-        # Mock Claude JSON output with Read tool calls
         claude_output = '''
         {
             "messages": [
@@ -181,33 +182,195 @@ def test_extract_agents_files_read(sample_repo):
 
         assert "CLAUDE.md" in files
         assert "src/AGENTS.md" in files
-        # Regular files should not be included
         assert "src/main.py" not in files
 
 
 def test_task_runner_uses_cache(sample_repo):
     """Test that TaskRunner integrates IndexCache when use_cache=True."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create cache directory
         cache_dir = os.path.join(tmpdir, ".index-cache")
 
-        # Create TaskRunner with cache enabled
         runner = TaskRunner(sample_repo, tmpdir, use_cache=True, cache_dir=cache_dir)
-
-        # Verify IndexCache instance is created
         assert runner.index_cache is not None
         assert str(runner.index_cache.cache_dir) == cache_dir
 
-        # Verify cache methods work (create a proper cache entry)
         test_repo = "https://github.com/test/repo"
         test_commit = "abc123def"
         cache_key = runner.index_cache.get_cache_key(test_repo, test_commit)
         assert cache_key == "repo-abc123de"
 
-        # Test with cache disabled
         runner_no_cache = TaskRunner(sample_repo, tmpdir, use_cache=False)
         assert runner_no_cache.index_cache is None
 
-        # Test default behavior (cache enabled)
         runner_default = TaskRunner(sample_repo, tmpdir)
         assert runner_default.index_cache is not None
+
+
+# --- New tests for 3-condition eval ---
+
+
+def test_strip_context_files(sample_repo):
+    """Test that _strip_context_files removes AGENTS.md, CLAUDE.md, and .github."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(os.path.join(workspace, "src"))
+        os.makedirs(os.path.join(workspace, ".github", "workflows"))
+
+        # Create context files
+        open(os.path.join(workspace, "CLAUDE.md"), "w").close()
+        open(os.path.join(workspace, "src", "AGENTS.md"), "w").close()
+        open(os.path.join(workspace, ".github", "workflows", "ci.yml"), "w").close()
+        # Create a regular file that should NOT be removed
+        open(os.path.join(workspace, "src", "main.py"), "w").close()
+
+        removed = runner._strip_context_files(workspace)
+
+        assert "CLAUDE.md" in removed
+        assert "src/AGENTS.md" in removed
+        assert ".github" in removed
+        # Regular files untouched
+        assert os.path.exists(os.path.join(workspace, "src", "main.py"))
+        # Context files gone
+        assert not os.path.exists(os.path.join(workspace, "CLAUDE.md"))
+        assert not os.path.exists(os.path.join(workspace, "src", "AGENTS.md"))
+        assert not os.path.exists(os.path.join(workspace, ".github"))
+
+
+def test_strip_context_files_with_extras(sample_repo):
+    """Test that strip_extra removes additional per-repo files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(os.path.join(workspace, ".cursor", "rules"))
+
+        open(os.path.join(workspace, ".cursorrules"), "w").close()
+        open(os.path.join(workspace, ".cursor", "rules", "rule1.mdc"), "w").close()
+
+        removed = runner._strip_context_files(
+            workspace, strip_extra=[".cursorrules", ".cursor/rules/"]
+        )
+
+        assert ".cursorrules" in removed
+        # .cursor/rules/ directory should be removed
+        assert not os.path.exists(os.path.join(workspace, ".cursorrules"))
+        assert not os.path.exists(os.path.join(workspace, ".cursor", "rules"))
+
+
+def test_strip_context_files_empty_workspace(sample_repo):
+    """Test that stripping an empty workspace returns empty list."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(workspace)
+
+        removed = runner._strip_context_files(workspace)
+        assert removed == []
+
+
+def test_preamble_routing():
+    """Test that each condition maps to the correct preamble."""
+    from lib.task_runner import Condition
+    from lib.prompt_builder import FLAT_PREAMBLE, INTENT_LAYER_PREAMBLE
+
+    preamble_map = {
+        Condition.NONE: None,
+        Condition.FLAT_LLM: FLAT_PREAMBLE,
+        Condition.INTENT_LAYER: INTENT_LAYER_PREAMBLE,
+    }
+
+    assert preamble_map[Condition.NONE] is None
+    assert "CLAUDE.md" in preamble_map[Condition.FLAT_LLM]
+    assert "AGENTS.md" in preamble_map[Condition.INTENT_LAYER]
+    assert "pitfalls" in preamble_map[Condition.INTENT_LAYER]
+
+
+def test_strip_extra_in_repo_config():
+    """Test that RepoConfig accepts strip_extra field."""
+    repo = RepoConfig(
+        url="https://github.com/test/repo",
+        default_branch="main",
+        docker=DockerConfig(
+            image="python:3.11-slim",
+            setup=["pip install -e ."],
+            test_command="pytest"
+        ),
+        strip_extra=[".cursorrules", ".cursor/rules/"]
+    )
+    assert repo.strip_extra == [".cursorrules", ".cursor/rules/"]
+
+
+def test_strip_extra_defaults_empty():
+    """Test that RepoConfig.strip_extra defaults to empty list."""
+    repo = RepoConfig(
+        url="https://github.com/test/repo",
+        docker=DockerConfig(image="python:3.11-slim", test_command="pytest")
+    )
+    assert repo.strip_extra == []
+
+
+def test_generate_flat_context_dual_write(sample_repo):
+    """Test that _generate_flat_context creates both CLAUDE.md and AGENTS.md."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = os.path.join(tmpdir, ".cache")
+        runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(workspace)
+
+        # Simulate Claude having created only CLAUDE.md
+        with open(os.path.join(workspace, "CLAUDE.md"), "w") as f:
+            f.write("# Generated CLAUDE.md\nProject overview here.")
+
+        # Pre-populate cache so _generate_flat_context hits cache and restores CLAUDE.md
+        runner.index_cache.save(
+            "https://github.com/test/repo",
+            "abc123def",
+            workspace,
+            ["CLAUDE.md"],
+            "flat_llm"
+        )
+
+        # Clean workspace and run
+        os.remove(os.path.join(workspace, "CLAUDE.md"))
+
+        metrics = runner._generate_flat_context(
+            workspace=workspace,
+            repo_url="https://github.com/test/repo",
+            commit="abc123def"
+        )
+
+        assert metrics.cache_hit is True
+        assert os.path.exists(os.path.join(workspace, "CLAUDE.md"))
+
+
+def test_strip_context_files_with_universal_and_extras(sample_repo):
+    """Test stripping universal context files AND strip_extra simultaneously."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+
+        workspace = os.path.join(tmpdir, "test-workspace")
+        os.makedirs(os.path.join(workspace, "src"))
+        os.makedirs(os.path.join(workspace, ".github", "workflows"))
+
+        # Universal files
+        open(os.path.join(workspace, "CLAUDE.md"), "w").close()
+        open(os.path.join(workspace, "src", "AGENTS.md"), "w").close()
+        open(os.path.join(workspace, ".github", "workflows", "ci.yml"), "w").close()
+        # Extra files
+        open(os.path.join(workspace, ".cursorrules"), "w").close()
+        # Regular file
+        open(os.path.join(workspace, "src", "main.py"), "w").close()
+
+        removed = runner._strip_context_files(workspace, strip_extra=[".cursorrules"])
+
+        assert "CLAUDE.md" in removed
+        assert "src/AGENTS.md" in removed
+        assert ".github" in removed
+        assert ".cursorrules" in removed
+        assert len(removed) == 4
+        # Regular file untouched
+        assert os.path.exists(os.path.join(workspace, "src", "main.py"))

@@ -66,6 +66,40 @@ def test_parse_claude_output_handles_empty_list():
     assert result["tool_calls"] == 0
 
 
+@patch("lib.claude_runner.subprocess.run")
+def test_run_claude_includes_model_flag(mock_run):
+    """Test that model parameter adds --model flag to command."""
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout=json.dumps({"usage": {}, "tool_calls": []}),
+        stderr=""
+    )
+
+    run_claude("/tmp/workspace", "Fix the bug", model="claude-sonnet-4-5-20250929")
+
+    cmd = mock_run.call_args[0][0]
+    assert "--model" in cmd
+    model_idx = cmd.index("--model")
+    assert cmd[model_idx + 1] == "claude-sonnet-4-5-20250929"
+    # prompt should be last
+    assert cmd[-1] == "Fix the bug"
+
+
+@patch("lib.claude_runner.subprocess.run")
+def test_run_claude_no_model_flag_by_default(mock_run):
+    """Test that --model flag is absent when model is not provided."""
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout=json.dumps({"usage": {}, "tool_calls": []}),
+        stderr=""
+    )
+
+    run_claude("/tmp/workspace", "Fix the bug")
+
+    cmd = mock_run.call_args[0][0]
+    assert "--model" not in cmd
+
+
 def test_claude_result_dataclass():
     result = ClaudeResult(
         exit_code=0,

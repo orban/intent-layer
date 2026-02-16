@@ -62,15 +62,17 @@ class IndexCache:
         with open(self.manifest_path, "w") as f:
             json.dump(data, f, indent=2)
 
-    def get_cache_key(self, repo: str, commit: str) -> str:
-        """Generate cache key from repo URL and commit SHA.
+    def get_cache_key(self, repo: str, commit: str, condition: str = "") -> str:
+        """Generate cache key from repo URL, commit SHA, and condition.
 
         Args:
             repo: Repository URL (e.g., https://github.com/user/repo)
             commit: Full commit SHA
+            condition: Condition name (e.g., "flat_llm", "intent_layer")
 
         Returns:
-            Cache key in format: <repo-name>-<commit[:8]>
+            Cache key in format: <repo-name>-<commit[:8]>-<condition>
+            If condition is empty, format is: <repo-name>-<commit[:8]>
         """
         # Extract repo name from URL
         parsed = urlparse(repo)
@@ -81,22 +83,25 @@ class IndexCache:
         # Use first 8 chars of commit
         commit_short = commit[:8]
 
+        if condition:
+            return f"{repo_name}-{commit_short}-{condition}"
         return f"{repo_name}-{commit_short}"
 
-    def lookup(self, repo: str, commit: str) -> CacheEntry | None:
-        """Look up cached index by repo and commit.
+    def lookup(self, repo: str, commit: str, condition: str = "") -> CacheEntry | None:
+        """Look up cached index by repo, commit, and condition.
 
         Args:
             repo: Repository URL
             commit: Full commit SHA
+            condition: Condition name (e.g., "flat_llm", "intent_layer")
 
         Returns:
             CacheEntry if found, None otherwise
         """
-        cache_key = self.get_cache_key(repo, commit)
+        cache_key = self.get_cache_key(repo, commit, condition)
         return self.manifest.entries.get(cache_key)
 
-    def save(self, repo: str, commit: str, workspace: str, agents_files: list[str]):
+    def save(self, repo: str, commit: str, workspace: str, agents_files: list[str], condition: str = ""):
         """Save generated index to cache.
 
         Args:
@@ -104,9 +109,10 @@ class IndexCache:
             commit: Full commit SHA
             workspace: Path to workspace containing generated files
             agents_files: List of relative paths to AGENTS.md/CLAUDE.md files
+            condition: Condition name (e.g., "flat_llm", "intent_layer")
         """
         # Create cache entry directory
-        cache_key = self.get_cache_key(repo, commit)
+        cache_key = self.get_cache_key(repo, commit, condition)
         cache_entry_dir = self.cache_dir / cache_key
         cache_entry_dir.mkdir(parents=True, exist_ok=True)
 

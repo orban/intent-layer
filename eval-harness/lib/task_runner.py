@@ -17,7 +17,9 @@ from lib.claude_runner import run_claude
 from lib.prompt_builder import (
     build_prompt_from_commit_message,
     build_prompt_from_failing_test,
-    build_prompt_from_issue
+    build_prompt_from_issue,
+    FLAT_PREAMBLE,
+    INTENT_LAYER_PREAMBLE,
 )
 from lib.index_cache import IndexCache
 
@@ -27,8 +29,9 @@ ProgressCallback = Callable[[str, str, str, str], None]
 
 
 class Condition(Enum):
-    WITH_SKILL = "with_skill"
-    WITHOUT_SKILL = "without_skill"
+    NONE = "none"
+    FLAT_LLM = "flat_llm"
+    INTENT_LAYER = "intent_layer"
 
 
 @dataclass
@@ -77,11 +80,50 @@ class TaskRunner:
         if self.progress_callback:
             self.progress_callback(task_id, condition, step, message)
 
+    def _strip_context_files(self, workspace: str, strip_extra: list[str] | None = None) -> list[str]:
+        """Remove AI context files from workspace. Returns list of removed paths.
+
+        Uses the paper's exact universal pattern (agentbench.py:59-64):
+          find . -type f ( -name "AGENTS.md" -o -name "CLAUDE.md" ) -delete
+          rm -rf .github
+
+        Per-repo extras (e.g., .cursorrules, .codex/) are handled via strip_extra.
+        """
+        removed = []
+        workspace_path = Path(workspace)
+
+        # Universal: remove all AGENTS.md and CLAUDE.md files
+        for pattern in ["**/AGENTS.md", "**/CLAUDE.md"]:
+            for match in workspace_path.glob(pattern):
+                rel = str(match.relative_to(workspace_path))
+                match.unlink()
+                removed.append(rel)
+
+        # Universal: remove .github directory
+        github_dir = workspace_path / ".github"
+        if github_dir.exists():
+            shutil.rmtree(github_dir)
+            removed.append(".github")
+
+        # Per-repo extras
+        if strip_extra:
+            for extra in strip_extra:
+                target = workspace_path / extra
+                if target.is_file():
+                    target.unlink()
+                    removed.append(extra)
+                elif target.is_dir():
+                    shutil.rmtree(target)
+                    removed.append(extra)
+
+        return sorted(set(removed))
+
     def _check_or_generate_index(
         self,
         workspace: str,
         repo_url: str,
-        commit: str
+        commit: str,
+        condition: str = ""
     ) -> SkillGenerationMetrics:
         """Check cache or generate index. Returns metrics.
 
@@ -95,7 +137,7 @@ class TaskRunner:
         """
         # Check cache if enabled
         if self.index_cache:
-            cache_entry = self.index_cache.lookup(repo_url, commit)
+            cache_entry = self.index_cache.lookup(repo_url, commit, condition)
 
             if cache_entry:
                 # Cache hit: restore files
@@ -122,7 +164,7 @@ class TaskRunner:
 
         # Save to cache if enabled
         if self.index_cache:
-            self.index_cache.save(repo_url, commit, workspace, agents_files)
+            self.index_cache.save(repo_url, commit, workspace, agents_files, condition)
 
         return SkillGenerationMetrics(
             wall_clock_seconds=result.wall_clock_seconds,
@@ -132,7 +174,64 @@ class TaskRunner:
             files_created=agents_files
         )
 
-    def run(self, task: Task, condition: Condition) -> TaskResult:
+    def _generate_flat_context(
+        self,
+        workspace: str,
+        repo_url: str,
+        commit: str,
+        model: str | None = None
+    ) -> SkillGenerationMetrics:
+        """Generate a flat CLAUDE.md using the paper's prompt. Returns metrics.
+
+        After generation, dual-writes the content to both CLAUDE.md and AGENTS.md,
+        matching the paper's behavior at init_planner.py:187-188.
+        """
+        # Check cache first
+        if self.index_cache:
+            cache_entry = self.index_cache.lookup(repo_url, commit, "flat_llm")
+            if cache_entry:
+                start = time.time()
+                self.index_cache.restore(cache_entry, workspace)
+                elapsed = time.time() - start
+                return SkillGenerationMetrics(
+                    wall_clock_seconds=elapsed,
+                    input_tokens=0,
+                    output_tokens=0,
+                    cache_hit=True,
+                    files_created=cache_entry.agents_files
+                )
+
+        from lib.prompt_builder import build_flat_generation_prompt
+
+        prompt = build_flat_generation_prompt()
+        result = run_claude(workspace, prompt, timeout=600, model=model)
+
+        # Dual-write: ensure both CLAUDE.md and AGENTS.md exist with same content
+        workspace_path = Path(workspace)
+        claude_md = workspace_path / "CLAUDE.md"
+        agents_md = workspace_path / "AGENTS.md"
+
+        # Claude should have created CLAUDE.md; copy to AGENTS.md
+        if claude_md.exists() and not agents_md.exists():
+            shutil.copy2(claude_md, agents_md)
+        elif agents_md.exists() and not claude_md.exists():
+            shutil.copy2(agents_md, claude_md)
+
+        agents_files = self._find_agents_files(workspace)
+
+        # Save to cache
+        if self.index_cache:
+            self.index_cache.save(repo_url, commit, workspace, agents_files, "flat_llm")
+
+        return SkillGenerationMetrics(
+            wall_clock_seconds=result.wall_clock_seconds,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            cache_hit=False,
+            files_created=agents_files
+        )
+
+    def run(self, task: Task, condition: Condition, model: str | None = None) -> TaskResult:
         """Execute a single task under the given condition."""
         cond_str = condition.value
         self._progress(task.id, cond_str, "setup", "creating workspace")
@@ -150,26 +249,47 @@ class TaskRunner:
                 self._progress(task.id, cond_str, "docker_setup", f"[{i}/{len(self.repo.docker.setup)}] {setup_cmd}")
                 run_in_docker(workspace, self.repo.docker.image, setup_cmd)
 
+            # Strip context files (all conditions — paper's methodology)
+            self._progress(task.id, cond_str, "strip", "removing existing context files")
+            strip_extra = self.repo.strip_extra or None
+            removed = self._strip_context_files(workspace, strip_extra)
+            if removed:
+                self._progress(task.id, cond_str, "strip_done", f"removed {len(removed)} file(s)")
+
+            # Generate context based on condition
             skill_metrics = None
 
-            # Generate AGENTS.md if with_skill
-            if condition == Condition.WITH_SKILL:
+            if condition == Condition.INTENT_LAYER:
                 self._progress(task.id, cond_str, "skill_gen", "checking cache or generating Intent Layer...")
                 skill_metrics = self._check_or_generate_index(
                     workspace=workspace,
                     repo_url=self.repo.url,
-                    commit=task.pre_fix_commit
+                    commit=task.pre_fix_commit,
+                    condition=condition.value
                 )
                 cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
                 self._progress(task.id, cond_str, "skill_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
-            # Build prompt (with AGENTS.md preamble if skill was generated)
+            elif condition == Condition.FLAT_LLM:
+                self._progress(task.id, cond_str, "flat_gen", "checking cache or generating flat CLAUDE.md...")
+                skill_metrics = self._generate_flat_context(
+                    workspace=workspace,
+                    repo_url=self.repo.url,
+                    commit=task.pre_fix_commit,
+                    model=model
+                )
+                cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
+                self._progress(task.id, cond_str, "flat_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
+
+            # NONE: no generation, stripping already happened
+
+            # Build prompt with condition-appropriate preamble
             self._progress(task.id, cond_str, "prompt", "building prompt")
             prompt = self._build_prompt(task, workspace, condition)
 
             # Run Claude on the task
             self._progress(task.id, cond_str, "claude", "running Claude to fix the bug...")
-            claude_result = run_claude(workspace, prompt)
+            claude_result = run_claude(workspace, prompt, model=model)
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Run tests
@@ -190,7 +310,7 @@ class TaskRunner:
             # Extract which AGENTS.md files were read during the fix
             agents_files_read = self._extract_agents_files_read(
                 claude_result.stdout, workspace
-            ) if condition == Condition.WITH_SKILL else None
+            ) if condition != Condition.NONE else None
 
             return TaskResult(
                 task_id=task.id,
@@ -235,11 +355,15 @@ class TaskRunner:
 
     def _build_prompt(self, task: Task, workspace: str, condition: Condition) -> str:
         """Build the appropriate prompt based on task config."""
-        use_preamble = condition == Condition.WITH_SKILL
+        preamble = {
+            Condition.NONE: None,
+            Condition.FLAT_LLM: FLAT_PREAMBLE,
+            Condition.INTENT_LAYER: INTENT_LAYER_PREAMBLE,
+        }[condition]
 
         if task.prompt_source == "commit_message":
             message = get_commit_message(workspace, task.fix_commit)
-            return build_prompt_from_commit_message(message, with_agents_preamble=use_preamble)
+            return build_prompt_from_commit_message(message, preamble=preamble)
 
         elif task.prompt_source == "failing_test":
             # Run the test to get failure output
@@ -254,7 +378,7 @@ class TaskRunner:
                 timeout=60
             )
             return build_prompt_from_failing_test(
-                result.stdout + result.stderr, with_agents_preamble=use_preamble
+                result.stdout + result.stderr, preamble=preamble
             )
 
         elif task.prompt_source == "issue":

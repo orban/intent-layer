@@ -16,6 +16,7 @@ class RepoConfig(BaseModel):
     url: str
     default_branch: str = "main"
     docker: DockerConfig
+    strip_extra: list[str] = []
 
 
 class Task(BaseModel):

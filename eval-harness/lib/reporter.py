@@ -33,14 +33,19 @@ class Reporter:
 
         compiled = []
         for task_id, conditions in grouped.items():
-            without = conditions.get("without_skill")
-            with_skill = conditions.get("with_skill")
+            none_result = conditions.get("none")
+            flat_result = conditions.get("flat_llm")
+            il_result = conditions.get("intent_layer")
 
             task_result = {
                 "task_id": task_id,
-                "without_skill": self._serialize_result(without) if without else None,
-                "with_skill": self._serialize_result(with_skill) if with_skill else None,
-                "delta": self._compute_delta(without, with_skill)
+                "none": self._serialize_result(none_result) if none_result else None,
+                "flat_llm": self._serialize_result(flat_result) if flat_result else None,
+                "intent_layer": self._serialize_result(il_result) if il_result else None,
+                "deltas": {
+                    "flat_llm": self._compute_single_delta(none_result, flat_result),
+                    "intent_layer": self._compute_single_delta(none_result, il_result),
+                }
             }
             compiled.append(task_result)
 
@@ -104,24 +109,37 @@ class Reporter:
 
         return result
 
-    def _compute_delta(self, without: TaskResult | None, with_skill: TaskResult | None) -> dict:
-        """Compute delta between conditions using fix_only metrics."""
-        if not without or not with_skill:
+    def _compute_single_delta(self, baseline: TaskResult | None, treatment: TaskResult | None) -> dict:
+        """Compute delta between baseline and treatment using fix_only metrics."""
+        if not baseline or not treatment:
             return {}
 
-        success_delta = int(with_skill.success) - int(without.success)
+        success_delta = int(treatment.success) - int(baseline.success)
 
         # Use fix-only time (exclude skill_generation)
-        time_pct = ((with_skill.wall_clock_seconds - without.wall_clock_seconds) / without.wall_clock_seconds * 100) if without.wall_clock_seconds else 0
+        if baseline.wall_clock_seconds:
+            time_pct = (treatment.wall_clock_seconds - baseline.wall_clock_seconds) / baseline.wall_clock_seconds * 100
+        else:
+            time_pct = 0
 
         # Use fix-only tokens (exclude skill_generation)
-        with_tokens = with_skill.input_tokens + with_skill.output_tokens
-        without_tokens = without.input_tokens + without.output_tokens
-        tokens_pct = ((with_tokens - without_tokens) / without_tokens * 100) if without_tokens else 0
+        treatment_tokens = treatment.input_tokens + treatment.output_tokens
+        baseline_tokens = baseline.input_tokens + baseline.output_tokens
+        if baseline_tokens:
+            tokens_pct = (treatment_tokens - baseline_tokens) / baseline_tokens * 100
+        else:
+            tokens_pct = 0
 
         # tool_calls and lines_changed are already fix-only
-        tools_pct = ((with_skill.tool_calls - without.tool_calls) / without.tool_calls * 100) if without.tool_calls else 0
-        lines_pct = ((with_skill.lines_changed - without.lines_changed) / without.lines_changed * 100) if without.lines_changed else 0
+        if baseline.tool_calls:
+            tools_pct = (treatment.tool_calls - baseline.tool_calls) / baseline.tool_calls * 100
+        else:
+            tools_pct = 0
+
+        if baseline.lines_changed:
+            lines_pct = (treatment.lines_changed - baseline.lines_changed) / baseline.lines_changed * 100
+        else:
+            lines_pct = 0
 
         return {
             "success": f"+{success_delta}" if success_delta >= 0 else str(success_delta),
@@ -133,16 +151,15 @@ class Reporter:
 
     def _compute_summary(self, results: list[TaskResult]) -> dict:
         """Compute overall summary statistics."""
-        without = [r for r in results if r.condition == Condition.WITHOUT_SKILL]
-        with_skill = [r for r in results if r.condition == Condition.WITH_SKILL]
-
-        without_success = sum(1 for r in without if r.success) / len(without) if without else 0
-        with_success = sum(1 for r in with_skill if r.success) / len(with_skill) if with_skill else 0
+        none_results = [r for r in results if r.condition == Condition.NONE]
+        flat_results = [r for r in results if r.condition == Condition.FLAT_LLM]
+        il_results = [r for r in results if r.condition == Condition.INTENT_LAYER]
 
         return {
             "total_tasks": len(set(r.task_id for r in results)),
-            "without_skill_success_rate": round(without_success, 2),
-            "with_skill_success_rate": round(with_success, 2),
+            "none_success_rate": round(sum(1 for r in none_results if r.success) / len(none_results), 2) if none_results else 0,
+            "flat_llm_success_rate": round(sum(1 for r in flat_results if r.success) / len(flat_results), 2) if flat_results else 0,
+            "intent_layer_success_rate": round(sum(1 for r in il_results if r.success) / len(il_results), 2) if il_results else 0,
         }
 
     def write_json(self, results: EvalResults) -> str:
@@ -164,62 +181,63 @@ class Reporter:
             "## Summary",
             "",
             f"- **Total tasks:** {results.summary['total_tasks']}",
-            f"- **Without skill success rate:** {results.summary['without_skill_success_rate']:.0%}",
-            f"- **With skill success rate:** {results.summary['with_skill_success_rate']:.0%}",
+            f"- **None success rate:** {results.summary['none_success_rate']:.0%}",
+            f"- **Flat LLM success rate:** {results.summary['flat_llm_success_rate']:.0%}",
+            f"- **Intent Layer success rate:** {results.summary['intent_layer_success_rate']:.0%}",
             "",
             "## Results",
             "",
-            "| Task | Without Skill | With Skill | Δ Success | Δ Fix Time | Δ Fix Tokens | Δ Tools | Δ Lines | Δ Files | Index Time | Index Tokens | Cache |",
-            "|------|--------------|------------|-----------|-----------|-------------|---------|---------|---------|------------|--------------|-------|",
+            "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines | \u0394 Time | \u0394 Tokens |",
+            "|------|-----------|---------|----------|--------|------------|-------|--------|----------|",
         ]
 
         for r in results.results:
-            without = r.get("without_skill", {})
-            with_s = r.get("with_skill", {})
-            delta = r.get("delta", {})
+            task_id = r["task_id"]
+            deltas = r.get("deltas", {})
 
-            # Extract index metrics from with_skill condition
-            index_time = "N/A"
-            index_tokens = "N/A"
-            cache = "N/A"
+            for cond_key in ("none", "flat_llm", "intent_layer"):
+                cond_data = r.get(cond_key)
+                if cond_data is None:
+                    continue
 
-            if with_s and "skill_generation" in with_s:
-                skill_gen = with_s["skill_generation"]
+                success = "PASS" if cond_data.get("success") else "FAIL"
 
-                # Format index time
-                index_time = f"{skill_gen['wall_clock_seconds']:.1f}s"
+                # Use fix_only metrics for conditions with skill_generation, flat for none
+                if "fix_only" in cond_data:
+                    fix = cond_data["fix_only"]
+                    time_s = fix["wall_clock_seconds"]
+                    tokens = fix["input_tokens"] + fix["output_tokens"]
+                    tool_calls = fix["tool_calls"]
+                    lines_changed = fix["lines_changed"]
+                else:
+                    time_s = cond_data.get("wall_clock_seconds", 0)
+                    tokens = cond_data.get("input_tokens", 0) + cond_data.get("output_tokens", 0)
+                    tool_calls = cond_data.get("tool_calls", 0)
+                    lines_changed = cond_data.get("lines_changed", 0)
 
-                # Format index tokens in thousands
-                total_index_tokens = skill_gen['input_tokens'] + skill_gen['output_tokens']
-                index_tokens = f"{total_index_tokens / 1000:.1f}k"
+                tokens_fmt = f"{tokens / 1000:.1f}k"
 
-                # Format cache hit/miss
-                cache_hit = skill_gen.get('cache_hit', False)
-                cache = "✓" if cache_hit else "✗"
+                # Deltas: none is baseline, shows "—"
+                if cond_key == "none":
+                    d_time = "\u2014"
+                    d_tokens = "\u2014"
+                else:
+                    delta = deltas.get(cond_key, {})
+                    d_time = delta.get("time_percent", "N/A")
+                    d_tokens = delta.get("tokens_percent", "N/A")
 
-            # Calculate files delta
-            files_delta = "N/A"
-            if without and with_s and "fix_only" in with_s:
-                without_files = len(without.get('files_touched', []))
-                with_files = len(with_s['fix_only'].get('files_touched', []))
-                if without_files > 0:
-                    files_pct = ((with_files - without_files) / without_files * 100)
-                    files_delta = f"{files_pct:+.1f}%"
+                lines.append(
+                    f"| {task_id} | {cond_key} | {success} | {time_s:.1f} | "
+                    f"{tokens_fmt} | {tool_calls} | {lines_changed} | "
+                    f"{d_time} | {d_tokens} |"
+                )
 
-            lines.append(
-                f"| {r['task_id']} | "
-                f"{'PASS' if without.get('success') else 'FAIL'} | "
-                f"{'PASS' if with_s.get('success') else 'FAIL'} | "
-                f"{delta.get('success', 'N/A')} | "
-                f"{delta.get('time_percent', 'N/A')} | "
-                f"{delta.get('tokens_percent', 'N/A')} | "
-                f"{delta.get('tool_calls_percent', 'N/A')} | "
-                f"{delta.get('lines_changed_percent', 'N/A')} | "
-                f"{files_delta} | "
-                f"{index_time} | "
-                f"{index_tokens} | "
-                f"{cache} |"
-            )
+            # Blank row between tasks
+            lines.append("|  |  |  |  |  |  |  |  |  |")
+
+        # Remove trailing blank row
+        if lines and lines[-1] == "|  |  |  |  |  |  |  |  |  |":
+            lines.pop()
 
         with open(path, "w") as f:
             f.write("\n".join(lines))

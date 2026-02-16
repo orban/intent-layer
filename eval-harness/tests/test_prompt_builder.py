@@ -3,7 +3,9 @@ import pytest
 from lib.prompt_builder import (
     build_prompt_from_commit_message,
     build_prompt_from_failing_test,
-    AGENTS_MD_PREAMBLE,
+    build_flat_generation_prompt,
+    FLAT_PREAMBLE,
+    INTENT_LAYER_PREAMBLE,
 )
 from lib.models import Task
 
@@ -20,7 +22,7 @@ def test_build_prompt_from_commit_message():
 
 def test_build_prompt_from_commit_message_with_preamble():
     prompt = build_prompt_from_commit_message(
-        "fix: handle null pointer", with_agents_preamble=True
+        "fix: handle null pointer", preamble=INTENT_LAYER_PREAMBLE
     )
 
     assert "fix: handle null pointer" in prompt
@@ -42,8 +44,33 @@ def test_build_prompt_from_failing_test():
 
 def test_build_prompt_from_failing_test_with_preamble():
     test_output = "AssertionError: expected 200 but got 500"
-    prompt = build_prompt_from_failing_test(test_output, with_agents_preamble=True)
+    prompt = build_prompt_from_failing_test(test_output, preamble=INTENT_LAYER_PREAMBLE)
 
     assert "AssertionError" in prompt
     assert "AGENTS.md" in prompt
     assert "pitfalls to avoid" in prompt
+
+
+def test_flat_preamble_content():
+    assert "CLAUDE.md" in FLAT_PREAMBLE
+    assert "tests" in FLAT_PREAMBLE.lower()
+
+
+def test_intent_layer_preamble_content():
+    assert "AGENTS.md" in INTENT_LAYER_PREAMBLE
+    assert "pitfalls" in INTENT_LAYER_PREAMBLE
+    assert "contracts" in INTENT_LAYER_PREAMBLE
+
+
+def test_flat_generation_prompt():
+    prompt = build_flat_generation_prompt()
+    assert "analyze this codebase" in prompt
+    assert "CLAUDE.md" in prompt
+    assert "high-level code architecture" in prompt.lower()
+    assert "init_planner" not in prompt  # implementation detail should not leak
+
+
+def test_no_preamble_by_default():
+    prompt = build_prompt_from_commit_message("fix: some bug")
+    # Should start directly with "Fix the following bug"
+    assert prompt.startswith("Fix the following bug")

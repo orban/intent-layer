@@ -73,7 +73,8 @@ def run_claude(
     workspace: str,
     prompt: str,
     timeout: int = 300,
-    max_turns: int = 50
+    max_turns: int = 50,
+    model: str | None = None
 ) -> ClaudeResult:
     """Run Claude Code CLI and capture metrics."""
     cmd = [
@@ -82,8 +83,10 @@ def run_claude(
         "--output-format", "json",
         "--max-turns", str(max_turns),
         "--dangerously-skip-permissions",
-        prompt
     ]
+    if model:
+        cmd.extend(["--model", model])
+    cmd.append(prompt)
 
     env = {**os.environ, "CLAUDE_NO_TELEMETRY": "1"}
 

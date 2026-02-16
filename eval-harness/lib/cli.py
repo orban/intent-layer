@@ -37,7 +37,7 @@ def _make_progress_callback(verbose: bool):
 
 @click.group()
 def main():
-    """A/B eval harness for Claude skills."""
+    """A/B/C eval harness for Claude skills."""
     pass
 
 
@@ -88,7 +88,12 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--clear-cache", is_flag=True, help="Clear index cache before running")
 @click.option("--no-cache", is_flag=True, help="Disable index caching entirely")
 @click.option("--cache-dir", default="workspaces/.index-cache", help="Index cache directory")
-def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir):
+@click.option("--condition", "-c", multiple=True,
+              type=click.Choice(["none", "flat_llm", "intent_layer"]),
+              help="Conditions to run (default: all three)")
+@click.option("--model", default=None,
+              help="Claude model to use (e.g., claude-sonnet-4-5-20250929)")
+def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model):
     """Run eval on task files."""
     # Validate task files exist
     for task_path in tasks:
@@ -119,11 +124,17 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             click.echo(f"  - {task.id} ({task.category})")
         return
 
+    # Determine conditions to run
+    if condition:
+        conditions = [Condition(c) for c in condition]
+    else:
+        conditions = list(Condition)
+
     # Build work queue
     work_queue = []
     for repo, task in all_tasks:
-        work_queue.append((repo, task, Condition.WITHOUT_SKILL))
-        work_queue.append((repo, task, Condition.WITH_SKILL))
+        for cond in conditions:
+            work_queue.append((repo, task, cond))
 
     click.echo(f"Running {len(work_queue)} task/condition pairs with {parallel} workers")
     if verbose:
@@ -142,7 +153,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             cache_dir=cache_dir,
             use_cache=not no_cache
         )
-        return runner.run(task, condition)
+        return runner.run(task, condition, model=model)
 
     with ThreadPoolExecutor(max_workers=parallel) as executor:
         futures = {executor.submit(run_single, item): item for item in work_queue}

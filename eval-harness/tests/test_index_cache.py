@@ -115,6 +115,33 @@ def test_save_and_restore():
                 assert (target_path / "src" / "AGENTS.md").read_text() == "# Src"
 
 
+def test_get_cache_key_with_condition():
+    """Test cache key includes condition."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = IndexCache(tmpdir)
+        key = cache.get_cache_key("https://github.com/user/repo", "abc123456789", "flat_llm")
+        assert key == "repo-abc12345-flat_llm"
+
+
+def test_get_cache_key_without_condition():
+    """Test backward compat: no condition gives old-style key."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = IndexCache(tmpdir)
+        key = cache.get_cache_key("https://github.com/user/repo", "abc123456789")
+        assert key == "repo-abc12345"
+
+
+def test_different_conditions_different_keys():
+    """Test same repo+commit with different conditions get different keys."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache = IndexCache(tmpdir)
+        key1 = cache.get_cache_key("https://github.com/user/repo", "abc123456789", "flat_llm")
+        key2 = cache.get_cache_key("https://github.com/user/repo", "abc123456789", "intent_layer")
+        assert key1 != key2
+        assert "flat_llm" in key1
+        assert "intent_layer" in key2
+
+
 def test_clear():
     """Test clearing cache."""
     with tempfile.TemporaryDirectory() as tmpdir:

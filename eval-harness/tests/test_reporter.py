@@ -7,11 +7,11 @@ from lib.task_runner import TaskResult, Condition, SkillGenerationMetrics
 
 
 @pytest.fixture
-def sample_results():
+def three_condition_results():
     return [
         TaskResult(
             task_id="fix-123",
-            condition=Condition.WITHOUT_SKILL,
+            condition=Condition.NONE,
             success=False,
             test_output="FAIL",
             wall_clock_seconds=100.0,
@@ -23,7 +23,24 @@ def sample_results():
         ),
         TaskResult(
             task_id="fix-123",
-            condition=Condition.WITH_SKILL,
+            condition=Condition.FLAT_LLM,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=80.0,
+            input_tokens=4000,
+            output_tokens=1500,
+            tool_calls=15,
+            lines_changed=30,
+            files_touched=["a.py"],
+            skill_generation=SkillGenerationMetrics(
+                wall_clock_seconds=20.0,
+                input_tokens=1000,
+                output_tokens=300
+            )
+        ),
+        TaskResult(
+            task_id="fix-123",
+            condition=Condition.INTENT_LAYER,
             success=True,
             test_output="PASS",
             wall_clock_seconds=60.0,
@@ -41,156 +58,223 @@ def sample_results():
     ]
 
 
-def test_reporter_generates_json(tmp_path, sample_results):
+def test_three_condition_compilation(three_condition_results):
+    """All three conditions present — none, flat_llm, intent_layer."""
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(three_condition_results)
+
+    assert len(eval_results.results) == 1
+    task = eval_results.results[0]
+
+    assert task["task_id"] == "fix-123"
+    assert task["none"] is not None
+    assert task["flat_llm"] is not None
+    assert task["intent_layer"] is not None
+
+    # none should be flat structure (no skill_generation)
+    assert task["none"]["success"] is False
+    assert task["none"]["wall_clock_seconds"] == 100.0
+    assert "fix_only" not in task["none"]
+
+    # flat_llm should have three-level structure
+    assert task["flat_llm"]["success"] is True
+    assert "fix_only" in task["flat_llm"]
+    assert task["flat_llm"]["fix_only"]["wall_clock_seconds"] == 80.0
+
+    # intent_layer should have three-level structure
+    assert task["intent_layer"]["success"] is True
+    assert "fix_only" in task["intent_layer"]
+    assert task["intent_layer"]["fix_only"]["wall_clock_seconds"] == 60.0
+
+
+def test_deltas_relative_to_none(three_condition_results):
+    """Both flat_llm and intent_layer get deltas against the none baseline."""
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(three_condition_results)
+
+    task = eval_results.results[0]
+    deltas = task["deltas"]
+
+    # flat_llm delta: time (80 - 100) / 100 = -20%
+    assert deltas["flat_llm"]["time_percent"] == "-20.0%"
+    # flat_llm delta: tokens (5500 - 7000) / 7000 = -21.4%
+    assert deltas["flat_llm"]["tokens_percent"] == "-21.4%"
+    # flat_llm delta: success +1 (True - False)
+    assert deltas["flat_llm"]["success"] == "+1"
+
+    # intent_layer delta: time (60 - 100) / 100 = -40%
+    assert deltas["intent_layer"]["time_percent"] == "-40.0%"
+    # intent_layer delta: tokens (4000 - 7000) / 7000 = -42.9%
+    assert deltas["intent_layer"]["tokens_percent"] == "-42.9%"
+    assert deltas["intent_layer"]["success"] == "+1"
+
+
+def test_zero_baseline_delta():
+    """If none has 0 time/tokens, don't divide by zero."""
+    results = [
+        TaskResult(
+            task_id="fix-zero",
+            condition=Condition.NONE,
+            success=False,
+            test_output="FAIL",
+            wall_clock_seconds=0.0,
+            input_tokens=0,
+            output_tokens=0,
+            tool_calls=0,
+            lines_changed=0,
+            files_touched=[]
+        ),
+        TaskResult(
+            task_id="fix-zero",
+            condition=Condition.FLAT_LLM,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=50.0,
+            input_tokens=3000,
+            output_tokens=1000,
+            tool_calls=10,
+            lines_changed=20,
+            files_touched=["a.py"],
+            skill_generation=SkillGenerationMetrics(
+                wall_clock_seconds=10.0,
+                input_tokens=500,
+                output_tokens=100
+            )
+        ),
+    ]
+
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(results)
+
+    task = eval_results.results[0]
+    delta = task["deltas"]["flat_llm"]
+
+    # Should not raise ZeroDivisionError; uses 0 fallback
+    assert delta["time_percent"] == "+0.0%"
+    assert delta["tokens_percent"] == "+0.0%"
+    assert delta["tool_calls_percent"] == "+0.0%"
+    assert delta["lines_changed_percent"] == "+0.0%"
+
+
+def test_missing_condition():
+    """Only 2 of 3 conditions run — missing one is None."""
+    results = [
+        TaskResult(
+            task_id="fix-partial",
+            condition=Condition.NONE,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=90.0,
+            input_tokens=4000,
+            output_tokens=1500,
+            tool_calls=18,
+            lines_changed=40,
+            files_touched=["x.py"]
+        ),
+        TaskResult(
+            task_id="fix-partial",
+            condition=Condition.INTENT_LAYER,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=50.0,
+            input_tokens=2000,
+            output_tokens=800,
+            tool_calls=8,
+            lines_changed=20,
+            files_touched=["x.py"],
+            skill_generation=SkillGenerationMetrics(
+                wall_clock_seconds=25.0,
+                input_tokens=1500,
+                output_tokens=400
+            )
+        ),
+    ]
+
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(results)
+
+    task = eval_results.results[0]
+    assert task["none"] is not None
+    assert task["flat_llm"] is None
+    assert task["intent_layer"] is not None
+
+    # flat_llm delta should be empty (missing condition)
+    assert task["deltas"]["flat_llm"] == {}
+    # intent_layer delta should exist
+    assert task["deltas"]["intent_layer"]["time_percent"] == "-44.4%"
+
+
+def test_summary_three_success_rates(three_condition_results):
+    """Summary has all three success rates."""
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(three_condition_results)
+
+    summary = eval_results.summary
+    assert summary["total_tasks"] == 1
+    assert summary["none_success_rate"] == 0.0
+    assert summary["flat_llm_success_rate"] == 1.0
+    assert summary["intent_layer_success_rate"] == 1.0
+
+
+def test_markdown_multi_row_layout(tmp_path, three_condition_results):
+    """Markdown output has multi-row layout with correct structure."""
     reporter = Reporter(output_dir=str(tmp_path))
-    eval_results = reporter.compile_results(sample_results)
-
-    json_path = reporter.write_json(eval_results)
-
-    assert Path(json_path).exists()
-    with open(json_path) as f:
-        data = json.load(f)
-    assert "results" in data
-    assert "summary" in data
-
-
-def test_reporter_computes_deltas(sample_results):
-    reporter = Reporter(output_dir="/tmp")
-    eval_results = reporter.compile_results(sample_results)
-
-    task_result = eval_results.results[0]
-    assert task_result["delta"]["success"] == "+1"
-    assert "time_percent" in task_result["delta"]
-
-
-def test_reporter_separates_fix_and_indexing_metrics(sample_results):
-    """Test that with_skill results have three-level structure: fix_only, skill_generation, total."""
-    reporter = Reporter(output_dir="/tmp")
-    eval_results = reporter.compile_results(sample_results)
-
-    task_result = eval_results.results[0]
-
-    # without_skill should remain flat (no three-level structure)
-    without = task_result["without_skill"]
-    assert without["success"] is False
-    assert without["wall_clock_seconds"] == 100.0
-    assert without["input_tokens"] == 5000
-    assert without["output_tokens"] == 2000
-    assert "fix_only" not in without
-    assert "skill_generation" not in without
-    assert "total" not in without
-
-    # with_skill should have three-level structure
-    with_s = task_result["with_skill"]
-
-    # fix_only metrics (bug fixing only, excludes indexing)
-    assert "fix_only" in with_s
-    assert with_s["fix_only"]["wall_clock_seconds"] == 60.0
-    assert with_s["fix_only"]["input_tokens"] == 3000
-    assert with_s["fix_only"]["output_tokens"] == 1000
-    assert with_s["fix_only"]["tool_calls"] == 10
-    assert with_s["fix_only"]["lines_changed"] == 25
-
-    # skill_generation metrics (indexing only)
-    assert "skill_generation" in with_s
-    assert with_s["skill_generation"]["wall_clock_seconds"] == 30.0
-    assert with_s["skill_generation"]["input_tokens"] == 2000
-    assert with_s["skill_generation"]["output_tokens"] == 500
-
-    # total metrics (sum of fix_only and skill_generation)
-    assert "total" in with_s
-    assert with_s["total"]["wall_clock_seconds"] == 90.0  # 60 + 30
-    assert with_s["total"]["input_tokens"] == 5000  # 3000 + 2000
-    assert with_s["total"]["output_tokens"] == 1500  # 1000 + 500
-
-    # Common fields at top level
-    assert with_s["success"] is True
-    assert with_s["test_output"] == "PASS"
-
-
-def test_reporter_delta_uses_fix_only_metrics(sample_results):
-    """Test that delta calculations compare fix_only metrics, not totals."""
-    reporter = Reporter(output_dir="/tmp")
-    eval_results = reporter.compile_results(sample_results)
-
-    task_result = eval_results.results[0]
-    delta = task_result["delta"]
-
-    # Delta should compare:
-    # - without_skill: 100s, 7000 tokens (5000 + 2000)
-    # - with_skill fix_only: 60s, 4000 tokens (3000 + 1000)
-    # NOT with_skill total: 90s, 6500 tokens
-
-    # Time delta: (60 - 100) / 100 = -40%
-    assert delta["time_percent"] == "-40.0%"
-
-    # Tokens delta: (4000 - 7000) / 7000 = -42.86%
-    assert delta["tokens_percent"] == "-42.9%"
-
-    # Tool calls delta: (10 - 20) / 20 = -50%
-    assert delta["tool_calls_percent"] == "-50.0%"
-
-    # Lines changed delta: (25 - 50) / 50 = -50%
-    assert delta["lines_changed_percent"] == "-50.0%"
-
-
-def test_markdown_report_includes_all_columns(tmp_path, sample_results):
-    """Test that markdown report includes all columns including index time, tokens, and cache."""
-    reporter = Reporter(output_dir=str(tmp_path))
-    eval_results = reporter.compile_results(sample_results)
-
+    eval_results = reporter.compile_results(three_condition_results)
     md_path = reporter.write_markdown(eval_results)
 
     with open(md_path) as f:
         content = f.read()
 
-    # Check that header row contains all expected columns
-    assert "| Task |" in content
-    assert "| Without Skill |" in content
-    assert "| With Skill |" in content
-    assert "| Δ Success |" in content
-    assert "| Δ Fix Time |" in content
-    assert "| Δ Fix Tokens |" in content
-    assert "| Δ Tools |" in content
-    assert "| Δ Lines |" in content
-    assert "| Δ Files |" in content
-    assert "| Index Time |" in content
-    assert "| Index Tokens |" in content
-    assert "| Cache |" in content
+    # Header has new columns
+    assert "| Task | Condition | Success |" in content
+    assert "| Time (s) |" in content
 
-    # Check data rows contain expected values
-    lines = content.split('\n')
+    # Summary has all three rates
+    assert "None success rate" in content
+    assert "Flat LLM success rate" in content
+    assert "Intent Layer success rate" in content
 
-    # Find the data row (should be after the separator row)
-    data_row = None
-    for i, line in enumerate(lines):
-        if line.startswith('| fix-123 |'):
-            data_row = line
-            break
+    lines = content.split("\n")
 
-    assert data_row is not None, "Could not find data row for fix-123"
+    # Find data rows for fix-123
+    data_rows = [l for l in lines if l.startswith("| fix-123 |")]
+    assert len(data_rows) == 3, f"Expected 3 rows for fix-123, got {len(data_rows)}"
 
-    # Data row should have:
-    # - Task: fix-123
-    # - Without Skill: FAIL
-    # - With Skill: PASS
-    # - Δ Success: +1
-    # - Δ Fix Time: -40.0%
-    # - Δ Fix Tokens: -42.9%
-    # - Δ Tools: -50.0%
-    # - Δ Lines: -50.0%
-    # - Δ Files: -50.0% (2 files to 1 file)
-    # - Index Time: 30.0s
-    # - Index Tokens: 2.5k (2000 + 500)
-    # - Cache: ✗ (cache_hit is None/False)
+    # First row: none condition, baseline deltas show em-dash
+    none_row = data_rows[0]
+    assert "| none |" in none_row
+    assert "| FAIL |" in none_row
+    assert "\u2014" in none_row  # em-dash for baseline
 
-    assert "| fix-123 |" in data_row
-    assert "| FAIL |" in data_row
-    assert "| PASS |" in data_row
-    assert "| +1 |" in data_row
-    assert "| -40.0% |" in data_row
-    assert "| -42.9% |" in data_row
-    assert "| -50.0% |" in data_row  # tools
-    assert "| 30.0s |" in data_row  # index time
-    assert "| 2.5k |" in data_row  # index tokens (2000 + 500)
-    assert "| ✗ |" in data_row  # cache miss
+    # Second row: flat_llm
+    flat_row = data_rows[1]
+    assert "| flat_llm |" in flat_row
+    assert "| PASS |" in flat_row
+    assert "-20.0%" in flat_row  # time delta
+
+    # Third row: intent_layer
+    il_row = data_rows[2]
+    assert "| intent_layer |" in il_row
+    assert "| PASS |" in il_row
+    assert "-40.0%" in il_row  # time delta
+
+
+def test_json_output(tmp_path, three_condition_results):
+    """JSON output writes correctly with new structure."""
+    reporter = Reporter(output_dir=str(tmp_path))
+    eval_results = reporter.compile_results(three_condition_results)
+    json_path = reporter.write_json(eval_results)
+
+    assert Path(json_path).exists()
+    with open(json_path) as f:
+        data = json.load(f)
+
+    assert "results" in data
+    assert "summary" in data
+    assert len(data["results"]) == 1
+
+    task = data["results"][0]
+    assert "none" in task
+    assert "flat_llm" in task
+    assert "intent_layer" in task
+    assert "deltas" in task

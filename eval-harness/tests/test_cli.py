@@ -12,7 +12,7 @@ def runner():
 def test_main_shows_help(runner):
     result = runner.invoke(main, ["--help"])
     assert result.exit_code == 0
-    assert "A/B eval harness" in result.output or "evaluation framework" in result.output
+    assert "A/B/C eval harness" in result.output or "eval harness" in result.output
 
 
 def test_scan_shows_help(runner):
@@ -33,6 +33,35 @@ def test_run_validates_tasks_exist(runner, tmp_path):
     result = runner.invoke(run, ["--tasks", str(tmp_path / "nonexistent.yaml")])
     # The current stub does NOT validate existence, so this should fail
     assert result.exit_code != 0
+    assert "does not exist" in result.output.lower() or "error" in result.output.lower()
+
+
+def test_run_accepts_condition_flag(runner):
+    """Test that run command accepts --condition flag with valid values."""
+    result = runner.invoke(run, ["--help"])
+    assert result.exit_code == 0
+    assert "--condition" in result.output
+
+    # Valid condition values should parse (fail on missing task file, not flag parsing)
+    result = runner.invoke(run, ["--tasks", "dummy.yaml", "--condition", "none", "--dry-run"])
+    assert "does not exist" in result.output.lower() or "error" in result.output.lower()
+
+    result = runner.invoke(run, ["--tasks", "dummy.yaml", "-c", "flat_llm", "-c", "intent_layer", "--dry-run"])
+    assert "does not exist" in result.output.lower() or "error" in result.output.lower()
+
+    # Invalid condition value should be rejected by click.Choice
+    result = runner.invoke(run, ["--tasks", "dummy.yaml", "--condition", "bogus"])
+    assert result.exit_code != 0
+
+
+def test_run_accepts_model_flag(runner):
+    """Test that run command accepts --model flag."""
+    result = runner.invoke(run, ["--help"])
+    assert result.exit_code == 0
+    assert "--model" in result.output
+
+    # Model flag should parse (fail on missing task file, not flag parsing)
+    result = runner.invoke(run, ["--tasks", "dummy.yaml", "--model", "claude-sonnet-4-5-20250929", "--dry-run"])
     assert "does not exist" in result.output.lower() or "error" in result.output.lower()
 
 

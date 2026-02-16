@@ -12,7 +12,7 @@ def test_cache_hit_restores_files():
         cache_dir = Path(tmpdir) / ".index-cache"
         workspace_base = Path(tmpdir) / "workspaces"
 
-        # Pre-populate cache
+        # Pre-populate cache with condition in key
         cache = IndexCache(str(cache_dir))
         with tempfile.TemporaryDirectory() as mock_workspace:
             mock_ws_path = Path(mock_workspace)
@@ -24,10 +24,10 @@ def test_cache_hit_restores_files():
                 "https://github.com/user/repo",
                 "abc123456789",
                 mock_workspace,
-                ["CLAUDE.md", "src/AGENTS.md"]
+                ["CLAUDE.md", "src/AGENTS.md"],
+                "intent_layer"
             )
 
-        # Create minimal repo config
         repo_config = RepoConfig(
             url="https://github.com/user/repo",
             docker=DockerConfig(
@@ -37,7 +37,6 @@ def test_cache_hit_restores_files():
             )
         )
 
-        # Create TaskRunner
         runner = TaskRunner(
             repo=repo_config,
             workspaces_dir=str(workspace_base),
@@ -45,24 +44,21 @@ def test_cache_hit_restores_files():
             use_cache=True
         )
 
-        # Create test workspace
         test_workspace = workspace_base / "test-workspace"
         test_workspace.mkdir(parents=True)
 
-        # Call _check_or_generate_index (we'll create this helper method)
         metrics = runner._check_or_generate_index(
             workspace=str(test_workspace),
             repo_url="https://github.com/user/repo",
-            commit="abc123456789"
+            commit="abc123456789",
+            condition="intent_layer"
         )
 
-        # Verify cache hit
         assert metrics.cache_hit is True
         assert metrics.input_tokens == 0
         assert metrics.output_tokens == 0
-        assert metrics.wall_clock_seconds < 1.0  # Should be fast
+        assert metrics.wall_clock_seconds < 1.0
 
-        # Verify files were restored
         assert (test_workspace / "CLAUDE.md").exists()
         assert (test_workspace / "src" / "AGENTS.md").exists()
         assert (test_workspace / "CLAUDE.md").read_text() == "# Cached Root"
@@ -74,7 +70,6 @@ def test_cache_miss_generates_and_saves():
         cache_dir = Path(tmpdir) / ".index-cache"
         workspace_base = Path(tmpdir) / "workspaces"
 
-        # Create minimal repo config
         repo_config = RepoConfig(
             url="https://github.com/user/new-repo",
             docker=DockerConfig(
@@ -84,7 +79,6 @@ def test_cache_miss_generates_and_saves():
             )
         )
 
-        # Create TaskRunner with empty cache
         runner = TaskRunner(
             repo=repo_config,
             workspaces_dir=str(workspace_base),
@@ -92,19 +86,43 @@ def test_cache_miss_generates_and_saves():
             use_cache=True
         )
 
-        # Create test workspace with mock files
         test_workspace = workspace_base / "test-workspace"
         test_workspace.mkdir(parents=True)
         (test_workspace / "README.md").write_text("# Test")
 
-        # Mock the skill generation to create AGENTS.md files
-        # (In real implementation, this would call run_claude)
-        # For now, we'll manually create files to simulate generation
         (test_workspace / "CLAUDE.md").write_text("# Generated Root")
 
-        # Verify cache is initially empty
-        entry = runner.index_cache.lookup("https://github.com/user/new-repo", "def456")
+        # Verify cache is initially empty for this condition
+        entry = runner.index_cache.lookup("https://github.com/user/new-repo", "def456", "intent_layer")
         assert entry is None
 
-        # This test will fail until we implement _check_or_generate_index
-        # For now, we'll mark this as a placeholder
+
+def test_different_conditions_cached_separately():
+    """Test that same repo+commit with different conditions are cached independently."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = Path(tmpdir) / ".index-cache"
+        workspace_base = Path(tmpdir) / "workspaces"
+
+        cache = IndexCache(str(cache_dir))
+
+        # Save flat_llm cache entry
+        with tempfile.TemporaryDirectory() as ws1:
+            (Path(ws1) / "CLAUDE.md").write_text("# Flat content")
+            cache.save("https://github.com/user/repo", "abc123456789", ws1, ["CLAUDE.md"], "flat_llm")
+
+        # Save intent_layer cache entry
+        with tempfile.TemporaryDirectory() as ws2:
+            ws2_path = Path(ws2)
+            (ws2_path / "CLAUDE.md").write_text("# Root")
+            (ws2_path / "src").mkdir()
+            (ws2_path / "src" / "AGENTS.md").write_text("# Src")
+            cache.save("https://github.com/user/repo", "abc123456789", ws2, ["CLAUDE.md", "src/AGENTS.md"], "intent_layer")
+
+        # Lookup each independently
+        flat_entry = cache.lookup("https://github.com/user/repo", "abc123456789", "flat_llm")
+        il_entry = cache.lookup("https://github.com/user/repo", "abc123456789", "intent_layer")
+
+        assert flat_entry is not None
+        assert il_entry is not None
+        assert len(flat_entry.agents_files) == 1
+        assert len(il_entry.agents_files) == 2
