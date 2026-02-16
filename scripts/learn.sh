@@ -251,5 +251,5 @@ SECTION_WORDS=$(awk -v section="$TARGET_SECTION" '
 
 if [[ "$SECTION_WORDS" -gt 300 ]]; then
     echo "Warning: ## $TARGET_SECTION in $COVERING_NODE has ~${SECTION_WORDS} words (budget: ~300)" >&2
-    echo "Consider consolidating entries with /intent-layer-maintenance" >&2
+    echo "Consider consolidating entries with /intent-layer:maintain" >&2
 fi

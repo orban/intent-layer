@@ -120,7 +120,7 @@ Examples of should_capture: true:
 
 Examples of should_capture: false:
 - Normal coding session, agent wrote tests and fixed a typo
-- Agent edited AGENTS.md as part of routine /intent-layer-maintenance
+- Agent edited AGENTS.md as part of routine /intent-layer:maintain
 - Simple Q&A session with no unexpected discoveries
 - User asked agent to push, commit, or do routine git operations
 

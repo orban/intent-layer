@@ -166,7 +166,7 @@ if [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
    parent_has_coverage "$FILE_DIR"; then
     echo ""
     echo "📁 New directory \`$DIR_NAME\` created - may need AGENTS.md coverage as it grows."
-    echo "   Run \`/intent-layer-maintenance\` when ready to extend the hierarchy."
+    echo "   Run \`/intent-layer:maintain\` when ready to extend the hierarchy."
 fi
 
 # --- Outcome Telemetry ---

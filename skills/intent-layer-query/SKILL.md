@@ -321,7 +321,7 @@ Fall back to code analysis, but flag uncertainty:
 
 ### 3. Trigger Maintenance
 
-If multiple gaps found, suggest running `intent-layer-maintenance` skill.
+If multiple gaps found, suggest running `intent-layer:maintain` skill.
 
 ---
 

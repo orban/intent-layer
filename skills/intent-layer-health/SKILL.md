@@ -83,7 +83,7 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/audit_intent_layer.sh [path]
 
 - **80%+**: Good coverage
 - **60-80%**: Consider adding nodes for uncovered areas
-- **<60%**: Significant gaps - run `/intent-layer-maintenance`
+- **<60%**: Significant gaps - run `/intent-layer:maintain`
 
 ---
 
@@ -102,7 +102,7 @@ Present results to user in this format:
 - Coverage: 85% (3 directories uncovered)
 
 ### Recommended Actions
-1. Run `/intent-layer-maintenance` to address stale nodes
+1. Run `/intent-layer:maintain` to address stale nodes
 2. Consider adding AGENTS.md to: src/utils/, src/migrations/
 
 Ready to proceed with current work? The warnings are informational.
@@ -122,7 +122,7 @@ Intent Layer is healthy. Good to proceed with current work.
 
 ```markdown
 ### Recommended Actions
-1. [If stale nodes] Run `/intent-layer-maintenance` to update stale nodes
+1. [If stale nodes] Run `/intent-layer:maintain` to update stale nodes
 2. [If low coverage] Consider adding AGENTS.md to: [list uncovered directories]
 3. [If validation warnings] Review warnings: [list]
 
@@ -135,7 +135,7 @@ These are informational - you can proceed with current work.
 ### Immediate Actions Required
 1. [If validation failures] Fix these nodes before proceeding:
    - [node path]: [issue description]
-2. [If >50% stale] Most nodes are outdated - run `/intent-layer-maintenance`
+2. [If >50% stale] Most nodes are outdated - run `/intent-layer:maintain`
 
 Recommend addressing these issues before starting new work.
 ```
@@ -168,7 +168,7 @@ Exit codes enable CI pass/fail:
 
 | Skill | Use When |
 |-------|----------|
-| `/intent-layer-maintenance` | Status is NEEDS_ATTENTION or CRITICAL |
+| `/intent-layer:maintain` | Status is NEEDS_ATTENTION or CRITICAL |
 | `/intent-layer` | No Intent Layer exists (state = none/partial) |
 | `/intent-layer-query` | Need to query Intent Layer for information |
 

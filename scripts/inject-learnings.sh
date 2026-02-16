@@ -40,6 +40,20 @@ Without this, I'm navigating blind. Setup takes ~5 minutes for most projects.")
     fi
 fi
 
+# --- Check 1b: Migration notice for v2.0 command renames ---
+if [[ "$STATE" == "complete" || "$STATE" == "partial" ]]; then
+    CONTEXT_PARTS+=("## Intent Layer v2.0: Command names changed
+
+| Old | New |
+|-----|-----|
+| \`/intent-layer-maintenance\` | \`/intent-layer:maintain\` |
+| \`/review-mistakes\` | \`/intent-layer:review\` |
+| \`/intent-layer-compound\` | _(removed, auto-captured by stop hook)_ |
+| \`/intent-layer-onboarding\` | \`/intent-layer\` _(router handles it)_ |
+| \`/intent-layer-query\` | \`/intent-layer:query\` |
+| \`/intent-layer-health\` | \`/intent-layer:health\` |")
+fi
+
 # --- Check 2: Recent learnings from accepted mistakes ---
 AGGREGATE_SCRIPT="$PLUGIN_ROOT/lib/aggregate_learnings.sh"
 if [[ -x "$AGGREGATE_SCRIPT" ]]; then

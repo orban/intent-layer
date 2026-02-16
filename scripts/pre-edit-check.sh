@@ -82,7 +82,7 @@ if [[ -z "$NODE_PATH" ]]; then
 
 This directory isn't documented in the Intent Layer. Consider:
 - Adding an AGENTS.md if this is a key module
-- Running \`/intent-layer-maintenance\` to review coverage"
+- Running \`/intent-layer:maintain\` to review coverage"
             output_context "PreToolUse" "$CONTEXT"
             ;;
     esac

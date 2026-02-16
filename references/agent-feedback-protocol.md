@@ -130,7 +130,7 @@ Before marking task complete, check if you encountered Intent Layer gaps.
 Include Intent Layer feedback in PR description if findings emerged.
 
 ### Quarterly Maintenance
-Use accumulated feedback as input to `intent-layer-maintenance` skill.
+Use accumulated feedback as input to `intent-layer:maintain` skill.
 
 ## Example Workflow
 
