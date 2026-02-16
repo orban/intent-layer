@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "9592a29238fa",
+  "session_id": "9fd5722f-1cb1-4aaa-b70d-d52efc3277da",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T03:13:07.424956Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/plans/2026-02-15-feat-top-5-features-roadmap-plan.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7161114a-4288-4f47-8eca-89724126d4ee",
+  "checkpoint_transcript_start": 527,
+  "transcript_lines_at_start": 527,
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 66284,
+    "cache_read_tokens": 1634218,
+    "output_tokens": 1538,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T03:13:04.551859Z",
+    "agent_lines": 5,
+    "human_added": 307,
+    "human_modified": 17,
+    "human_removed": 0,
+    "total_committed": 329,
+    "agent_percentage": 1.5197568389057752
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/9fd5722f-1cb1-4aaa-b70d-d52efc3277da.jsonl"
+}
