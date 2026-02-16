@@ -17,6 +17,7 @@ set -euo pipefail
 #
 # Optional:
 #   --agent-id ID     Identifier for the reporting agent
+#   --confidence LVL  Confidence level: high, medium, low
 #   -h, --help        Show this help
 #
 # Examples:
@@ -38,6 +39,7 @@ LEARNING_TYPE=""
 TITLE=""
 DETAIL=""
 AGENT_ID=""
+CONFIDENCE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -48,6 +50,7 @@ while [[ $# -gt 0 ]]; do
         --title) TITLE="$2"; shift 2 ;;
         --detail) DETAIL="$2"; shift 2 ;;
         --agent-id) AGENT_ID="$2"; shift 2 ;;
+        --confidence) CONFIDENCE="$2"; shift 2 ;;
         *) echo "Error: Unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -105,6 +108,7 @@ CAPTURE_ARGS=(
 )
 
 [[ -n "$AGENT_ID" ]] && CAPTURE_ARGS+=(--agent-id "$AGENT_ID")
+[[ -n "$CONFIDENCE" ]] && CAPTURE_ARGS+=(--confidence "$CONFIDENCE")
 
 # Set project dir for capture script
 export CLAUDE_PROJECT_DIR="$PROJECT"

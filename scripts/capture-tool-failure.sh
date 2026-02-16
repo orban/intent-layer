@@ -94,6 +94,7 @@ cat > "$REPORT_FILE" << EOF
 **Timestamp**: $TIMESTAMP
 **Directory**: $TARGET_DIR
 **Operation**: $OPERATION
+**Confidence**: low
 **Status**: skeleton (awaiting enrichment)
 
 ### What Went Wrong

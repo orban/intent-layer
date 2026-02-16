@@ -130,8 +130,8 @@ fi
 
 # --- Tier 2 tests (with mock curl) ---
 
-# Test 8: Haiku says should_capture: true → block
-echo "Test 8: Haiku should_capture=true produces block"
+# Test 8: Haiku says should_capture: true → stderr summary (non-blocking)
+echo "Test 8: Haiku should_capture=true → non-blocking stderr summary"
 TEMP_PROJECT=$(mktemp -d)
 trap "rm -rf $TEMP_PROJECT" EXIT
 mkdir -p "$TEMP_PROJECT/.intent-layer/mistakes/pending"
@@ -152,10 +152,11 @@ output=$(echo "{\"stop_hook_active\": false, \"transcript_path\": \"$TMPFILE\"}"
     "$STOP_HOOK" 2>&1 || true)
 rm -f "$TMPFILE"
 
-if echo "$output" | jq -e '.decision == "block"' >/dev/null 2>&1; then
-    pass "Haiku true → block decision"
+# Non-blocking: should write to stderr, not produce JSON block
+if echo "$output" | grep -q "Intent Layer:"; then
+    pass "Haiku true → non-blocking stderr summary"
 else
-    fail "Should produce block decision: $output"
+    fail "Should produce stderr summary: $output"
 fi
 
 # Test 9: Haiku says should_capture: false → exit 0

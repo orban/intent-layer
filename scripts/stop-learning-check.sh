@@ -7,7 +7,7 @@
 # Tier 2: Haiku API call with structured output as binary classifier
 # Tier 3: Haiku extraction call → auto-write via learn.sh or queue via report_learning.sh
 #
-# Blocks only when queued learnings need human review. Auto-captured learnings don't block.
+# Never blocks — writes summary to stderr instead. All paths exit 0.
 # Everything fails open on error (API down, parse failure, missing tools).
 
 set -euo pipefail
@@ -192,7 +192,7 @@ Rules:
 - path must be relative to project root (e.g. \"src/api/\" or \"src/server/proxy.ts\")
 - title must be under 50 characters
 - detail should be 1-3 sentences, specific enough to act on
-- confidence: \"high\" if the learning is clearly stated and actionable, \"low\" if ambiguous or you're inferring
+- confidence: \"high\" if clearly stated and actionable, \"medium\" if plausible but needs verification, \"low\" if ambiguous or inferred
 - Return empty learnings array if nothing specific enough to extract
 - Max 5 learnings per session" \
     --arg user_msg "$USER_MESSAGE" \
@@ -216,7 +216,7 @@ Rules:
                                     title: { type: "string" },
                                     detail: { type: "string" },
                                     path: { type: "string" },
-                                    confidence: { type: "string", enum: ["high", "low"] }
+                                    confidence: { type: "string", enum: ["high", "medium", "low"] }
                                 },
                                 required: ["type", "title", "detail", "path", "confidence"],
                                 additionalProperties: false
@@ -240,9 +240,9 @@ EXTRACT_RESPONSE=$(curl -s --connect-timeout 5 --max-time 30 \
 EXTRACT_EXIT=$?
 set -e
 
-# Extraction failed — fall back to blocking with manual instruction
+# Extraction failed — log to stderr and exit cleanly
 if [[ $EXTRACT_EXIT -ne 0 || -z "$EXTRACT_RESPONSE" ]]; then
-    output_block "Session contains learnings worth capturing. Run /intent-layer-compound to document them."
+    echo "Intent Layer: learnings detected but extraction failed. Run /intent-layer:review to capture manually." >&2
     exit 0
 fi
 
@@ -250,9 +250,9 @@ fi
 LEARNINGS_JSON=$(echo "$EXTRACT_RESPONSE" | jq -r '.content[0].text' 2>/dev/null)
 LEARNING_COUNT=$(echo "$LEARNINGS_JSON" | jq -r '.learnings | length' 2>/dev/null)
 
-# No learnings extracted or parse failure — fall back
+# No learnings extracted or parse failure — log to stderr and exit cleanly
 if [[ -z "$LEARNING_COUNT" || "$LEARNING_COUNT" == "null" || "$LEARNING_COUNT" -eq 0 ]] 2>/dev/null; then
-    output_block "Session contains learnings worth capturing. Run /intent-layer-compound to document them."
+    echo "Intent Layer: learnings detected but none extracted. Run /intent-layer:review to capture manually." >&2
     exit 0
 fi
 
@@ -273,6 +273,12 @@ for i in $(seq 0 $((LEARNING_COUNT - 1))); do
         continue
     fi
 
+    # Normalize unrecognized confidence to medium
+    case "$L_CONFIDENCE" in
+        high|medium|low) ;;
+        *) L_CONFIDENCE="medium" ;;
+    esac
+
     if [[ "$L_CONFIDENCE" == "high" ]]; then
         # Direct-write via learn.sh (has dedup gate)
         set +e
@@ -292,45 +298,43 @@ for i in $(seq 0 $((LEARNING_COUNT - 1))); do
             # Duplicate — already known, skip silently
             CAPTURE_SUMMARY+="  = [$L_TYPE] $L_TITLE (already documented)"$'\n'
         else
-            # learn.sh failed (no covering node, etc.) — queue instead
+            # learn.sh failed (no covering node, etc.) — queue with confidence
             set +e
             "$PLUGIN_ROOT/scripts/report_learning.sh" \
                 --project "$PROJECT_ROOT" \
                 --path "$L_PATH" \
                 --type "$L_TYPE" \
                 --title "$L_TITLE" \
-                --detail "$L_DETAIL" 2>/dev/null
+                --detail "$L_DETAIL" \
+                --confidence "$L_CONFIDENCE" 2>/dev/null
             set -e
             QUEUED=$((QUEUED + 1))
             CAPTURE_SUMMARY+="  ? [$L_TYPE] $L_TITLE (queued — no covering node)"$'\n'
         fi
     else
-        # Low confidence — queue for human triage
+        # Medium/low confidence — queue for human triage
         set +e
         "$PLUGIN_ROOT/scripts/report_learning.sh" \
             --project "$PROJECT_ROOT" \
             --path "$L_PATH" \
             --type "$L_TYPE" \
             --title "$L_TITLE" \
-            --detail "$L_DETAIL" 2>/dev/null
+            --detail "$L_DETAIL" \
+            --confidence "$L_CONFIDENCE" 2>/dev/null
         set -e
         QUEUED=$((QUEUED + 1))
-        CAPTURE_SUMMARY+="  ? [$L_TYPE] $L_TITLE (queued — needs review)"$'\n'
+        CAPTURE_SUMMARY+="  ? [$L_TYPE] $L_TITLE (queued — $L_CONFIDENCE confidence)"$'\n'
     fi
 done
 
-# Decide whether to block
-if [[ $QUEUED -gt 0 ]]; then
-    # Some learnings need human review
-    BLOCK_MSG="Auto-captured $AUTO_CAPTURED learning(s), queued $QUEUED for review.
-${CAPTURE_SUMMARY}
-Run /review-mistakes to triage queued items."
-    output_block "$BLOCK_MSG"
-elif [[ $AUTO_CAPTURED -gt 0 ]]; then
-    # Everything was auto-captured — don't block, just log
-    echo "Intent Layer: auto-captured $AUTO_CAPTURED learning(s) to AGENTS.md" >&2
-    exit 0
-else
-    # Nothing was written (all duplicates or skipped) — don't block
-    exit 0
+# Stderr summary — never block
+if [[ $AUTO_CAPTURED -gt 0 || $QUEUED -gt 0 ]]; then
+    echo "Intent Layer: captured $((AUTO_CAPTURED + QUEUED)) learning(s) ($AUTO_CAPTURED auto-integrated, $QUEUED queued for review)" >&2
+    if [[ -n "$CAPTURE_SUMMARY" ]]; then
+        echo "$CAPTURE_SUMMARY" >&2
+    fi
+    if [[ $QUEUED -gt 0 ]]; then
+        echo "Run /intent-layer:review to triage." >&2
+    fi
 fi
+exit 0
