@@ -65,6 +65,16 @@ done
 
 TARGET_PATH="${TARGET_PATH:-.}"
 
+# Source common.sh for setup_colors
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/../lib/common.sh" ]]; then
+    # shellcheck source=../lib/common.sh
+    source "$SCRIPT_DIR/../lib/common.sh"
+    setup_colors
+else
+    RED=''; GREEN=''; YELLOW=''; BOLD=''; DIM=''; RESET=''
+fi
+
 # Validate path exists
 if [ ! -d "$TARGET_PATH" ]; then
     echo "❌ Error: Directory not found: $TARGET_PATH" >&2
@@ -170,7 +180,7 @@ get_node_status() {
 }
 
 # Output header
-echo "=== Intent Layer Hierarchy ==="
+echo "${BOLD}=== Intent Layer Hierarchy ===${RESET}"
 echo ""
 
 # Process each node
@@ -202,23 +212,27 @@ for node in "${ALL_NODES[@]}"; do
     status=$(get_node_status "$node" "$tokens" "$age")
     tokens_fmt=$(format_tokens $tokens)
 
+    # Color the status indicator
+    case "$status" in
+        "✓") colored_status="${GREEN}✓${RESET}" ;;
+        "⚠") colored_status="${YELLOW}⚠${RESET}" ;;
+        "✗") colored_status="${RED}✗${RESET}" ;;
+        *) colored_status="$status" ;;
+    esac
+
     # Output node
-    echo "$prefix$rel_path"
+    echo "${BOLD}${prefix}${rel_path}${RESET}"
 
     if [ "$QUIET" = false ]; then
         # Add details on next line with indentation
-        if [ -n "$prefix" ]; then
-            detail_prefix="    "
-        else
-            detail_prefix="    "
-        fi
-        echo "${detail_prefix}${tokens_fmt} tokens $status (${age}d ago)"
+        detail_prefix="    "
+        echo "${detail_prefix}${DIM}${tokens_fmt} tokens${RESET} $colored_status ${DIM}(${age}d ago)${RESET}"
         echo ""
     fi
 done
 
 # Footer
 if [ "$QUIET" = false ]; then
-    echo "---"
-    echo "Legend: ✓ valid | ⚠ warning | ✗ error"
+    echo "${DIM}---${RESET}"
+    echo "${DIM}Legend:${RESET} ${GREEN}✓${RESET} valid | ${YELLOW}⚠${RESET} warning | ${RED}✗${RESET} error"
 fi

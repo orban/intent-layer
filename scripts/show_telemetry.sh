@@ -72,6 +72,16 @@ done
 
 TARGET_PATH="${TARGET_PATH:-.}"
 
+# Source common.sh for setup_colors
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/../lib/common.sh" ]]; then
+    # shellcheck source=../lib/common.sh
+    source "$SCRIPT_DIR/../lib/common.sh"
+    setup_colors
+else
+    RED=''; GREEN=''; YELLOW=''; BOLD=''; DIM=''; RESET=''
+fi
+
 if [[ ! -d "$TARGET_PATH" ]]; then
     echo "Error: Directory not found: $TARGET_PATH" >&2
     exit 1
@@ -239,44 +249,57 @@ END {
 
 # === Output ===
 
-echo "=== Intent Layer Telemetry ==="
+# Helper: color a percentage value
+color_pct() {
+    local val=$1
+    if [[ "$val" -ge 80 ]]; then
+        echo "${GREEN}${val}%${RESET}"
+    elif [[ "$val" -ge 50 ]]; then
+        echo "${YELLOW}${val}%${RESET}"
+    else
+        echo "${RED}${val}%${RESET}"
+    fi
+}
+
+echo "${BOLD}=== Intent Layer Telemetry ===${RESET}"
 echo ""
-echo "Period: ${FIRST_DATE:-?} to ${LAST_DATE:-?}"
+echo "${DIM}Period:${RESET} ${FIRST_DATE:-?} to ${LAST_DATE:-?}"
 echo "Total edits: $TOTAL_EDITS"
-echo "Covered edits: $COVERED_EDITS (${COVERED_PCT}%)"
+echo "Covered edits: $COVERED_EDITS ($(color_pct "$COVERED_PCT"))"
 echo "Uncovered edits: $UNCOVERED_EDITS (${UNCOVERED_PCT}%)"
-echo "Success rate: ${SUCCESS_RATE}%"
+echo "Success rate: $(color_pct "$SUCCESS_RATE")"
 
 # Per-node table
 if [[ -s "$TMPDIR_WORK/per_node.tsv" ]]; then
     echo ""
-    echo "## Per-Node Success Rates"
+    echo "${BOLD}## Per-Node Success Rates${RESET}"
     echo ""
-    printf "%-40s %-8s %-10s %s\n" "Node" "Edits" "Success" "Rate"
+    printf "  ${DIM}%-40s %-8s %-10s %s${RESET}\n" "Node" "Edits" "Success" "Rate"
     while IFS=$'\t' read -r node edits success rate; do
-        printf "%-40s %-8s %-10s %s%%\n" "$node" "$edits" "$success" "$rate"
+        colored_rate=$(color_pct "$rate")
+        printf "  %-40s %-8s %-10s %b\n" "$node" "$edits" "$success" "$colored_rate"
     done < "$TMPDIR_WORK/per_node.tsv"
 fi
 
 # Coverage gaps
 if [[ -s "$TMPDIR_WORK/gaps.tsv" ]]; then
     echo ""
-    echo "## Coverage Gaps (files edited without AGENTS.md context)"
+    echo "${BOLD}## Coverage Gaps${RESET} ${DIM}(files edited without AGENTS.md context)${RESET}"
     echo ""
-    printf "%-50s %s\n" "File" "Edits"
+    printf "  ${DIM}%-50s %s${RESET}\n" "File" "Edits"
     while IFS=$'\t' read -r file count; do
-        printf "%-50s %s\n" "$file" "$count"
+        printf "  ${YELLOW}%-50s${RESET} %s\n" "$file" "$count"
     done < "$TMPDIR_WORK/gaps.tsv"
 fi
 
 # Trend
 if [[ -s "$TMPDIR_WORK/trend.tsv" ]]; then
     echo ""
-    echo "## Trend"
+    echo "${BOLD}## Trend${RESET}"
     echo ""
-    printf "%-14s %-12s %s\n" "Date" "Covered%" "Success%"
+    printf "  ${DIM}%-14s %-12s %s${RESET}\n" "Date" "Covered%" "Success%"
     while IFS=$'\t' read -r date covered_pct success_pct; do
-        printf "%-14s %-12s %s\n" "$date" "$covered_pct" "$success_pct"
+        printf "  %-14s %-12s %s\n" "$date" "$covered_pct" "$success_pct"
     done < "$TMPDIR_WORK/trend.tsv"
 fi
 

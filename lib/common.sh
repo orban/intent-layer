@@ -79,6 +79,18 @@ file_newer_than() {
     [[ "$file_date" > "$cutoff_date" || "$file_date" == "$cutoff_date" ]]
 }
 
+# Set up ANSI color variables for CLI dashboard scripts.
+# Checks both TTY detection and NO_COLOR convention (https://no-color.org).
+# IMPORTANT: Hook scripts must NEVER call this — color codes corrupt JSON output.
+setup_colors() {
+    if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+        RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'
+        BOLD=$'\033[1m'; DIM=$'\033[2m'; RESET=$'\033[0m'
+    else
+        RED=''; GREEN=''; YELLOW=''; BOLD=''; DIM=''; RESET=''
+    fi
+}
+
 # Output JSON for hook response (additionalContext pattern)
 output_context() {
     local hook_event="$1"
