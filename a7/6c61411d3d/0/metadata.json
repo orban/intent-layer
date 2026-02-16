@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "a76c61411d3d",
+  "session_id": "345aae6d-62b9-4fb4-8273-1b60aa9cd3a7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T21:47:09.406002Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/git_ops.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/results/2026-02-16-133336.json",
+    "eval-harness/results/2026-02-16-133336.md",
+    "eval-harness/results/2026-02-16-134621.json",
+    "eval-harness/results/2026-02-16-134621.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a0694ee9-5ff0-4c7e-950a-c9a6acf35072",
+  "checkpoint_transcript_start": 1833,
+  "transcript_lines_at_start": 1833,
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 32426,
+    "cache_read_tokens": 5108527,
+    "output_tokens": 498,
+    "api_call_count": 43
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T21:47:05.221901Z",
+    "agent_lines": 41,
+    "human_added": 40648,
+    "human_modified": 202,
+    "human_removed": 0,
+    "total_committed": 40891,
+    "agent_percentage": 0.10026656232422783
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/345aae6d-62b9-4fb4-8273-1b60aa9cd3a7.jsonl"
+}
