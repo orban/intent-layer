@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "c32f00df5f1d",
+  "session_id": "147d7ed2-b454-4da2-a522-b05238452d97",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-17T20:29:30.774783Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "eval-harness/lib/cli.py",
+    "eval-harness/lib/docker_runner.py",
+    "eval-harness/lib/git_ops.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/tests/test_resume.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0a3a5848-9756-4e96-a54b-c44f77931f6a",
+  "checkpoint_transcript_start": 327,
+  "transcript_lines_at_start": 327,
+  "token_usage": {
+    "input_tokens": 79,
+    "cache_creation_tokens": 163319,
+    "cache_read_tokens": 4992548,
+    "output_tokens": 843,
+    "api_call_count": 45
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-17T20:29:29.603026Z",
+    "agent_lines": 332,
+    "human_added": 19628,
+    "human_modified": 649,
+    "human_removed": 0,
+    "total_committed": 20609,
+    "agent_percentage": 1.6109466737832985
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/147d7ed2-b454-4da2-a522-b05238452d97.jsonl"
+}

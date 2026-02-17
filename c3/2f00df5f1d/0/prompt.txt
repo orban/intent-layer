@@ -1,0 +1,660 @@
+We are still seeing infrastructure failures, investigate debug and troubleshoot
+
+---
+
+[Image: source: /Users/ryo/Library/Application Support/CleanShot/media/media_TMfht0tiMG/CleanShot 2026-02-17 at 11.38.37@2x.png]
+
+---
+
+Base directory for this skill: /Users/ryo/.claude/plugins/cache/claude-plugins-official/superpowers/4.3.0/skills/systematic-debugging
+
+# Systematic Debugging
+
+## Overview
+
+Random fixes waste time and create new bugs. Quick patches mask underlying issues.
+
+**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
+
+**Violating the letter of this process is violating the spirit of debugging.**
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
+
+If you haven't completed Phase 1, you cannot propose fixes.
+
+## When to Use
+
+Use for ANY technical issue:
+- Test failures
+- Bugs in production
+- Unexpected behavior
+- Performance problems
+- Build failures
+- Integration issues
+
+**Use this ESPECIALLY when:**
+- Under time pressure (emergencies make guessing tempting)
+- "Just one quick fix" seems obvious
+- You've already tried multiple fixes
+- Previous fix didn't work
+- You don't fully understand the issue
+
+**Don't skip when:**
+- Issue seems simple (simple bugs have root causes too)
+- You're in a hurry (rushing guarantees rework)
+- Manager wants it fixed NOW (systematic is faster than thrashing)
+
+## The Four Phases
+
+You MUST complete each phase before proceeding to the next.
+
+### Phase 1: Root Cause Investigation
+
+**BEFORE attempting ANY fix:**
+
+1. **Read Error Messages Carefully**
+   - Don't skip past errors or warnings
+   - They often contain the exact solution
+   - Read stack traces completely
+   - Note line numbers, file paths, error codes
+
+2. **Reproduce Consistently**
+   - Can you trigger it reliably?
+   - What are the exact steps?
+   - Does it happen every time?
+   - If not reproducible → gather more data, don't guess
+
+3. **Check Recent Changes**
+   - What changed that could cause this?
+   - Git diff, recent commits
+   - New dependencies, config changes
+   - Environmental differences
+
+4. **Gather Evidence in Multi-Component Systems**
+
+   **WHEN system has multiple components (CI → build → signing, API → service → database):**
+
+   **BEFORE proposing fixes, add diagnostic instrumentation:**
+   ```
+   For EACH component boundary:
+     - Log what data enters component
+     - Log what data exits component
+     - Verify environment/config propagation
+     - Check state at each layer
+
+   Run once to gather evidence showing WHERE it breaks
+   THEN analyze evidence to identify failing component
+   THEN investigate that specific component
+   ```
+
+   **Example (multi-layer system):**
+   ```bash
+   # Layer 1: Workflow
+   echo "=== Secrets available in workflow: ==="
+   echo "IDENTITY: ${IDENTITY:+SET}${IDENTITY:-UNSET}"
+
+   # Layer 2: Build script
+   echo "=== Env vars in build script: ==="
+   env | grep IDENTITY || echo "IDENTITY not in environment"
+
+   # Layer 3: Signing script
+   echo "=== Keychain state: ==="
+   security list-keychains
+   security find-identity -v
+
+   # Layer 4: Actual signing
+   codesign --sign "$IDENTITY" --verbose=4 "$APP"
+   ```
+
+   **This reveals:** Which layer fails (secrets → workflow ✓, workflow → build ✗)
+
+5. **Trace Data Flow**
+
+   **WHEN error is deep in call stack:**
+
+   See `root-cause-tracing.md` in this directory for the complete backward tracing technique.
+
+   **Quick version:**
+   - Where does bad value originate?
+   - What called this with bad value?
+   - Keep tracing up until you find the source
+   - Fix at source, not at symptom
+
+### Phase 2: Pattern Analysis
+
+**Find the pattern before fixing:**
+
+1. **Find Working Examples**
+   - Locate similar working code in same codebase
+   - What works that's similar to what's broken?
+
+2. **Compare Against References**
+   - If implementing pattern, read reference implementation COMPLETELY
+   - Don't skim - read every line
+   - Understand the pattern fully before applying
+
+3. **Identify Differences**
+   - What's different between working and broken?
+   - List every difference, however small
+   - Don't assume "that can't matter"
+
+4. **Understand Dependencies**
+   - What other components does this need?
+   - What settings, config, environment?
+   - What assumptions does it make?
+
+### Phase 3: Hypothesis and Testing
+
+**Scientific method:**
+
+1. **Form Single Hypothesis**
+   - State clearly: "I think X is the root cause because Y"
+   - Write it down
+   - Be specific, not vague
+
+2. **Test Minimally**
+   - Make the SMALLEST possible change to test hypothesis
+   - One variable at a time
+   - Don't fix multiple things at once
+
+3. **Verify Before Continuing**
+   - Did it work? Yes → Phase 4
+   - Didn't work? Form NEW hypothesis
+   - DON'T add more fixes on top
+
+4. **When You Don't Know**
+   - Say "I don't understand X"
+   - Don't pretend to know
+   - Ask for help
+   - Research more
+
+### Phase 4: Implementation
+
+**Fix the root cause, not the symptom:**
+
+1. **Create Failing Test Case**
+   - Simplest possible reproduction
+   - Automated test if possible
+   - One-off test script if no framework
+   - MUST have before fixing
+   - Use the `superpowers:test-driven-development` skill for writing proper failing tests
+
+2. **Implement Single Fix**
+   - Address the root cause identified
+   - ONE change at a time
+   - No "while I'm here" improvements
+   - No bundled refactoring
+
+3. **Verify Fix**
+   - Test passes now?
+   - No other tests broken?
+   - Issue actually resolved?
+
+4. **If Fix Doesn't Work**
+   - STOP
+   - Count: How many fixes have you tried?
+   - If < 3: Return to Phase 1, re-analyze with new information
+   - **If ≥ 3: STOP and question the architecture (step 5 below)**
+   - DON'T attempt Fix #4 without architectural discussion
+
+5. **If 3+ Fixes Failed: Question Architecture**
+
+   **Pattern indicating architectural problem:**
+   - Each fix reveals new shared state/coupling/problem in different place
+   - Fixes require "massive refactoring" to implement
+   - Each fix creates new symptoms elsewhere
+
+   **STOP and question fundamentals:**
+   - Is this pattern fundamentally sound?
+   - Are we "sticking with it through sheer inertia"?
+   - Should we refactor architecture vs. continue fixing symptoms?
+
+   **Discuss with your human partner before attempting more fixes**
+
+   This is NOT a failed hypothesis - this is a wrong architecture.
+
+## Red Flags - STOP and Follow Process
+
+If you catch yourself thinking:
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "Add multiple changes, run tests"
+- "Skip the test, I'll manually verify"
+- "It's probably X, let me fix that"
+- "I don't fully understand but this might work"
+- "Pattern says X but I'll adapt it differently"
+- "Here are the main problems: [lists fixes without investigation]"
+- Proposing solutions before tracing data flow
+- **"One more fix attempt" (when already tried 2+)**
+- **Each fix reveals new problem in different place**
+
+**ALL of these mean: STOP. Return to Phase 1.**
+
+**If 3+ fixes failed:** Question the architecture (see Phase 4.5)
+
+## your human partner's Signals You're Doing It Wrong
+
+**Watch for these redirections:**
+- "Is that not happening?" - You assumed without verifying
+- "Will it show us...?" - You should have added evidence gathering
+- "Stop guessing" - You're proposing fixes without understanding
+- "Ultrathink this" - Question fundamentals, not just symptoms
+- "We're stuck?" (frustrated) - Your approach isn't working
+
+**When you see these:** STOP. Return to Phase 1.
+
+## Common Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "Issue is simple, don't need process" | Simple issues have root causes too. Process is fast for simple bugs. |
+| "Emergency, no time for process" | Systematic debugging is FASTER than guess-and-check thrashing. |
+| "Just try this first, then investigate" | First fix sets the pattern. Do it right from the start. |
+| "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
+| "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
+| "Reference too long, I'll adapt the pattern" | Partial understanding guarantees bugs. Read it completely. |
+| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
+| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|-------|---------------|------------------|
+| **1. Root Cause** | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
+| **2. Pattern** | Find working examples, compare | Identify differences |
+| **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
+| **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
+
+## When Process Reveals "No Root Cause"
+
+If systematic investigation reveals issue is truly environmental, timing-dependent, or external:
+
+1. You've completed the process
+2. Document what you investigated
+3. Implement appropriate handling (retry, timeout, error message)
+4. Add monitoring/logging for future investigation
+
+**But:** 95% of "no root cause" cases are incomplete investigation.
+
+## Supporting Techniques
+
+These techniques are part of systematic debugging and available in this directory:
+
+- **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
+- **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
+- **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
+
+**Related skills:**
+- **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
+- **superpowers:verification-before-completion** - Verify fix worked before claiming success
+
+## Real-World Impact
+
+From debugging sessions:
+- Systematic approach: 15-30 minutes to fix
+- Random fixes approach: 2-3 hours of thrashing
+- First-time fix rate: 95% vs 40%
+- New bugs introduced: Near zero vs common
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. The user shared a screenshot of eval harness results showing infrastructure failures across 8 tasks with 3 conditions (none, flat_llm, intent_layer). The specific failures were:
+   - Task 5: TIMEOUT across all conditions
+   - Task 6: TIMEOUT on none and flat_llm, PASS on intent_layer
+   - Task 7: empty-run on none and intent_layer, pre-val timeout on flat_llm
+   - Task 2: PASS on none, TIMEOUT on flat_llm and intent_layer
+
+2. I invoked the systematic-debugging skill and followed Phase 1: Root Cause Investigation.
+
+3. I explored extensively:
+   - Result files (2026-02-17-105514.json and .md)
+   - All Python files in eval-harness/lib/
+   - Log files for failing tasks
+   - Task definitions in fastmcp.yaml
+   - Historical results (2026-02-16 consolidated)
+   - CLI execution flow
+
+4. I identified three distinct failure modes:
+   - Empty-run: Claude CLI exits in 0.02s with exit_code=-1 (Task 7)
+   - Pre-validation timeout: Docker test run exceeds 120s (Task 7 flat_llm)
+   - Fix timeout: Claude runs out of 300s budget (Tasks 2, 5, 6)
+
+5. I hypothesized the empty-run was caused by ARG_MAX limits - the prompt (containing large test output) was passed as a CLI argument, potentially exceeding macOS's ~1MB combined args+env limit.
+
+6. I implemented three fixes:
+   - claude_runner.py: Pass prompts >=100KB via stdin instead of CLI argument
+   - task_runner.py: Include stderr and prompt_bytes in empty-run error messages
+   - task_runner.py: Increase pre-validation timeout from 120s to 180s (named constant)
+
+7. All 155 tests passed after the changes.
+
+The user has not provided any additional feedback after my summary of changes. The task appears complete.
+
+Summary:
+1. Primary Request and Intent:
+   The user asked to investigate, debug, and troubleshoot infrastructure failures in the eval harness. They provided a screenshot showing results from a 24-run evaluation (8 tasks × 3 conditions: none, flat_llm, intent_layer) on the fastmcp repository. The screenshot showed 10 infrastructure errors including TIMEOUTs, empty-runs, and pre-validation timeouts. The user wanted to understand WHY these failures occurred and fix them.
+
+2. Key Technical Concepts:
+   - **AGENTbench eval harness**: A/B/C testing framework comparing three conditions (none, flat_llm, intent_layer) for Claude's bug-fixing ability
+   - **Three failure modes identified**: (1) empty-run — Claude CLI exits instantly in 0.02s, (2) pre-validation timeout — Docker test run exceeds timeout, (3) fix timeout — Claude runs out of 300s budget
+   - **ARG_MAX hypothesis**: macOS limits combined CLI args+env to ~1MB. Large test output passed as CLI argument may exceed this, causing instant process failure
+   - **stdin vs CLI argument for prompt passing**: Piping via stdin has no size limit vs execve() argument vector limit
+   - **Pre-validation**: Docker-based check that test infrastructure works and target test fails before spending API tokens
+   - **Systematic debugging**: Following Phase 1 (Root Cause Investigation) → Phase 2 (Pattern Analysis) → Phase 3 (Hypothesis) → Phase 4 (Implementation)
+   - **Stochastic LLM behavior**: Task 2 passes at 277s for none but times out at 300s for other conditions due to context overhead
+
+3. Files and Code Sections:
+
+   - **`eval-harness/results/2026-02-17-105514.json`** — Latest full run results. Shows detailed per-task metrics. Key evidence: Task 7 none has `wall_clock_seconds: 0.020`, `tool_calls: 0`, `exit_code: -1` (empty-run). Task 5 all three conditions hit exactly 300.0s with `is_timeout: true`.
+
+   - **`eval-harness/results/2026-02-17-105514.md`** — Markdown summary of latest run. 8 tasks, 10 infrastructure errors.
+
+   - **`eval-harness/results/2026-02-16-consolidated.md`** — Historical comparison. Task 7 showed same empty-run pattern in previous run (none and intent_layer fail, flat_llm ran for 300s). Confirms the issue is reproducible, not transient.
+
+   - **`eval-harness/tasks/fastmcp.yaml`** — Task definitions. 8 tasks against jlowin/fastmcp repo. Task 7 (`fix-guard-client-pagination`) uses `prompt_source: failing_test` with `test_file: tests/server/test_pagination.py`. Docker image: `python:3.11-slim`, setup: `pip install uv && uv sync --frozen --all-groups`.
+
+   - **`eval-harness/lib/claude_runner.py`** — **MODIFIED**. Runs Claude CLI and captures metrics. Key change: prompts >=100KB now piped via stdin instead of CLI argument.
+     - Before:
+       ```python
+       cmd.append(prompt)
+       ```
+     - After:
+       ```python
+       prompt_via_stdin = True
+       if len(prompt.encode("utf-8")) < 100_000:
+           cmd.append(prompt)
+           prompt_via_stdin = False
+       ```
+     - Fast path (subprocess.run) now passes `input=prompt if prompt_via_stdin else None`
+     - Streaming path (Popen) now uses `stdin=subprocess.PIPE if prompt_via_stdin else None` and writes prompt to stdin then closes it:
+       ```python
+       if prompt_via_stdin:
+           try:
+               proc.stdin.write(prompt)
+               proc.stdin.close()
+           except BrokenPipeError:
+               pass  # process already exited
+       ```
+
+   - **`eval-harness/lib/task_runner.py`** — **MODIFIED**. Orchestrates workspace setup, pre-validation, context generation, Claude invocation, and test execution.
+     - Added `PRE_VALIDATION_TIMEOUT = 180` constant (was hardcoded 120):
+       ```python
+       PRE_VALIDATION_TIMEOUT = 180
+       ```
+     - All three `timeout=120` occurrences replaced with `timeout=PRE_VALIDATION_TIMEOUT`
+     - Empty-run error now includes stderr and prompt size for diagnosis:
+       ```python
+       stderr_snippet = claude_result.stderr.strip()[:200] if claude_result.stderr else ""
+       stderr_info = f", stderr={stderr_snippet!r}" if stderr_snippet else ""
+       prompt_size = len(prompt.encode("utf-8"))
+       error=(
+           f"[empty-run] Claude produced no output "
+           f"(exit_code={claude_result.exit_code}, "
+           f"{claude_result.wall_clock_seconds:.1f}s, "
+           f"prompt_bytes={prompt_size}{stderr_info})"
+       ),
+       ```
+
+   - **`eval-harness/lib/docker_runner.py`** — Read only. Runs commands in Docker containers with bind mounts. Default 120s timeout for Docker runs.
+
+   - **`eval-harness/lib/models.py`** — Read only. Pydantic models: Task, RepoConfig, DockerConfig, TaskFile.
+
+   - **`eval-harness/lib/prompt_builder.py`** — Read only. Builds prompts from commit messages, failing tests, or issues. `build_prompt_from_failing_test()` wraps test output in a prompt template.
+
+   - **`eval-harness/lib/cli.py`** — Read only. Click CLI with `scan` and `run` commands. Uses ThreadPoolExecutor for parallel task execution.
+
+   - **`eval-harness/lib/git_ops.py`** — Read only. Git operations: clone, checkout, diff stats, baseline commit.
+
+   - **Log files examined**:
+     - `logs/fastmcp-359575b1-none-fix.log` — Empty (1 line). Confirms Claude produced zero stream-json events for Task 7 none.
+     - `logs/fastmcp-359575b1-flat_llm-fix.log` — Empty (1 line). Task 7 flat_llm never got to Claude (pre-val timeout).
+     - `REDACTED.log` — Empty (1 line). Same empty-run as none.
+     - `logs/fastmcp-b62ed340-none-fix.log` — Shows Claude reading many files (26 tool calls) for Task 5 but never writing. Timeout behavior.
+     - `logs/fastmcp-b62ed340-flat_llm-fix.log` — Similar pattern, 29 reads, no writes.
+     - `logs/fastmcp-85a833a7-flat_llm-fix.log` — Task 2 flat_llm: Claude running ty check, editing files, 57 tool calls before timeout.
+
+4. Errors and fixes:
+   - **Task 7 empty-run (Claude exits in 0.02s with -1)**:
+     - Root cause hypothesis: Prompt passed as CLI argument exceeds macOS ARG_MAX when test output from test_pagination.py is large
+     - Fix: Prompts >=100KB piped via stdin instead of CLI argument
+     - Additional fix: stderr and prompt_bytes now included in error message for future diagnosis
+   - **Task 7 pre-validation timeout (flat_llm)**:
+     - Root cause: 120s timeout too tight for Docker setup + test execution under parallel load
+     - Fix: Increased to 180s via named constant `PRE_VALIDATION_TIMEOUT`
+   - **Tasks 2, 5, 6 timeouts**: Not infrastructure bugs. Task 5 is genuinely hard. Task 2 is borderline (none passes at 277s). Task 6 is actually a positive signal for intent_layer.
+   - No user feedback on the fixes was received.
+
+5. Problem Solving:
+   - Followed systematic debugging skill (Phase 1-4)
+   - Cross-referenced two full runs (2026-02-16 and 2026-02-17) to confirm Task 7 empty-run is reproducible
+   - Categorized 10 infrastructure errors into three distinct failure modes
+   - Distinguished true infrastructure bugs (3 errors: Task 7) from task difficulty (7 errors: Tasks 2, 5, 6)
+   - All 155 existing tests pass after changes
+
+6. All user messages:
+   - "We are still seeing infrastructure failures, investigate debug and troubleshoot" (with screenshot of eval results showing 8 tasks × 3 conditions with timeouts, empty-runs, and pre-val timeouts)
+
+7. Pending Tasks:
+   - No explicit pending tasks. The investigation, debugging, and fixes are complete. Changes are uncommitted.
+
+8. Current Work:
+   The investigation and fixes are complete. Three changes were made to two files:
+   1. `eval-harness/lib/claude_runner.py` — stdin prompt for large prompts
+   2. `eval-harness/lib/task_runner.py` — improved empty-run diagnostics + increased pre-validation timeout
+   
+   All 155 tests pass. The `git diff --stat` shows: `claude_runner.py | 25 +++++++++++++++++++++++--` and `task_runner.py | 18 ++++++++++++++----`.
+   
+   Changes have NOT been committed. The user has not been asked whether to commit.
+
+9. Optional Next Step:
+   The fixes are implemented and tests pass. The natural next step would be to ask the user if they want to commit these changes and/or re-run the eval to verify Task 7's empty-run is fixed. However, the user hasn't explicitly requested either of these, so no action should be taken without confirmation.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/147d7ed2-b454-4da2-a522-b05238452d97.jsonl
+
+---
+
+should we increase the timeout?
+
+---
+
+commit these changes
+
+---
+
+any other optimizations you can find? think outside the box
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. This session continues from a previous conversation that was compacted. The prior session:
+   - Investigated infrastructure failures in the eval harness (empty-runs, timeouts, pre-validation timeouts)
+   - Fixed three issues: stdin prompt for large payloads (ARG_MAX), better empty-run diagnostics, pre-validation timeout increase
+   - All 155 tests passed
+   - Changes were committed as `067f583`
+
+2. User asked: "should we increase the timeout?" - referring to the 300s fix timeout
+   - I analyzed the evidence and recommended against increasing it, explaining the timeouts are real signal not infrastructure noise
+
+3. User asked: "commit these changes" 
+   - I committed the previous session's fixes as `067f583`
+
+4. User asked: "any other optimizations you can find? think outside the box"
+   - I read through all major files: task_runner.py, cli.py, docker_runner.py, prompt_builder.py, git_ops.py, index_cache.py, fastmcp.yaml
+   - Identified four major optimizations:
+     1. Reference clones - clone repo once, hardlink-clone for workspaces
+     2. Docker pip cache volume - persist uv/pip downloads across containers
+     3. Shared pre-validation cache - deduplicate Docker test runs across conditions
+     4. Post-test timeout constant - reduce from 300s to 180s
+
+5. Implementation progress:
+   - **git_ops.py**: Added `reference` parameter to `clone_repo()` - DONE
+   - **docker_runner.py**: Added `cache_volume` parameter with named Docker volume - DONE
+   - **task_runner.py**: 
+     - Added `threading` import - DONE
+     - Added `POST_TEST_TIMEOUT = 180` constant - DONE
+     - Added `PreValidationCache` class with thread-safe deduplication - DONE
+     - Added `reference_clone` and `pre_val_cache` to TaskRunner constructor - DONE
+     - Wired reference clone in `run()` clone step - DONE
+     - Wired pre-validation cache in `run()` pre-validate step - DONE
+     - Used `POST_TEST_TIMEOUT` for post-test Docker run - DONE
+     - Wired reference clone in `warm_cache()` - DONE
+   - **cli.py**:
+     - Added `PreValidationCache` import - DONE
+     - Added Phase 0: reference clone creation - DONE
+     - Added shared PreValidationCache creation - DONE
+     - Wired reference_clone into warmup TaskRunner - DONE
+     - Still needs: wire reference_clone and pre_val_cache into `run_single()` - IN PROGRESS
+
+6. Errors encountered:
+   - cli.py was modified by linter between read and edit (unused import `replace` removed, `passed_task_ids` set precomputed). Had to re-read and retry the edit.
+   - Second attempt also hit linter modification. Had to re-read specific sections and do smaller targeted edits instead of one large edit.
+
+7. The last edit I made was wiring `reference_clone` into the warmup TaskRunner. I still need to wire both `reference_clone` and `pre_val_cache` into the `run_single()` function in cli.py, then run tests.
+
+Summary:
+1. Primary Request and Intent:
+   The user asked "any other optimizations you can find? think outside the box" for the eval harness. This follows a previous session where infrastructure failures (empty-runs, timeouts, pre-validation timeouts) were debugged and fixed. The user wants creative performance optimizations beyond simple bug fixes.
+
+2. Key Technical Concepts:
+   - **Reference clones**: `git clone --local --no-checkout` creates hardlink clones from a local reference, avoiding network I/O. Turns ~5-10s network clones into <1s local copies.
+   - **Docker named volumes**: `eval-harness-pipcache` volume persists `/root/.cache` across containers, so `pip install uv && uv sync` only downloads packages once.
+   - **Pre-validation deduplication**: Pre-validation (Docker test run) is identical across conditions for the same task (same commit, same code, same test). Thread-safe `PreValidationCache` with Event-based dedup ensures only one Docker run per task.
+   - **Post-test timeout**: Was hardcoded 300s (matching Claude timeout), reduced to 180s via `POST_TEST_TIMEOUT` constant since test execution shouldn't need that long.
+   - **Pipeline savings estimate**: For 8 tasks × 3 conditions: eliminates ~23 redundant git clones, ~16 redundant Docker pre-validation runs, and makes all `uv sync` runs near-instant after first.
+
+3. Files and Code Sections:
+
+   - **`eval-harness/lib/git_ops.py`** — Added `reference` parameter to `clone_repo()`
+     ```python
+     def clone_repo(url: str, dest: str, shallow: bool = True, reference: str | None = None) -> None:
+         """Clone a repository.
+         If reference is provided, creates a local hardlink clone from the
+         reference directory instead of fetching over the network.
+         """
+         if reference:
+             cmd = ["git", "clone", "--local", "--no-checkout", reference, dest]
+         else:
+             cmd = ["git", "clone"]
+             if shallow:
+                 cmd.extend(["--depth", "1"])
+             cmd.extend([url, dest])
+         subprocess.run(cmd, check=True, capture_output=True)
+     ```
+
+   - **`eval-harness/lib/docker_runner.py`** — Added `cache_volume` parameter for pip/uv cache persistence
+     ```python
+     def run_in_docker(
+         workspace: str, image: str, command: str, timeout: int = 120,
+         memory: str = "4g", cpus: str = "2",
+         cache_volume: str | None = "eval-harness-pipcache"
+     ) -> DockerResult:
+         abs_workspace = os.path.abspath(workspace)
+         cmd = ["docker", "run", "--rm", "-v", f"{abs_workspace}:/work"]
+         if cache_volume:
+             cmd.extend(["-v", f"{cache_volume}:/root/.cache"])
+         cmd.extend(["-w", "/work", "--network", "host", "--memory", memory,
+                     "--cpus", cpus, image, "sh", "-c", command])
+     ```
+
+   - **`eval-harness/lib/task_runner.py`** — Major changes:
+     - Added `import threading`
+     - Added `POST_TEST_TIMEOUT = 180` constant
+     - Added `PreValidationCache` class (thread-safe, Event-based dedup):
+       ```python
+       class PreValidationCache:
+           def __init__(self):
+               self._lock = threading.Lock()
+               self._results: dict[str, str | None] = {}
+               self._in_progress: dict[str, threading.Event] = {}
+               self._errors: dict[str, BaseException] = {}
+           def get_or_compute(self, key: str, fn: Callable[[], str | None]) -> str | None:
+               # First caller runs fn(), others wait on Event
+               # Errors are cached and re-raised for subsequent callers
+       ```
+     - Added `reference_clone` and `pre_val_cache` to `TaskRunner.__init__`
+     - Used reference clone in `run()`: `clone_repo(self.repo.url, workspace, shallow=False, reference=self.reference_clone)`
+     - Used pre-validation cache in `run()`: `self.pre_val_cache.get_or_compute(task.id, lambda: self._pre_validate(task, workspace))`
+     - Used `POST_TEST_TIMEOUT` for post-test: `run_in_docker(..., timeout=POST_TEST_TIMEOUT)`
+     - Used reference clone in `warm_cache()`: `clone_repo(repo_url, workspace, shallow=False, reference=self.reference_clone)`
+
+   - **`eval-harness/lib/cli.py`** — Orchestration changes:
+     - Added `PreValidationCache` import
+     - Added Phase 0: reference clone creation before warmup/parallel loop:
+       ```python
+       reference_clones: dict[str, str] = {}
+       reference_dir = workspaces_dir / ".references"
+       unique_repos = {repo.url for repo, _task in all_tasks}
+       for repo_url in unique_repos:
+           repo_name = repo_url.split("/")[-1].replace(".git", "")
+           ref_path = reference_dir / repo_name
+           if not ref_path.exists():
+               click.echo(f"Creating reference clone for {repo_name}...")
+               ref_path.parent.mkdir(parents=True, exist_ok=True)
+               clone_repo(repo_url, str(ref_path), shallow=False)
+           reference_clones[repo_url] = str(ref_path)
+       ```
+     - Added shared `pre_val_cache = PreValidationCache()`
+     - Wired `reference_clone` into warmup TaskRunner constructor
+     - **NOT YET DONE**: Wiring `reference_clone` and `pre_val_cache` into `run_single()` function
+
+4. Errors and fixes:
+   - **Linter-modified file between read and edit (cli.py)**: The file was auto-modified by a linter (unused `from dataclasses import replace` removed, `passed_task_ids` set precomputed from `{p[0] for p in passed_pairs}` to avoid recomputation). This happened twice. Fix: re-read the file and make smaller targeted edits instead of one large replacement.
+
+5. Problem Solving:
+   - Identified four non-obvious optimization opportunities by analyzing the full pipeline end-to-end
+   - Recognized that pre-validation is task-specific not condition-specific (runs before context generation)
+   - Designed thread-safe PreValidationCache with Event-based deduplication to handle concurrent access from ThreadPoolExecutor
+   - Used `--local --no-checkout` for git clones to get hardlinks without checking out default branch
+
+6. All user messages:
+   - "should we increase the timeout?"
+   - "commit these changes"
+   - "any other optimizations you can find? think outside the box"
+
+7. Pending Tasks:
+   - Wire `reference_clone` and `pre_val_cache` into `run_single()` in cli.py
+   - Run tests to verify all changes work
+   - Commit when ready (user hasn't asked yet but will likely want to)
+
+8. Current Work:
+   I was editing `eval-harness/lib/cli.py` to wire up the four optimizations. I've completed:
+   - Phase 0 reference clone creation block
+   - PreValidationCache creation
+   - reference_clone in warmup TaskRunner
+   
+   I still need to edit the `run_single()` function (around line 417-425) to pass `reference_clone` and `pre_val_cache`:
+   ```python
+   def run_single(item):
+       repo, task, condition, rep = item
+       runner = TaskRunner(
+           repo,
+           str(workspaces_dir),
+           progress_callback=progress_callback,
+           cache_dir=cache_dir,
+           use_cache=not no_cache
+       )  # <-- needs reference_clone and pre_val_cache added here
+       return runner.run(task, condition, model=model, rep=rep)
+   ```
+
+9. Optional Next Step:
+   Edit the `run_single()` function in cli.py to add `reference_clone=reference_clones.get(repo.url)` and `pre_val_cache=pre_val_cache` to the TaskRunner constructor call. Then run the test suite to verify all changes pass. This directly continues the work from the user's request: "any other optimizations you can find? think outside the box"
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/147d7ed2-b454-4da2-a522-b05238452d97.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+commit these changes
