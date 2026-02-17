@@ -46,3 +46,41 @@ def test_run_in_docker_timeout(tmp_path):
     )
 
     assert result.timed_out is True
+
+
+def test_run_in_docker_streams_to_log(tmp_path):
+    log_path = tmp_path / "docker.log"
+    result = run_in_docker(
+        workspace=str(tmp_path),
+        image="alpine:latest",
+        command="echo one && echo two >&2",
+        timeout=30,
+        stream_log=log_path,
+    )
+
+    assert result.exit_code == 0
+    assert "one" in result.stdout
+    assert "two" in result.stderr
+    content = log_path.read_text()
+    assert "[stdout] one" in content
+    assert "[stderr] two" in content
+
+
+def test_run_in_docker_heartbeat_callback(tmp_path):
+    heartbeats = []
+
+    def on_heartbeat(elapsed: float, stdout_lines: int, stderr_lines: int):
+        heartbeats.append((elapsed, stdout_lines, stderr_lines))
+
+    result = run_in_docker(
+        workspace=str(tmp_path),
+        image="alpine:latest",
+        command="echo start && sleep 2",
+        timeout=30,
+        heartbeat_interval=1,
+        heartbeat_callback=on_heartbeat,
+    )
+
+    assert result.exit_code == 0
+    assert "start" in result.stdout
+    assert len(heartbeats) >= 1

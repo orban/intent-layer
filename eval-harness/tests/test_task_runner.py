@@ -563,6 +563,29 @@ def test_workspace_default_rep_is_zero(sample_repo):
         assert "-r0" in ws
 
 
+def test_build_run_log_path_is_unique_per_rep(sample_repo):
+    """Run log paths should include phase/condition/rep-specific suffixes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        task = Task(
+            id="fix-log-paths",
+            category="simple_fix",
+            pre_fix_commit="abcdef01",
+            fix_commit="12345678",
+            prompt_source="commit_message"
+        )
+
+        p0 = runner._build_run_log_path(task, "none", "test", rep=0)
+        p1 = runner._build_run_log_path(task, "none", "test", rep=1)
+        p2 = runner._build_run_log_path(task, "intent_layer", "fix", rep=0)
+
+        assert str(p0) != str(p1)
+        assert str(p0) != str(p2)
+        assert "none-r0-test.log" in str(p0)
+        assert "none-r1-test.log" in str(p1)
+        assert "intent_layer-r0-fix.log" in str(p2)
+
+
 def test_warm_cache_none_condition_returns_none(sample_repo):
     """warm_cache for the NONE condition is a no-op (nothing to generate)."""
     with tempfile.TemporaryDirectory() as tmpdir:

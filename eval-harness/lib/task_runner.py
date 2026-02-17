@@ -1,6 +1,7 @@
 # lib/task_runner.py
 from __future__ import annotations
 import json
+import hashlib
 import logging
 import os
 import re
@@ -42,6 +43,7 @@ PRE_VALIDATION_TIMEOUT = 180
 # Post-test timeout: running tests after Claude's fix. Should be comparable
 # to pre-validation — if tests don't finish in this window, they're broken.
 POST_TEST_TIMEOUT = 180
+TEST_HEARTBEAT_INTERVAL = 20
 
 
 class PreValidationCache:
@@ -170,7 +172,44 @@ class TaskRunner:
         if self.progress_callback:
             self.progress_callback(task_id, condition, step, message)
 
-    def _pre_validate(self, task: Task, workspace: str) -> str | None:
+    def _build_run_log_path(
+        self,
+        task: Task,
+        condition: str,
+        phase: str,
+        rep: int = 0,
+    ) -> Path:
+        """Build a unique log path for this task/condition/repetition."""
+        log_dir = Path(self.workspaces_dir).parent / "logs"
+        repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
+        task_hash = hashlib.sha1(task.id.encode("utf-8")).hexdigest()[:8]
+        safe_task = re.sub(r"[^A-Za-z0-9._-]+", "-", task.id).strip("-")[:32] or "task"
+        return log_dir / (
+            f"{repo_slug}-{task.pre_fix_commit[:8]}-{safe_task}-{task_hash}-"
+            f"{condition}-r{rep}-{phase}.log"
+        )
+
+    def _make_docker_heartbeat_callback(
+        self, task_id: str, condition: str, step: str
+    ) -> Callable[[float, int, int], None]:
+        """Return callback for periodic progress during long Docker runs."""
+        def _heartbeat(elapsed: float, stdout_lines: int, stderr_lines: int):
+            self._progress(
+                task_id,
+                condition,
+                step,
+                f"still running ({elapsed:.0f}s, {stdout_lines} stdout / {stderr_lines} stderr lines)",
+            )
+        return _heartbeat
+
+    def _pre_validate(
+        self,
+        task: Task,
+        workspace: str,
+        task_id: str = "pre_validate",
+        condition: str = "none",
+        stream_log: str | Path | None = None,
+    ) -> str | None:
         """Validate that a task is runnable before spending API tokens.
 
         Checks:
@@ -197,7 +236,15 @@ class TaskRunner:
                 smoke_cmd = "python --version"
 
             result = run_in_docker(
-                workspace, self.repo.docker.image, smoke_cmd, timeout=PRE_VALIDATION_TIMEOUT
+                workspace,
+                self.repo.docker.image,
+                smoke_cmd,
+                timeout=PRE_VALIDATION_TIMEOUT,
+                stream_log=stream_log,
+                heartbeat_interval=TEST_HEARTBEAT_INTERVAL,
+                heartbeat_callback=self._make_docker_heartbeat_callback(
+                    task_id, condition, "pre_validate_live"
+                ),
             )
             if result.timed_out:
                 raise PreValidationError(
@@ -220,7 +267,15 @@ class TaskRunner:
                 test_cmd = f"{setup_chain} && {test_cmd}"
 
             result = run_in_docker(
-                workspace, self.repo.docker.image, test_cmd, timeout=PRE_VALIDATION_TIMEOUT
+                workspace,
+                self.repo.docker.image,
+                test_cmd,
+                timeout=PRE_VALIDATION_TIMEOUT,
+                stream_log=stream_log,
+                heartbeat_interval=TEST_HEARTBEAT_INTERVAL,
+                heartbeat_callback=self._make_docker_heartbeat_callback(
+                    task_id, condition, "pre_validate_live"
+                ),
             )
 
             # 2. The test MUST fail at pre_fix_commit (that's the whole point)
@@ -348,8 +403,8 @@ class TaskRunner:
             if not cache_entry:
                 cache_entry = self.index_cache.lookup(repo_url, commit, condition)
 
-            if cache_entry:
-                # Cache hit: restore files
+            if cache_entry and cache_entry.agents_files:
+                # Cache hit with actual files: restore them
                 start = time.time()
                 self.index_cache.restore(cache_entry, workspace)
                 elapsed = time.time() - start
@@ -586,14 +641,38 @@ class TaskRunner:
             # Pre-validate: confirm test infra works and test actually fails.
             # Pre-validation is identical across conditions for the same task
             # (same commit, same code, same test), so we cache the result.
+            precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
             if self.pre_val_cache is not None:
-                self._progress(task.id, cond_str, "pre_validate", "checking pre-validation cache")
+                self._progress(
+                    task.id,
+                    cond_str,
+                    "pre_validate",
+                    f"checking pre-validation cache (tail -f {precheck_log})",
+                )
                 pre_validate_output = self.pre_val_cache.get_or_compute(
-                    task.id, lambda: self._pre_validate(task, workspace)
+                    task.id,
+                    lambda: self._pre_validate(
+                        task,
+                        workspace,
+                        task_id=task.id,
+                        condition=cond_str,
+                        stream_log=precheck_log,
+                    ),
                 )
             else:
-                self._progress(task.id, cond_str, "pre_validate", "verifying test fails at pre_fix_commit")
-                pre_validate_output = self._pre_validate(task, workspace)
+                self._progress(
+                    task.id,
+                    cond_str,
+                    "pre_validate",
+                    f"verifying test fails at pre_fix_commit (tail -f {precheck_log})",
+                )
+                pre_validate_output = self._pre_validate(
+                    task,
+                    workspace,
+                    task_id=task.id,
+                    condition=cond_str,
+                    stream_log=precheck_log,
+                )
             self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
@@ -651,9 +730,7 @@ class TaskRunner:
             prompt = self._build_prompt(task, workspace, condition, cached_test_output=pre_validate_output)
 
             # Run Claude on the task
-            log_dir = Path(self.workspaces_dir).parent / "logs"
-            repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
-            fix_log = log_dir / f"{repo_slug}-{task.pre_fix_commit[:8]}-{cond_str}-fix.log"
+            fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
             self._progress(task.id, cond_str, "claude", f"running Claude to fix the bug... (tail -f {fix_log})")
             claude_result = run_claude(workspace, prompt, model=model,
                                        stderr_log=str(fix_log))
@@ -718,12 +795,23 @@ class TaskRunner:
             if self.repo.docker.setup:
                 setup_chain = " && ".join(self.repo.docker.setup)
                 test_cmd = f"{setup_chain} && {test_cmd}"
-            self._progress(task.id, cond_str, "test", f"running tests: {test_cmd}")
+            test_log = self._build_run_log_path(task, cond_str, "test", rep)
+            self._progress(
+                task.id,
+                cond_str,
+                "test",
+                f"running tests: {test_cmd} (tail -f {test_log})",
+            )
             test_result = run_in_docker(
                 workspace,
                 self.repo.docker.image,
                 test_cmd,
-                timeout=POST_TEST_TIMEOUT
+                timeout=POST_TEST_TIMEOUT,
+                stream_log=test_log,
+                heartbeat_interval=TEST_HEARTBEAT_INTERVAL,
+                heartbeat_callback=self._make_docker_heartbeat_callback(
+                    task.id, cond_str, "test_live"
+                ),
             )
             test_status = "PASSED" if test_result.exit_code == 0 else "FAILED"
             self._progress(task.id, cond_str, "test_done", f"tests {test_status}")
