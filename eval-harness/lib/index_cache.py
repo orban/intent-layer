@@ -53,11 +53,17 @@ class IndexCache:
             )
             if not md_files:
                 continue
-            # Infer repo and commit from directory name: <repo>-<commit8>-<condition>
+            # Infer repo and commit from directory name:
+            #   Per-commit: <repo>-<commit8>-<condition>  (3 parts)
+            #   Repo-level: <repo>-<condition>            (2 parts)
             parts = child.name.rsplit("-", 2)
-            if len(parts) < 3:
+            if len(parts) == 3:
+                repo_name, commit_short, condition = parts
+            elif len(parts) == 2:
+                repo_name, condition = parts
+                commit_short = "latest"  # repo-level entry
+            else:
                 continue
-            repo_name, commit_short, condition = parts
             manifest.entries[child.name] = CacheEntry(
                 repo=f"https://github.com/unknown/{repo_name}",
                 commit=commit_short,
@@ -107,18 +113,33 @@ class IndexCache:
             Cache key in format: <repo-name>-<commit[:8]>-<condition>
             If condition is empty, format is: <repo-name>-<commit[:8]>
         """
-        # Extract repo name from URL
-        parsed = urlparse(repo)
-        repo_name = parsed.path.strip("/").split("/")[-1]
-        if repo_name.endswith(".git"):
-            repo_name = repo_name[:-4]
-
-        # Use first 8 chars of commit
+        repo_name = self._extract_repo_name(repo)
         commit_short = commit[:8]
 
         if condition:
             return f"{repo_name}-{commit_short}-{condition}"
         return f"{repo_name}-{commit_short}"
+
+    def get_repo_cache_key(self, repo: str, condition: str) -> str:
+        """Generate a repo-level cache key (no commit).
+
+        Context files (AGENTS.md, CLAUDE.md) describe repo structure and
+        conventions, which don't change between nearby commits. This key
+        allows a single generation to serve all tasks in the same repo.
+
+        Returns:
+            Cache key in format: <repo-name>-<condition>
+        """
+        repo_name = self._extract_repo_name(repo)
+        return f"{repo_name}-{condition}"
+
+    @staticmethod
+    def _extract_repo_name(repo: str) -> str:
+        parsed = urlparse(repo)
+        repo_name = parsed.path.strip("/").split("/")[-1]
+        if repo_name.endswith(".git"):
+            repo_name = repo_name[:-4]
+        return repo_name
 
     def lookup(self, repo: str, commit: str, condition: str = "") -> CacheEntry | None:
         """Look up cached index by repo, commit, and condition.
@@ -134,18 +155,34 @@ class IndexCache:
         cache_key = self.get_cache_key(repo, commit, condition)
         return self.manifest.entries.get(cache_key)
 
-    def save(self, repo: str, commit: str, workspace: str, agents_files: list[str], condition: str = ""):
+    def lookup_repo(self, repo: str, condition: str) -> CacheEntry | None:
+        """Look up cached index by repo and condition (ignoring commit).
+
+        Context files describe repo structure, which is stable across nearby
+        commits. This allows one generation to serve all tasks in a repo.
+
+        Returns:
+            CacheEntry if found, None otherwise
+        """
+        cache_key = self.get_repo_cache_key(repo, condition)
+        return self.manifest.entries.get(cache_key)
+
+    def save(self, repo: str, commit: str, workspace: str, agents_files: list[str], condition: str = "", repo_level: bool = False):
         """Save generated index to cache.
 
         Args:
             repo: Repository URL
-            commit: Full commit SHA
+            commit: Full commit SHA (or any string for repo-level)
             workspace: Path to workspace containing generated files
             agents_files: List of relative paths to AGENTS.md/CLAUDE.md files
             condition: Condition name (e.g., "flat_llm", "intent_layer")
+            repo_level: If True, cache by repo+condition only (no commit)
         """
         # Create cache entry directory
-        cache_key = self.get_cache_key(repo, commit, condition)
+        if repo_level:
+            cache_key = self.get_repo_cache_key(repo, condition)
+        else:
+            cache_key = self.get_cache_key(repo, commit, condition)
         cache_entry_dir = self.cache_dir / cache_key
         cache_entry_dir.mkdir(parents=True, exist_ok=True)
 

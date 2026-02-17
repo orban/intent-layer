@@ -569,19 +569,18 @@ def test_warm_cache_none_condition_returns_none(sample_repo):
         runner = TaskRunner(sample_repo, tmpdir)
         result = runner.warm_cache(
             "https://github.com/test/repo",
-            "abcdef01",
             Condition.NONE
         )
         assert result is None
 
 
 def test_warm_cache_skips_when_cached(sample_repo):
-    """warm_cache returns None if the cache already has the entry."""
+    """warm_cache returns None if the repo-level cache already has the entry."""
     with tempfile.TemporaryDirectory() as tmpdir:
         cache_dir = os.path.join(tmpdir, ".cache")
         runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
 
-        # Pre-populate cache
+        # Pre-populate repo-level cache (warm_cache now uses repo-level keys)
         ws = os.path.join(tmpdir, "fake-ws")
         os.makedirs(ws)
         with open(os.path.join(ws, "CLAUDE.md"), "w") as f:
@@ -589,15 +588,15 @@ def test_warm_cache_skips_when_cached(sample_repo):
 
         runner.index_cache.save(
             "https://github.com/test/repo",
-            "abcdef0123456789",
+            "latest",
             ws,
             ["CLAUDE.md"],
-            "intent_layer"
+            "intent_layer",
+            repo_level=True
         )
 
         result = runner.warm_cache(
             "https://github.com/test/repo",
-            "abcdef0123456789",
             Condition.INTENT_LAYER
         )
         assert result is None  # Already cached, nothing to do

@@ -197,7 +197,8 @@ class TaskRunner:
         commit: str,
         condition: str = "",
         model: str | None = None,
-        timeout: int = 600
+        timeout: int = 600,
+        repo_level: bool = False
     ) -> SkillGenerationMetrics:
         """Check cache or generate index. Returns metrics.
 
@@ -206,13 +207,16 @@ class TaskRunner:
             repo_url: Repository URL
             commit: Commit SHA
             timeout: Generation timeout in seconds (default 600)
+            repo_level: If True, use repo-level cache key (no commit)
 
         Returns:
             SkillGenerationMetrics with cache_hit flag
         """
-        # Check cache if enabled
+        # Check cache if enabled — try repo-level first, then per-commit
         if self.index_cache:
-            cache_entry = self.index_cache.lookup(repo_url, commit, condition)
+            cache_entry = self.index_cache.lookup_repo(repo_url, condition)
+            if not cache_entry:
+                cache_entry = self.index_cache.lookup(repo_url, commit, condition)
 
             if cache_entry:
                 # Cache hit: restore files
@@ -251,7 +255,7 @@ class TaskRunner:
 
         # Save to cache if enabled
         if self.index_cache:
-            self.index_cache.save(repo_url, commit, workspace, agents_files, condition)
+            self.index_cache.save(repo_url, commit, workspace, agents_files, condition, repo_level=repo_level)
 
         return SkillGenerationMetrics(
             wall_clock_seconds=result.wall_clock_seconds,
@@ -267,16 +271,19 @@ class TaskRunner:
         repo_url: str,
         commit: str,
         model: str | None = None,
-        timeout: int = 600
+        timeout: int = 600,
+        repo_level: bool = False
     ) -> SkillGenerationMetrics:
         """Generate a flat CLAUDE.md using the paper's prompt. Returns metrics.
 
         After generation, dual-writes the content to both CLAUDE.md and AGENTS.md,
         matching the paper's behavior at init_planner.py:187-188.
         """
-        # Check cache first
+        # Check cache — try repo-level first, then per-commit
         if self.index_cache:
-            cache_entry = self.index_cache.lookup(repo_url, commit, "flat_llm")
+            cache_entry = self.index_cache.lookup_repo(repo_url, "flat_llm")
+            if not cache_entry:
+                cache_entry = self.index_cache.lookup(repo_url, commit, "flat_llm")
             if cache_entry:
                 start = time.time()
                 self.index_cache.restore(cache_entry, workspace)
@@ -315,7 +322,7 @@ class TaskRunner:
 
         # Save to cache
         if self.index_cache:
-            self.index_cache.save(repo_url, commit, workspace, agents_files, "flat_llm")
+            self.index_cache.save(repo_url, commit, workspace, agents_files, "flat_llm", repo_level=repo_level)
 
         return SkillGenerationMetrics(
             wall_clock_seconds=result.wall_clock_seconds,
@@ -328,15 +335,18 @@ class TaskRunner:
     def warm_cache(
         self,
         repo_url: str,
-        commit: str,
         condition: Condition,
         model: str | None = None,
         timeout: int = 900
     ) -> SkillGenerationMetrics | None:
-        """Pre-generate context files for a repo+commit+condition into the cache.
+        """Pre-generate context files once per repo+condition into the cache.
 
-        Called once per unique (repo, commit, condition) before the task loop.
-        Subsequent task runs will get instant cache hits instead of regenerating.
+        Context files (AGENTS.md, CLAUDE.md) describe repo structure and
+        conventions, which are stable across nearby commits. So we generate
+        from the default branch once and reuse for all tasks in the repo.
+
+        Called once per unique (repo, condition) before the task loop.
+        Subsequent task runs restore from the repo-level cache entry.
         Uses a longer timeout (default 900s) since this only runs once.
 
         Returns SkillGenerationMetrics if generation was needed, None for the
@@ -345,17 +355,17 @@ class TaskRunner:
         if condition == Condition.NONE:
             return None
 
-        # Already cached? Nothing to do.
+        cond_key = condition.value
+
+        # Already cached at repo level? Nothing to do.
         if self.index_cache:
-            cond_key = condition.value if condition == Condition.INTENT_LAYER else "flat_llm"
-            if self.index_cache.lookup(repo_url, commit, cond_key):
-                logger.info("Cache hit for %s @ %s (%s), skipping warm", repo_url, commit[:8], condition.value)
+            if self.index_cache.lookup_repo(repo_url, cond_key):
+                logger.info("Cache hit for %s (%s), skipping warm", repo_url, condition.value)
                 return None
 
-        # Need a temporary workspace to clone into and generate from.
-        # This workspace is only used for generation — task runs get their own.
+        # Clone default branch for generation (structure is commit-agnostic)
         repo_name = repo_url.split("/")[-1].replace(".git", "")
-        workspace_name = f"{repo_name}-{commit[:8]}-{condition.value}-warmup"
+        workspace_name = f"{repo_name}-{condition.value}-warmup"
         workspace = str(self.workspaces_dir / workspace_name)
 
         if Path(workspace).exists():
@@ -364,7 +374,7 @@ class TaskRunner:
         try:
             self._progress("warmup", condition.value, "clone", f"cloning {repo_url}")
             clone_repo(repo_url, workspace, shallow=False)
-            checkout_commit(workspace, commit)
+            # Use default branch HEAD — no checkout_commit needed
 
             self._progress("warmup", condition.value, "strip", "removing existing context files")
             strip_extra = self.repo.strip_extra or None
@@ -375,18 +385,20 @@ class TaskRunner:
                 metrics = self._check_or_generate_index(
                     workspace=workspace,
                     repo_url=repo_url,
-                    commit=commit,
-                    condition=condition.value,
+                    commit="latest",
+                    condition=cond_key,
                     model=model,
-                    timeout=timeout
+                    timeout=timeout,
+                    repo_level=True
                 )
             else:  # FLAT_LLM
                 metrics = self._generate_flat_context(
                     workspace=workspace,
                     repo_url=repo_url,
-                    commit=commit,
+                    commit="latest",
                     model=model,
-                    timeout=timeout
+                    timeout=timeout,
+                    repo_level=True
                 )
 
             if not metrics.cache_hit and not metrics.files_created:

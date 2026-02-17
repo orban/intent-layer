@@ -152,23 +152,24 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     progress_callback = _make_progress_callback(verbose)
 
     # Phase 1: Pre-warm cache — generate context files once per repo+condition.
+    # Context files describe repo structure/conventions, which are stable across
+    # nearby commits. So we generate once per repo, not per task commit.
     # This runs serially before the parallel task loop so each generation gets
     # the full timeout budget. Task runs then get instant cache hits.
     if not no_cache:
-        # Collect unique (repo_url, commit, condition) triples that need generation.
-        # Keep repo config reference so we can create a TaskRunner with the right settings.
-        warmup_items: dict[tuple[str, str, str], 'RepoConfig'] = {}
+        # Collect unique (repo_url, condition) pairs that need generation.
+        warmup_items: dict[tuple[str, str], 'RepoConfig'] = {}
         for repo, task in all_tasks:
             for cond in conditions:
                 if cond == Condition.NONE:
                     continue
-                key = (repo.url, task.pre_fix_commit, cond.value)
+                key = (repo.url, cond.value)
                 if key not in warmup_items:
                     warmup_items[key] = repo
 
         if warmup_items:
             click.echo(f"Pre-warming cache for {len(warmup_items)} repo/condition pair(s)...")
-            for (repo_url, commit, cond_str), repo_config in warmup_items.items():
+            for (repo_url, cond_str), repo_config in warmup_items.items():
                 cond = Condition(cond_str)
                 runner = TaskRunner(
                     repo_config,
@@ -178,7 +179,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     use_cache=True
                 )
                 try:
-                    metrics = runner.warm_cache(repo_url, commit, cond, model=model)
+                    metrics = runner.warm_cache(repo_url, cond, model=model)
                     if metrics and not metrics.cache_hit:
                         click.echo(f"  {cond_str}: generated {len(metrics.files_created)} file(s) in {metrics.wall_clock_seconds:.1f}s")
                     else:

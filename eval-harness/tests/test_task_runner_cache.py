@@ -126,3 +126,78 @@ def test_different_conditions_cached_separately():
         assert il_entry is not None
         assert len(flat_entry.agents_files) == 1
         assert len(il_entry.agents_files) == 2
+
+
+def test_repo_level_cache_serves_all_commits():
+    """Repo-level cache entry is found regardless of commit SHA."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = Path(tmpdir) / ".index-cache"
+        cache = IndexCache(str(cache_dir))
+
+        # Save a repo-level entry (no commit in key)
+        with tempfile.TemporaryDirectory() as ws:
+            (Path(ws) / "CLAUDE.md").write_text("# Repo-level context")
+            cache.save(
+                "https://github.com/user/repo", "latest", ws,
+                ["CLAUDE.md"], "intent_layer", repo_level=True
+            )
+
+        # lookup_repo finds it
+        entry = cache.lookup_repo("https://github.com/user/repo", "intent_layer")
+        assert entry is not None
+        assert entry.agents_files == ["CLAUDE.md"]
+
+        # Per-commit lookup does NOT find it (different key format)
+        assert cache.lookup("https://github.com/user/repo", "abc12345", "intent_layer") is None
+
+        # Restore works from repo-level entry
+        with tempfile.TemporaryDirectory() as target:
+            cache.restore(entry, target)
+            assert (Path(target) / "CLAUDE.md").read_text() == "# Repo-level context"
+
+
+def test_check_or_generate_prefers_repo_level_cache():
+    """_check_or_generate_index tries repo-level cache before per-commit."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = Path(tmpdir) / ".index-cache"
+        workspace_base = Path(tmpdir) / "workspaces"
+
+        cache = IndexCache(str(cache_dir))
+
+        # Pre-populate repo-level cache
+        with tempfile.TemporaryDirectory() as ws:
+            ws_path = Path(ws)
+            (ws_path / "CLAUDE.md").write_text("# Repo Root")
+            (ws_path / "src").mkdir()
+            (ws_path / "src" / "AGENTS.md").write_text("# Src Node")
+            cache.save(
+                "https://github.com/user/repo", "latest", ws,
+                ["CLAUDE.md", "src/AGENTS.md"], "intent_layer",
+                repo_level=True
+            )
+
+        repo_config = RepoConfig(
+            url="https://github.com/user/repo",
+            docker=DockerConfig(image="python:3.9", setup=[], test_command="pytest")
+        )
+        runner = TaskRunner(
+            repo=repo_config,
+            workspaces_dir=str(workspace_base),
+            cache_dir=str(cache_dir),
+            use_cache=True
+        )
+
+        # Ask for a specific commit — repo-level cache should serve it
+        test_workspace = workspace_base / "test-ws"
+        test_workspace.mkdir(parents=True)
+
+        metrics = runner._check_or_generate_index(
+            workspace=str(test_workspace),
+            repo_url="https://github.com/user/repo",
+            commit="deadbeef12345678",  # arbitrary commit
+            condition="intent_layer"
+        )
+
+        assert metrics.cache_hit is True
+        assert (test_workspace / "CLAUDE.md").read_text() == "# Repo Root"
+        assert (test_workspace / "src" / "AGENTS.md").read_text() == "# Src Node"
