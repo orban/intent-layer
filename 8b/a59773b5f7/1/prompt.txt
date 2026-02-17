@@ -325,3 +325,301 @@ Please continue the conversation from where we left off without asking the user 
 ---
 
 Implement building the intent layer once and sharing it across runs to amortize the cost, we have use more have 600s if we're only doing it once
+
+---
+
+is the intent layer only built once in this design?
+
+---
+
+what i'm saying is that the generated intent layer files will be the same regardless of task, so we just need to get the files and then any task can use them
+
+---
+
+commit this
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the entire conversation chronologically:
+
+1. This is a continuation session. The previous session implemented 6 recommendations for the AGENTbench eval harness:
+   - Pre-validation step
+   - Silent generation failure detection
+   - Context file exclusion from diffs
+   - Repetition support
+   - Multi-run aggregation in reporter
+   - Separated success/efficiency metrics
+
+2. The continuation started with me re-reading reporter.py, test_reporter.py, and test_task_runner.py to understand the current state.
+
+3. I updated `write_markdown()` in reporter.py to handle the new multi-run data format using `_get_fix_metrics()` helper.
+
+4. I updated test_reporter.py - changed delta key from `"success"` to `"success_rate_delta"`, added tests for pre-validation/skill-gen error exclusion, multi-run serialize, multi-run delta, and _get_fix_metrics.
+
+5. I updated test_task_runner.py - added import for PreValidationError/SkillGenerationError, added tests for those exceptions, residual context file detection, and error tag classification.
+
+6. I updated test_git_ops.py - added import for _is_context_file, added tests for context file detection patterns.
+
+7. All 43 tests passed.
+
+8. User asked: "Implement building the intent layer once and sharing it across runs to amortize the cost, we have use more have 600s if we're only doing it once"
+
+9. I entered plan mode, launched explore and plan agents, designed a two-phase approach (prepare_template + run_from_template).
+
+10. User asked: "is the intent layer only built once in this design?" - questioning my plan
+
+11. I explained yes, per task×condition, but acknowledged clone sharing could go further.
+
+12. User said: "what i'm saying is that the generated intent layer files will be the same regardless of task, so we just need to get the files and then any task can use them" — KEY FEEDBACK. The user pointed out my design was wrong. The IL is per-REPO, not per-task. All tasks for the same repo share the same generated files.
+
+13. I recognized the simpler approach: just pre-warm the cache before the task loop. The IndexCache already keys by (repo, commit, condition), not by task. So warm it once, all tasks get cache hits.
+
+14. I implemented:
+    - Added `timeout` parameter to `_check_or_generate_index` (default 600)
+    - Added `timeout` parameter to `_generate_flat_context` (default 600)
+    - Added `warm_cache()` method to TaskRunner (default 900s timeout)
+    - Fixed workspace naming: added `rep` parameter to `_setup_workspace` (now `-r{rep}` suffix)
+    - Updated `run()` to accept and pass `rep` parameter
+    - Updated `cli.py` with Phase 1 pre-warm loop before the parallel task loop
+    - Fixed warmup_items to use dict with string keys (not Condition enum, which isn't sortable)
+    - Added 4 new tests: workspace rep naming, default rep, warm_cache NONE returns None, warm_cache skips when cached
+
+15. All 47 tests passed.
+
+16. User asked: "so again, the intent layer is only generated once?" - still questioning
+
+17. I confirmed: yes, warm_cache generates once, saves to IndexCache, all task runs get instant cache hits. Cache key is (repo_url, commit, condition) with no task ID.
+
+18. User said: "commit this"
+
+19. I ran git status, git diff --stat, git log. The changes are:
+    - eval-harness/lib/cli.py (38 additions)
+    - eval-harness/lib/task_runner.py (105 additions)
+    - eval-harness/tests/test_task_runner.py (82 additions)
+    
+    These are unstaged. I was about to create the commit when the summary was requested.
+
+Important files modified in THIS session (the continuation):
+
+From the PREVIOUS session carried forward:
+- eval-harness/lib/git_ops.py - context file exclusion
+- eval-harness/lib/reporter.py - multi-run aggregation, write_markdown update
+- eval-harness/tests/test_reporter.py - new tests
+- eval-harness/tests/test_git_ops.py - new tests
+
+But those were already committed in `75388d5 feat: repetitions, pre-validation, context file exclusion, multi-run stats`
+
+Current uncommitted changes (THIS session's main work):
+- eval-harness/lib/task_runner.py - warm_cache, timeout params, workspace naming
+- eval-harness/lib/cli.py - pre-warm phase
+- eval-harness/tests/test_task_runner.py - new tests
+
+Also earlier in this session I updated reporter.py's write_markdown and test files, which appear to have been committed already in 75388d5.
+
+Wait, looking at git status more carefully - the modified files are only cli.py, task_runner.py, and tests/test_task_runner.py. The reporter.py and test_reporter.py and test_git_ops.py changes must have already been committed. Looking at the commit message `75388d5 feat: repetitions, pre-validation, context file exclusion, multi-run stats` - yes, those were committed.
+
+So the current uncommitted work is specifically the warm_cache / workspace naming changes.
+
+Summary:
+1. Primary Request and Intent:
+   The user's primary request was to implement building the Intent Layer once and sharing it across all runs to amortize the cost. The user explicitly noted: "we have use more have 600s if we're only doing it once" (meaning we can afford more than 600s timeout since generation only happens once). 
+
+   A critical piece of user feedback shaped the design: when I initially planned a per-task×condition template approach, the user corrected me twice:
+   - "is the intent layer only built once in this design?" 
+   - "what i'm saying is that the generated intent layer files will be the same regardless of task, so we just need to get the files and then any task can use them"
+   
+   This clarified that the IL generation is per-REPO, not per-task — all tasks sharing the same repo get identical generated files. The user also asked to "commit this" after implementation was complete.
+
+2. Key Technical Concepts:
+   - AGENTbench replication eval harness with three conditions: none, flat_llm, intent_layer
+   - IndexCache keyed by `(repo_url, commit, condition)` — repo-scoped, not task-scoped
+   - Cache pre-warming: generate context files once before the parallel task loop, so all task runs get instant cache hits
+   - Workspace collision bug: parallel repetitions sharing the same workspace path (no rep index)
+   - `warm_cache()` method: clone into a throwaway workspace, generate, let cache persist the result, clean up
+   - Two-phase CLI execution: serial pre-warm, then parallel task runs
+   - Generation timeout: 900s for warm_cache (runs once) vs 600s default for task-level fallback
+
+3. Files and Code Sections:
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/task_runner.py`** (UNCOMMITTED - main implementation target)
+     - Added `timeout` parameter to `_check_or_generate_index()` and `_generate_flat_context()` (both default 600s)
+     - Added `warm_cache()` method (~70 lines) that pre-generates context into the cache
+     - Fixed `_setup_workspace()` to include rep index in workspace name
+     - Updated `run()` to accept and pass `rep` parameter
+     ```python
+     def warm_cache(
+         self,
+         repo_url: str,
+         commit: str,
+         condition: Condition,
+         model: str | None = None,
+         timeout: int = 900
+     ) -> SkillGenerationMetrics | None:
+         """Pre-generate context files for a repo+commit+condition into the cache.
+         Called once per unique (repo, commit, condition) before the task loop.
+         Subsequent task runs will get instant cache hits instead of regenerating.
+         Uses a longer timeout (default 900s) since this only runs once.
+         Returns SkillGenerationMetrics if generation was needed, None for the
+         'none' condition (which has no context files to generate).
+         """
+         if condition == Condition.NONE:
+             return None
+         # Already cached? Nothing to do.
+         if self.index_cache:
+             cond_key = condition.value if condition == Condition.INTENT_LAYER else "flat_llm"
+             if self.index_cache.lookup(repo_url, commit, cond_key):
+                 logger.info("Cache hit for %s @ %s (%s), skipping warm", repo_url, commit[:8], condition.value)
+                 return None
+         # Need a temporary workspace to clone into and generate from.
+         repo_name = repo_url.split("/")[-1].replace(".git", "")
+         workspace_name = f"{repo_name}-{commit[:8]}-{condition.value}-warmup"
+         workspace = str(self.workspaces_dir / workspace_name)
+         if Path(workspace).exists():
+             shutil.rmtree(workspace)
+         try:
+             self._progress("warmup", condition.value, "clone", f"cloning {repo_url}")
+             clone_repo(repo_url, workspace, shallow=False)
+             checkout_commit(workspace, commit)
+             self._progress("warmup", condition.value, "strip", "removing existing context files")
+             strip_extra = self.repo.strip_extra or None
+             self._strip_context_files(workspace, strip_extra)
+             self._progress("warmup", condition.value, "generate", f"generating {condition.value} context (timeout={timeout}s)")
+             if condition == Condition.INTENT_LAYER:
+                 metrics = self._check_or_generate_index(
+                     workspace=workspace, repo_url=repo_url, commit=commit,
+                     condition=condition.value, model=model, timeout=timeout
+                 )
+             else:  # FLAT_LLM
+                 metrics = self._generate_flat_context(
+                     workspace=workspace, repo_url=repo_url, commit=commit,
+                     model=model, timeout=timeout
+                 )
+             if not metrics.cache_hit and not metrics.files_created:
+                 raise SkillGenerationError(
+                     f"{condition.value} generation produced no files "
+                     f"(took {metrics.wall_clock_seconds:.0f}s). "
+                     f"Likely timed out or failed silently."
+                 )
+             status = "cached" if metrics.cache_hit else f"generated {len(metrics.files_created)} file(s)"
+             self._progress("warmup", condition.value, "done", f"{status} in {metrics.wall_clock_seconds:.1f}s")
+             return metrics
+         finally:
+             # Clean up warmup workspace — the files are in the cache now
+             if Path(workspace).exists():
+                 shutil.rmtree(workspace)
+     ```
+     - Workspace naming fix:
+     ```python
+     def _setup_workspace(self, task: Task, condition: Condition, rep: int = 0) -> str:
+         repo_name = self.repo.url.split("/")[-1].replace(".git", "")
+         workspace_name = f"{repo_name}-{task.pre_fix_commit[:8]}-{condition.value}-r{rep}"
+         workspace = self.workspaces_dir / workspace_name
+         if workspace.exists():
+             shutil.rmtree(workspace)
+         return str(workspace)
+     ```
+     - `run()` signature update: `def run(self, task: Task, condition: Condition, model: str | None = None, rep: int = 0) -> TaskResult:`
+     - `_check_or_generate_index` and `_generate_flat_context` both got `timeout: int = 600` parameter threaded through to `run_claude()`
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`** (UNCOMMITTED)
+     - Added Phase 1 pre-warm cache loop before the parallel task execution
+     - Fixed `run_single` to pass `rep=rep` to `runner.run()`
+     ```python
+     # Phase 1: Pre-warm cache — generate context files once per repo+condition.
+     if not no_cache:
+         warmup_items: dict[tuple[str, str, str], 'RepoConfig'] = {}
+         for repo, task in all_tasks:
+             for cond in conditions:
+                 if cond == Condition.NONE:
+                     continue
+                 key = (repo.url, task.pre_fix_commit, cond.value)
+                 if key not in warmup_items:
+                     warmup_items[key] = repo
+         if warmup_items:
+             click.echo(f"Pre-warming cache for {len(warmup_items)} repo/condition pair(s)...")
+             for (repo_url, commit, cond_str), repo_config in warmup_items.items():
+                 cond = Condition(cond_str)
+                 runner = TaskRunner(
+                     repo_config, str(workspaces_dir),
+                     progress_callback=progress_callback,
+                     cache_dir=cache_dir, use_cache=True
+                 )
+                 try:
+                     metrics = runner.warm_cache(repo_url, commit, cond, model=model)
+                     if metrics and not metrics.cache_hit:
+                         click.echo(f"  {cond_str}: generated {len(metrics.files_created)} file(s) in {metrics.wall_clock_seconds:.1f}s")
+                     else:
+                         click.echo(f"  {cond_str}: already cached")
+                 except Exception as e:
+                     click.echo(f"  {cond_str}: warmup failed - {e}", err=True)
+                     click.echo(f"    (task runs will retry with their own timeout)", err=True)
+     ```
+     - `run_single` now passes rep: `return runner.run(task, condition, model=model, rep=rep)`
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py`** (UNCOMMITTED)
+     - Added 4 new tests:
+     ```python
+     def test_workspace_name_includes_rep(sample_repo):
+         # Verifies -r0, -r1, -r5 suffixes and uniqueness
+     
+     def test_workspace_default_rep_is_zero(sample_repo):
+         # Verifies backward compat: default rep=0 produces -r0
+     
+     def test_warm_cache_none_condition_returns_none(sample_repo):
+         # NONE condition is a no-op
+     
+     def test_warm_cache_skips_when_cached(sample_repo):
+         # Pre-populates cache, verifies warm_cache returns None
+     ```
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py`** (already committed in 75388d5)
+     - Updated `write_markdown()` to handle multi-run format using `_get_fix_metrics()`
+     - Added infrastructure errors count to summary section
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tests/test_reporter.py`** (already committed in 75388d5)
+     - Fixed delta key `"success"` → `"success_rate_delta"`
+     - Added tests: pre_validation/skill_gen errors excluded, multi_run_serialize_condition, multi_run_delta, get_fix_metrics_all_formats
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tests/test_git_ops.py`** (already committed in 75388d5)
+     - Added `_is_context_file` import and 7 tests for context file pattern matching
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/index_cache.py`** (read, not modified)
+     - Cache keyed by `(repo_url, commit, condition)` — this repo-scoped design is what enables the simple pre-warm approach
+
+4. Errors and fixes:
+   - **Initial design was wrong (user feedback)**: I designed a per-task×condition template approach where each task would get its own template workspace. The user corrected me: "what i'm saying is that the generated intent layer files will be the same regardless of task, so we just need to get the files and then any task can use them." I pivoted to the much simpler cache pre-warm approach.
+   - **Condition enum not sortable**: Initially used `sorted(warmup_keys)` where keys contained `Condition` enum values. Fixed by storing `cond.value` (string) in the key instead, and using a dict instead of a set to keep the repo config reference.
+   - **repo_for_warmup was wrong**: Initially grabbed `all_tasks[0][0]` as a single repo config for all warmups. Fixed by keeping a dict mapping each unique key to its corresponding repo config.
+   - **ExitPlanMode tool failures**: The ExitPlanMode tool failed repeatedly with "Error: Stream closed". I worked around this by explaining the plan in text and asking the user for approval directly.
+
+5. Problem Solving:
+   - Solved the workspace collision bug where `--repetitions > 1` would cause parallel workers to clobber each other's workspaces (same path, no rep index).
+   - Solved the redundant generation problem by pre-warming the cache serially before the parallel task loop.
+   - The approach is minimal: no restructuring of `run()`, no new data classes, just a `warm_cache()` method and a pre-warm loop in the CLI. The existing cache infrastructure handles everything.
+
+6. All user messages:
+   - "Implement building the intent layer once and sharing it across runs to amortize the cost, we have use more have 600s if we're only doing it once"
+   - "is the intent layer only built once in this design?"
+   - "what i'm saying is that the generated intent layer files will be the same regardless of task, so we just need to get the files and then any task can use them"
+   - "so again, the intent layer is only generated once?"
+   - "commit this"
+
+7. Pending Tasks:
+   - **Commit the current changes** — user explicitly asked "commit this". Git status shows 3 modified files (cli.py, task_runner.py, tests/test_task_runner.py), unstaged. I had run git status/diff/log but hadn't created the commit yet.
+
+8. Current Work:
+   The user asked "commit this" and I ran the three preparatory git commands (status, diff --stat, log). The diff shows:
+   - `eval-harness/lib/cli.py` — 38 insertions (pre-warm phase)
+   - `eval-harness/lib/task_runner.py` — 105 insertions (warm_cache, timeout params, workspace naming)
+   - `eval-harness/tests/test_task_runner.py` — 82 insertions (4 new tests)
+   
+   All 47 tests pass. I need to stage these files and create the commit.
+
+9. Optional Next Step:
+   Create the git commit with these 3 files. Based on the repo's commit style (`feat:`, `fix:`, lowercase, imperative), an appropriate message would be something like: `feat: pre-warm cache to generate context once per repo, fix workspace collision`. Stage only the 3 modified files (not the untracked results/logs/etc.), then commit.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
