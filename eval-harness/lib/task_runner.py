@@ -33,6 +33,11 @@ from lib.index_cache import IndexCache
 # Progress callback type: (task_id, condition, step, message) -> None
 ProgressCallback = Callable[[str, str, str, str], None]
 
+# Pre-validation timeout: Docker setup + test run must complete within this.
+# 120s was too tight for repos with slow test setup (e.g., test_pagination.py
+# under parallel Docker load). 180s gives headroom without masking real issues.
+PRE_VALIDATION_TIMEOUT = 180
+
 
 class Condition(Enum):
     NONE = "none"
@@ -125,7 +130,7 @@ class TaskRunner:
                 smoke_cmd = "python --version"
 
             result = run_in_docker(
-                workspace, self.repo.docker.image, smoke_cmd, timeout=120
+                workspace, self.repo.docker.image, smoke_cmd, timeout=PRE_VALIDATION_TIMEOUT
             )
             if result.timed_out:
                 raise PreValidationError(
@@ -148,7 +153,7 @@ class TaskRunner:
                 test_cmd = f"{setup_chain} && {test_cmd}"
 
             result = run_in_docker(
-                workspace, self.repo.docker.image, test_cmd, timeout=120
+                workspace, self.repo.docker.image, test_cmd, timeout=PRE_VALIDATION_TIMEOUT
             )
 
             # 2. The test MUST fail at pre_fix_commit (that's the whole point)
@@ -578,6 +583,10 @@ class TaskRunner:
                     and claude_result.input_tokens == 0
                     and claude_result.output_tokens == 0
                     and not claude_result.timed_out):
+                # Include stderr for diagnosis — often reveals why CLI failed
+                stderr_snippet = claude_result.stderr.strip()[:200] if claude_result.stderr else ""
+                stderr_info = f", stderr={stderr_snippet!r}" if stderr_snippet else ""
+                prompt_size = len(prompt.encode("utf-8"))
                 return TaskResult(
                     task_id=task.id,
                     condition=condition,
@@ -592,7 +601,8 @@ class TaskRunner:
                     error=(
                         f"[empty-run] Claude produced no output "
                         f"(exit_code={claude_result.exit_code}, "
-                        f"{claude_result.wall_clock_seconds:.1f}s)"
+                        f"{claude_result.wall_clock_seconds:.1f}s, "
+                        f"prompt_bytes={prompt_size}{stderr_info})"
                     ),
                     exit_code=claude_result.exit_code,
                 )
@@ -765,7 +775,7 @@ class TaskRunner:
                 workspace,
                 self.repo.docker.image,
                 test_cmd,
-                timeout=120
+                timeout=PRE_VALIDATION_TIMEOUT
             )
             return build_prompt_from_failing_test(
                 result.stdout + result.stderr, preamble=preamble

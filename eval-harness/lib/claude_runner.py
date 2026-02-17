@@ -216,7 +216,17 @@ def run_claude(
         cmd.append("--verbose")
     if model:
         cmd.extend(["--model", model])
-    cmd.append(prompt)
+
+    # Pass prompt via stdin instead of CLI argument to avoid hitting
+    # macOS ARG_MAX (~1MB combined args+env). Failing test output from
+    # large test suites can easily exceed this limit.
+    # Claude CLI reads from stdin when no positional prompt is given.
+    prompt_via_stdin = True
+
+    # Small prompts can safely go as CLI args (faster, no pipe overhead)
+    if len(prompt.encode("utf-8")) < 100_000:
+        cmd.append(prompt)
+        prompt_via_stdin = False
 
     env = {**os.environ, "CLAUDE_NO_TELEMETRY": "1"}
     # Allow running from within a Claude session (e.g. smoke tests)
@@ -235,7 +245,8 @@ def run_claude(
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                env=env
+                env=env,
+                input=prompt if prompt_via_stdin else None,
             )
             elapsed = time.time() - start
             metrics = parse_claude_output(result.stdout)
@@ -291,11 +302,21 @@ def run_claude(
             proc = subprocess.Popen(
                 cmd,
                 cwd=workspace,
+                stdin=subprocess.PIPE if prompt_via_stdin else None,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 env=env,
             )
+
+            # Feed prompt via stdin, then close to signal EOF
+            if prompt_via_stdin:
+                try:
+                    proc.stdin.write(prompt)
+                    proc.stdin.close()
+                except BrokenPipeError:
+                    pass  # process already exited
+
             out_reader = threading.Thread(
                 target=_drain_stdout,
                 args=(proc.stdout, log_file),
