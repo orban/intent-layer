@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "8ba59773b5f7",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/prompt_builder.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/logs/fastmcp-453dcbe8-intent_layer-fix.log",
+    "eval-harness/results/2026-02-16-172007.json",
+    "eval-harness/results/2026-02-16-172007.md",
+    "eval-harness/results/2026-02-16-173014.json",
+    "eval-harness/results/2026-02-16-173014.md",
+    "eval-harness/results/2026-02-16-173750.json",
+    "eval-harness/results/2026-02-16-173750.md",
+    "eval-harness/results/2026-02-16-173936.json",
+    "eval-harness/results/2026-02-16-173936.md",
+    "eval-harness/results/2026-02-16-174503.json",
+    "eval-harness/results/2026-02-16-174503.md",
+    "eval-harness/tests/test_claude_runner.py",
+    "eval-harness/tests/test_task_runner.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8b/a59773b5f7/0/metadata.json",
+      "transcript": "/8b/a59773b5f7/0/full.jsonl",
+      "context": "/8b/a59773b5f7/0/context.md",
+      "content_hash": "/8b/a59773b5f7/0/content_hash.txt",
+      "prompt": "/8b/a59773b5f7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4907,
+    "cache_creation_tokens": 285219,
+    "cache_read_tokens": 20271561,
+    "output_tokens": 3638,
+    "api_call_count": 159
+  }
+}

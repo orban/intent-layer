@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "8ba59773b5f7",
+  "session_id": "ec9bc11e-facf-484d-929b-1562d71d5715",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-17T01:50:42.212166Z",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/prompt_builder.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/logs/fastmcp-453dcbe8-intent_layer-fix.log",
+    "eval-harness/results/2026-02-16-172007.json",
+    "eval-harness/results/2026-02-16-172007.md",
+    "eval-harness/results/2026-02-16-173014.json",
+    "eval-harness/results/2026-02-16-173014.md",
+    "eval-harness/results/2026-02-16-173750.json",
+    "eval-harness/results/2026-02-16-173750.md",
+    "eval-harness/results/2026-02-16-173936.json",
+    "eval-harness/results/2026-02-16-173936.md",
+    "eval-harness/results/2026-02-16-174503.json",
+    "eval-harness/results/2026-02-16-174503.md",
+    "eval-harness/tests/test_claude_runner.py",
+    "eval-harness/tests/test_task_runner.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "770492f4-4198-46e0-a72e-318999af47ce",
+  "token_usage": {
+    "input_tokens": 4907,
+    "cache_creation_tokens": 285219,
+    "cache_read_tokens": 20271561,
+    "output_tokens": 3638,
+    "api_call_count": 159
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-17T01:50:41.05766Z",
+    "agent_lines": 542,
+    "human_added": 102020,
+    "human_modified": 335,
+    "human_removed": 0,
+    "total_committed": 102897,
+    "agent_percentage": 0.5267403325655753
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/ec9bc11e-facf-484d-929b-1562d71d5715.jsonl"
+}
