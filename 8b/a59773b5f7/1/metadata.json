@@ -3,38 +3,42 @@
   "checkpoint_id": "8ba59773b5f7",
   "session_id": "cd627ce2-e36a-4228-9255-09fa4b94a6f5",
   "strategy": "manual-commit",
-  "created_at": "2026-02-17T04:05:27.93373Z",
+  "created_at": "2026-02-17T04:17:47.706994Z",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md",
     "eval-harness/lib/cli.py",
     "eval-harness/lib/git_ops.py",
+    "eval-harness/lib/index_cache.py",
     "eval-harness/lib/reporter.py",
     "eval-harness/lib/task_runner.py",
+    "eval-harness/results/2026-02-16-201138.json",
+    "eval-harness/results/2026-02-16-201138.md",
     "eval-harness/tests/test_git_ops.py",
     "eval-harness/tests/test_reporter.py",
-    "eval-harness/tests/test_task_runner.py"
+    "eval-harness/tests/test_task_runner.py",
+    "eval-harness/tests/test_task_runner_cache.py"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "b8d781d1-636f-41bc-ad90-54b69665a994",
-  "checkpoint_transcript_start": 726,
-  "transcript_lines_at_start": 726,
+  "transcript_identifier_at_start": "af2121f3-652c-4750-802e-35391b10a75b",
+  "checkpoint_transcript_start": 991,
+  "transcript_lines_at_start": 991,
   "token_usage": {
-    "input_tokens": 50,
-    "cache_creation_tokens": 126664,
-    "cache_read_tokens": 4210052,
-    "output_tokens": 227,
-    "api_call_count": 35
+    "input_tokens": 78,
+    "cache_creation_tokens": 83003,
+    "cache_read_tokens": 4964484,
+    "output_tokens": 276,
+    "api_call_count": 43
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-17T04:05:26.81174Z",
-    "agent_lines": 171,
-    "human_added": 19678,
-    "human_modified": 546,
+    "calculated_at": "2026-02-17T04:17:45.927195Z",
+    "agent_lines": 0,
+    "human_added": 39612,
+    "human_modified": 1238,
     "human_removed": 0,
-    "total_committed": 20395,
-    "agent_percentage": 0.8384407943123314
+    "total_committed": 40695,
+    "agent_percentage": 0
   },
   "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/cd627ce2-e36a-4228-9255-09fa4b94a6f5.jsonl"
 }

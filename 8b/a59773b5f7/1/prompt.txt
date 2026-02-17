@@ -1193,3 +1193,163 @@ Summary:
 
 If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
 Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+commit
+
+---
+
+## Context
+
+- Current git status: On branch main
+Your branch is ahead of 'origin/main' by 6 commits.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   eval-harness/lib/index_cache.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.claude/
+	.entire/
+	.intent-layer/
+	.superset/
+	eval-harness/docs/brainstorms/
+	eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md
+	eval-harness/docs/reference/
+	eval-harness/logs/
+	eval-harness/results/2026-02-16-133336.json
+	eval-harness/results/2026-02-16-133336.md
+	eval-harness/results/2026-02-16-134621.json
+	eval-harness/results/2026-02-16-134621.md
+	eval-harness/results/2026-02-16-150803.json
+	eval-harness/results/2026-02-16-150803.md
+	eval-harness/results/2026-02-16-155213.json
+	eval-harness/results/2026-02-16-155213.md
+	eval-harness/results/2026-02-16-160655.json
+	eval-harness/results/2026-02-16-160655.md
+	eval-harness/results/2026-02-16-172007.json
+	eval-harness/results/2026-02-16-172007.md
+	eval-harness/results/2026-02-16-173014.json
+	eval-harness/results/2026-02-16-173014.md
+	eval-harness/results/2026-02-16-173750.json
+	eval-harness/results/2026-02-16-173750.md
+	eval-harness/results/2026-02-16-173936.json
+	eval-harness/results/2026-02-16-173936.md
+	eval-harness/results/2026-02-16-174503.json
+	eval-harness/results/2026-02-16-174503.md
+	eval-harness/uv.lock
+
+no changes added to commit (use "git add" and/or "git commit -a")
+- Current git diff (staged and unstaged changes): diff --git a/eval-harness/lib/index_cache.py b/eval-harness/lib/index_cache.py
+index 872502e..4330e07 100644
+--- a/eval-harness/lib/index_cache.py
++++ b/eval-harness/lib/index_cache.py
+@@ -29,24 +29,55 @@ class IndexCache:
+         self.manifest = self._load_manifest()
+ 
+     def _load_manifest(self) -> CacheManifest:
+-        """Load manifest from disk or create empty one."""
++        """Load manifest from disk, repair orphan directories, or create empty."""
+         if self.manifest_path.exists():
+             with open(self.manifest_path) as f:
+                 data = json.load(f)
+                 entries = {
+                     k: CacheEntry(**v) for k, v in data.get("entries", {}).items()
+                 }
+-                return CacheManifest(entries=entries)
++                manifest = CacheManifest(entries=entries)
+         else:
+             manifest = CacheManifest(entries={})
+-            # Save empty manifest
+-            data = {"entries": {}}
+-            with open(self.manifest_path, "w") as f:
+-                json.dump(data, f, indent=2)
+-            return manifest
++
++        # Repair: scan for directories not in the manifest (orphaned by killed runs)
++        repaired = 0
++        for child in sorted(self.cache_dir.iterdir()):
++            if not child.is_dir() or child.name in manifest.entries:
++                continue
++            # Find .md files to reconstruct the entry
++            md_files = sorted(
++                str(p.relative_to(child))
++                for p in child.rglob("*.md")
++                if p.is_file()
++            )
++            if not md_files:
++                continue
++            # Infer repo and commit from directory name: <repo>-<commit8>-<condition>
++            parts = child.name.rsplit("-", 2)
++            if len(parts) < 3:
++                continue
++            repo_name, commit_short, condition = parts
++            manifest.entries[child.name] = CacheEntry(
++                repo=f"https://github.com/unknown/{repo_name}",
++                commit=commit_short,
++                workspace_path=str(child),
++                created_at=datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
++                agents_files=md_files,
++            )
++            repaired += 1
++
++        if repaired:
++            import logging
++            logging.getLogger(__name__).info("Repaired %d orphan cache entries", repaired)
++
++        # Persist (creates file if new, updates if repaired)
++        self.manifest = manifest
++        self._save_manifest()
++        return manifest
+ 
+     def _save_manifest(self):
+-        """Save manifest to disk."""
++        """Save manifest to disk atomically (write tmp + rename)."""
+         data = {
+             "entries": {
+                 k: {
+@@ -59,8 +90,10 @@ class IndexCache:
+                 for k, v in self.manifest.entries.items()
+             }
+         }
+-        with open(self.manifest_path, "w") as f:
++        tmp_path = self.manifest_path.with_suffix(".tmp")
++        with open(tmp_path, "w") as f:
+             json.dump(data, f, indent=2)
++        tmp_path.rename(self.manifest_path)
+ 
+     def get_cache_key(self, repo: str, commit: str, condition: str = "") -> str:
+         """Generate cache key from repo URL, commit SHA, and condition.
+- Current branch: main
+- Recent commits: 9c93f79 test: verify single-run delta uses success_rate_delta key Entire-Checkpoint: 8ba59773b5f7
+a6f5ec7 feat: serialize exit_code and is_timeout in JSON output Entire-Checkpoint: 8ba59773b5f7
+a421683 feat: detect and tag Claude timeouts as [timeout] Entire-Checkpoint: 8ba59773b5f7
+568caab feat: detect and tag empty Claude runs as [empty-run] Entire-Checkpoint: 8ba59773b5f7
+55c0882 feat: add exit_code and is_timeout fields to TaskResult Entire-Checkpoint: 8ba59773b5f7
+140c469 feat: pre-warm cache to generate context once per repo, fix workspace collision
+75388d5 feat: repetitions, pre-validation, context file exclusion, multi-run stats
+a16008c feat: stream-json monitoring for real-time Claude progress during evals
+5d565df fix: docker setup persistence, claude output parsing, fastmcp tasks
+3a03333 fix: allow nested claude sessions, baseline commit for accurate diff stats
+
+## Your task
+
+Based on the above changes, create a single git commit.
+
+You have the capability to call multiple tools in a single response. Stage and create the commit using a single message. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+
+---
+
+The cache still seems to be warming up for each task, rather than once per run.
+
+---
+
+code review first
+
+---
+
+yes
