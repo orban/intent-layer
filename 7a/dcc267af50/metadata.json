@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "7adcc267af50",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "eval-harness/lib/reporter.py",
+    "eval-harness/lib/stats.py",
+    "eval-harness/tests/test_reporter.py",
+    "eval-harness/tests/test_stats.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7a/dcc267af50/0/metadata.json",
+      "transcript": "/7a/dcc267af50/0/full.jsonl",
+      "context": "/7a/dcc267af50/0/context.md",
+      "content_hash": "/7a/dcc267af50/0/content_hash.txt",
+      "prompt": "/7a/dcc267af50/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 32425,
+    "cache_read_tokens": 1917519,
+    "output_tokens": 3389,
+    "api_call_count": 14
+  }
+}
