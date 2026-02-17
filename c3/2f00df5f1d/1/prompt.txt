@@ -1,0 +1,979 @@
+Implement the following plan:
+
+# Plan: Add `--resume` to eval harness CLI
+
+## Context
+
+Running 8 tasks × 3 conditions costs ~$15-25 and takes 30+ minutes. The last run had 4/8 tasks pass all conditions, but 4 had timeouts/infra errors. We need `--resume <results.json>` to carry forward passing pairs and only re-run failures.
+
+## Design: JSON-level merge (no TaskResult reconstruction)
+
+Three reviewers independently rejected reconstructing TaskResult objects from JSON. The prior JSON already contains the exact compiled format the reporter produces. We work at the dict level instead.
+
+### Unit of carry-forward: condition-level
+
+A (task_id, condition) pair is "passed" if:
+- The condition block exists
+- `success` is True
+- No `error` field (covers all infra errors without duplicating prefix logic)
+
+Multi-run results (has `runs` array): reject with a clear error for now. We've never used `--resume` with `--repetitions > 1`. When we do, we'll know the right semantics.
+
+## File to modify: `eval-harness/lib/cli.py`
+
+### a) New option
+```python
+@click.option("--resume", default=None, type=click.Path(exists=True),
+              help="Prior results JSON — skip passed pairs, re-run failures")
+```
+
+### b) New function: `_load_prior_results(json_path)`
+
+~20 lines. Returns `(passed_pairs: set[tuple[str, str]], prior_data: dict)`:
+1. Parse JSON, validate `"results"` key exists
+2. If any condition block has a `"runs"` key, raise `ClickException("--resume does not support multi-run results yet")`
+3. For each task's condition block: if `success=True` and no `error` field, add `(task_id, cond_key)` to passed set
+4. Return the set + raw parsed JSON
+
+### c) Filter work queue (before dry-run check)
+
+Move resume loading BEFORE the `if dry_run:` block so `--dry-run --resume` shows what would be skipped:
+```
+if resume:
+    passed_pairs, prior_data = _load_prior_results(resume)
+    original_len = len(work_queue)
+    work_queue = [item for item in work_queue if (item[1].id, item[2].value) not in passed_pairs]
+    click.echo(f"Resume: {len(passed_pairs)} passed pairs carried forward, {len(work_queue)} to re-run")
+```
+
+### d) Merge after execution (~25 lines)
+
+After the ThreadPoolExecutor loop:
+1. Compile new results via `reporter.compile_results(results)` as today
+2. Build a lookup from new results: `{task_id: compiled_task_dict}`
+3. Build merged results list from prior data:
+   - For each prior task: copy the task dict, then overwrite any condition that was re-run with the new compilation's version
+   - For tasks not in prior data (new tasks): include from new compilation directly
+4. Recompute deltas for any task that has mixed old/new conditions (call `reporter._compute_delta` — but this needs TaskResult objects we don't have)
+
+**Simplification for mixed tasks**: For tasks where some conditions were kept and some re-run, we need deltas between old and new data. Rather than reconstructing TaskResult objects for delta computation, just skip deltas for mixed tasks and mark them `"deltas": {"note": "mixed resume — deltas not computed"}`. There are at most 1-2 mixed tasks per run, and the per-condition pass rates are the primary metric anyway.
+
+5. Recompute summary: iterate merged results and count successes/totals per condition
+6. Add `"resumed_from": "<prior eval_id>"` to the output metadata
+7. Write with new timestamp/eval_id
+
+## Test: `eval-harness/tests/test_resume.py`
+
+~40 lines:
+
+1. **`test_load_prior_results_identifies_passed_pairs`** — construct a minimal JSON with mixed pass/fail, verify the returned set
+2. **`test_load_prior_results_rejects_multi_run`** — JSON with `runs` array raises ClickException
+3. **`test_load_prior_results_excludes_infra_errors`** — timeout/empty-run results with `success=False` + `error` field not in passed set
+4. **`test_load_prior_results_validates_structure`** — malformed JSON (missing `results` key) raises ClickException
+
+## What we're NOT doing
+
+- **No TaskResult reconstruction** — work at JSON dict level
+- **No multi-run resume** — reject with clear error, defer until needed
+- **No delta recomputation for mixed tasks** — not worth the complexity for 1-2 edge cases
+- **No format changes** — output JSON schema unchanged (just adds `resumed_from` metadata)
+
+## Verification
+
+1. `pytest tests/test_resume.py` — unit tests for `_load_prior_results`
+2. `run --tasks tasks/fastmcp.yaml --resume results/2026-02-17-105514.json --dry-run` — verify it shows 4 tasks to skip, 4 to re-run
+3. Full resume run, verify merged markdown has all 8 tasks with CIs on new results
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+# Comprehensive PR Review
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality.
+
+**Review Aspects (optional):** ""
+
+## Review Workflow:
+
+1. **Determine Review Scope**
+   - Check git status to identify changed files
+   - Parse arguments to see if user requested specific review aspects
+   - Default: Run all applicable reviews
+
+2. **Available Review Aspects:**
+
+   - **comments** - Analyze code comment accuracy and maintainability
+   - **tests** - Review test coverage quality and completeness
+   - **errors** - Check error handling for silent failures
+   - **types** - Analyze type design and invariants (if new types added)
+   - **code** - General code review for project guidelines
+   - **simplify** - Simplify code for clarity and maintainability
+   - **all** - Run all applicable reviews (default)
+
+3. **Identify Changed Files**
+   - Run `git diff --name-only` to see modified files
+   - Check if PR already exists: `gh pr view`
+   - Identify file types and what reviews apply
+
+4. **Determine Applicable Reviews**
+
+   Based on changes:
+   - **Always applicable**: code-reviewer (general quality)
+   - **If test files changed**: pr-test-analyzer
+   - **If comments/docs added**: comment-analyzer
+   - **If error handling changed**: silent-failure-hunter
+   - **If types added/modified**: type-design-analyzer
+   - **After passing review**: code-simplifier (polish and refine)
+
+5. **Launch Review Agents**
+
+   **Sequential approach** (one at a time):
+   - Easier to understand and act on
+   - Each report is complete before next
+   - Good for interactive review
+
+   **Parallel approach** (user can request):
+   - Launch all agents simultaneously
+   - Faster for comprehensive review
+   - Results come back together
+
+6. **Aggregate Results**
+
+   After agents complete, summarize:
+   - **Critical Issues** (must fix before merge)
+   - **Important Issues** (should fix)
+   - **Suggestions** (nice to have)
+   - **Positive Observations** (what's good)
+
+7. **Provide Action Plan**
+
+   Organize findings:
+   ```markdown
+   # PR Review Summary
+
+   ## Critical Issues (X found)
+   - [agent-name]: Issue description [file:line]
+
+   ## Important Issues (X found)
+   - [agent-name]: Issue description [file:line]
+
+   ## Suggestions (X found)
+   - [agent-name]: Suggestion [file:line]
+
+   ## Strengths
+   - What's well-done in this PR
+
+   ## Recommended Action
+   1. Fix critical issues first
+   2. Address important issues
+   3. Consider suggestions
+   4. Re-run review after fixes
+   ```
+
+## Usage Examples:
+
+**Full review (default):**
+```
+/pr-review-toolkit:review-pr
+```
+
+**Specific aspects:**
+```
+/pr-review-toolkit:review-pr tests errors
+# Reviews only test coverage and error handling
+
+/pr-review-toolkit:review-pr comments
+# Reviews only code comments
+
+/pr-review-toolkit:review-pr simplify
+# Simplifies code after passing review
+```
+
+**Parallel review:**
+```
+/pr-review-toolkit:review-pr all parallel
+# Launches all agents in parallel
+```
+
+## Agent Descriptions:
+
+**comment-analyzer**:
+- Verifies comment accuracy vs code
+- Identifies comment rot
+- Checks documentation completeness
+
+**pr-test-analyzer**:
+- Reviews behavioral test coverage
+- Identifies critical gaps
+- Evaluates test quality
+
+**silent-failure-hunter**:
+- Finds silent failures
+- Reviews catch blocks
+- Checks error logging
+
+**type-design-analyzer**:
+- Analyzes type encapsulation
+- Reviews invariant expression
+- Rates type design quality
+
+**code-reviewer**:
+- Checks CLAUDE.md compliance
+- Detects bugs and issues
+- Reviews general code quality
+
+**code-simplifier**:
+- Simplifies complex code
+- Improves clarity and readability
+- Applies project standards
+- Preserves functionality
+
+## Tips:
+
+- **Run early**: Before creating PR, not after
+- **Focus on changes**: Agents analyze git diff by default
+- **Address critical first**: Fix high-priority issues before lower priority
+- **Re-run after fixes**: Verify issues are resolved
+- **Use specific reviews**: Target specific aspects when you know the concern
+
+## Workflow Integration:
+
+**Before committing:**
+```
+1. Write code
+2. Run: /pr-review-toolkit:review-pr code errors
+3. Fix any critical issues
+4. Commit
+```
+
+**Before creating PR:**
+```
+1. Stage all changes
+2. Run: /pr-review-toolkit:review-pr all
+3. Address all critical and important issues
+4. Run specific reviews again to verify
+5. Create PR
+```
+
+**After PR feedback:**
+```
+1. Make requested changes
+2. Run targeted reviews based on feedback
+3. Verify issues are resolved
+4. Push updates
+```
+
+## Notes:
+
+- Agents run autonomously and return detailed reports
+- Each agent focuses on its specialty for deep analysis
+- Results are actionable with specific file:line references
+- Agents use appropriate models for their complexity
+- All agents available in `/agents` list
+
+---
+
+<task-notification>
+<task-id>abff1a5</task-id>
+<status>completed</status>
+<summary>Agent "Review resume feature code" completed</summary>
+<result>Now I have the full picture. Here's my review.
+
+---
+
+## Code Review: `--resume` feature for eval harness CLI
+
+### Files reviewed
+
+- `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py` (unstaged diff, ~170 new lines)
+- `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py` (new file, 421 lines)
+
+### Overall assessment
+
+The feature is well-structured. The merge algorithm handles the core cases correctly: carry forward passed pairs, replace failed pairs with new results, handle mixed tasks by clearing deltas. The test suite is thorough with 17 tests covering single-run, multi-run, mixed, and edge cases. All tests pass.
+
+I found two issues above the confidence threshold.
+
+---
+
+### Critical (90-100)
+
+#### 1. `_recompute_summary` drops Wilson Score CIs and significance flags (Confidence: 95)
+
+**File:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, lines 143-187
+
+`_recompute_summary` produces a summary dict with only the basic fields (`total_tasks`, `infrastructure_errors`, three success rates, `resumed_from`). The existing `Reporter._compute_summary` (reporter.py lines 286-317) also computes `{cond}_ci_90` confidence intervals and `{treatment}_vs_none_significant` significance flags when multi-run data is present.
+
+After a resume with multi-run data, the merged summary will be missing CIs and significance flags. The markdown reporter (`write_markdown`) checks for `"none_ci_90" in summary` to decide whether to render the CI column (reporter.py line 341). This means resumed multi-run results silently lose their CI columns and significance analysis in the markdown report, even though the per-condition `ci_90` data is preserved in the individual result dicts.
+
+**Fix:** Add CI computation logic to `_recompute_summary` that mirrors `Reporter._compute_summary` lines 286-317. You'd need to detect multi-run conditions (check for `"runs"` key in any condition dict), then compute Wilson Score intervals from the aggregated successes/total counts and add overlap checks. Alternatively, refactor so both paths share the same CI-computation code.
+
+---
+
+### Important (80-89)
+
+#### 2. O(n*m) set rebuild on every loop iteration in `_merge_results` (Confidence: 82)
+
+**File:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, line 99
+
+```python
+if new_task is None and task_id not in {p[0] for p in passed_pairs}:
+```
+
+This rebuilds a set from `passed_pairs` on every iteration of the `task_order` loop. With `t` tasks and `p` passed pairs, this is O(t * p). For a typical eval run (8-30 tasks, 3 conditions each), this is fine. But it's easy to fix by precomputing the set once before the loop:
+
+```python
+passed_task_ids = {p[0] for p in passed_pairs}
+```
+
+Then reference `passed_task_ids` inside the loop. This is a minor performance issue but also a readability improvement since the intent ("is this task_id among the passed tasks") becomes clearer.
+
+---
+
+### Observations (below threshold, included for context)
+
+These don't meet the confidence >= 80 bar but are worth noting.
+
+**`_is_infra_error_dict` duplicates `Reporter._is_infra_error`:** The new function in cli.py (line 52-57) does the same prefix check as `Reporter._is_infra_error` (reporter.py line 250-258), but operates on dicts rather than `TaskResult` objects. The duplication isn't a bug, but if the error prefix list ever changes, both need updating. A shared constant for the prefix tuple would prevent drift.
+
+**`_load_prior_results` classifies timeout failures as "not passed" via the `"error" not in cond_data` check (line 46), while `_is_infra_error_dict` and `_recompute_summary` classify them as infrastructure errors.** These are different questions (should we re-run? vs. should we count in stats?) and the answer is the same for both, so this is fine. But the two classification mechanisms could diverge if new error types are added.
+
+**Temp files in tests not cleaned up:** `_write_json` at test line 15-20 uses `NamedTemporaryFile(delete=False)` without cleanup. This is a minor test hygiene issue. The files are tiny JSON and the OS will clean them up eventually, so it's not worth reporting as an issue.
+
+**`_merge_results` imports `replace` from `dataclasses` inside the function body (line 69).** The existing codebase hoists imports to module level per the AGENTS.md pitfall at the top of the file and the recent commit `1a1a4d3` ("chore: hoist imports to module level"). This is a style inconsistency but not a bug.</result>
+<usage>total_tokens: 74753
+tool_uses: 16
+duration_ms: 84911</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/abff1a5.output
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. The user provided a detailed implementation plan for adding `--resume` to the eval harness CLI. The plan specified:
+   - JSON-level merge (no TaskResult reconstruction)
+   - Condition-level carry-forward unit
+   - Specific functions to add: `_load_prior_results`, filter logic, merge logic
+   - Test file to create
+   - The user then said "support multi runs from the get go" during implementation
+
+2. I read three files to understand the codebase:
+   - `eval-harness/lib/cli.py` - the main CLI file to modify
+   - `eval-harness/lib/reporter.py` - to understand EvalResults, compile_results, serialization
+   - `eval-harness/results/2026-02-17-105514.json` - example results JSON to understand the schema
+
+3. I also checked `Condition` enum (NONE, FLAT_LLM, INTENT_LAYER) and test structure.
+
+4. Implementation steps:
+   a. Added `import json` and `_load_prior_results` function (initially with multi-run rejection)
+   b. Added `--resume` CLI option
+   c. Moved dry-run check AFTER work queue filtering, improved dry-run output to show per-item detail
+   d. User interrupted saying "support multi runs from the get go"
+   e. Rewrote `_load_prior_results` to remove multi-run rejection, added `_is_infra_error_dict`, `_merge_results`, `_recompute_summary`
+   f. Added merge call site and `resumed_from` metadata
+   g. Wrote test file with 17 tests
+
+5. Errors encountered:
+   - Test `test_fully_rerun_task_uses_new_deltas` failed because `has_mixed` was incorrectly set to True when all conditions were re-run (nothing carried forward). The original code tracked `has_mixed` as a single boolean that was set whenever both prior and new had data for the same condition. Fixed by splitting into `has_carried` and `has_new` booleans, with `has_mixed = has_carried and has_new`.
+
+6. PR review was requested via `/pr-review-toolkit:review-pr`. Three agents ran in parallel:
+   - code-reviewer
+   - silent-failure-hunter  
+   - pr-test-analyzer
+
+7. Review findings (I was about to fix these when summary was requested):
+   - CRITICAL: `_recompute_summary` drops Wilson Score CIs and significance flags
+   - IMPORTANT: O(n*m) set rebuild in loop
+   - IMPORTANT: No json.JSONDecodeError catch
+   - IMPORTANT: No validation that data["results"] is a list
+   - SUGGESTIONS: truthy vs `is True` inconsistency, module-level import, duplicate prefix list, missing test fixtures
+
+8. Current state: I had just read cli.py line 1-10 (to start fixing the critical/important issues from the review) when the summary was requested.
+
+Let me now document all the specific code changes and file states.
+
+Summary:
+1. Primary Request and Intent:
+   The user provided a detailed implementation plan to add `--resume <results.json>` to the eval harness CLI (`eval-harness/lib/cli.py`). The feature carries forward passing (task_id, condition) pairs from a prior results JSON and only re-runs failures. The user explicitly requested during implementation to "support multi runs from the get go" rather than rejecting multi-run results with an error. After implementation, the user invoked `/pr-review-toolkit:review-pr` to get a comprehensive code review.
+
+2. Key Technical Concepts:
+   - **Condition-level carry-forward**: Unit of resume is `(task_id, condition_key)` pairs where condition is one of "none", "flat_llm", "intent_layer"
+   - **JSON-level merge**: Work at dict level, not reconstructing TaskResult objects from JSON
+   - **Pass detection**: `success=True` AND no `error` field at condition level (works for both single-run and multi-run formats)
+   - **Multi-run format**: Has `runs` array, `success_rate`, `successes`, `total_valid_runs`, `median`, `ci_90` fields
+   - **Single-run format**: Flat dict with `success`, `test_output`, metrics, optional `error`
+   - **Mixed tasks**: Tasks where some conditions are carried forward and some re-run get `deltas: {"note": "mixed resume — deltas not recomputed"}`
+   - **EvalResults dataclass**: `eval_id`, `timestamp`, `results: list[dict]`, `summary: dict`
+   - **Infrastructure errors**: Prefixed with `[infrastructure]`, `[pre-validation]`, `[skill-generation]`, `[empty-run]`, `[timeout]`
+   - **Wilson Score CIs**: Confidence intervals computed in `Reporter._compute_summary` for multi-run data
+
+3. Files and Code Sections:
+
+   - **`eval-harness/lib/cli.py`** (MODIFIED - primary implementation file)
+     - Added `import json` at top
+     - Added 4 new functions before `_make_progress_callback`
+     - Added `--resume` CLI option
+     - Moved dry-run check after work queue filtering
+     - Added merge logic after `reporter.compile_results(results)`
+     
+     New function `_load_prior_results`:
+     ```python
+     def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], dict]:
+         """Load prior results JSON file and identify passed (task_id, condition) pairs."""
+         with open(json_path) as f:
+             data = json.load(f)
+         if "results" not in data:
+             raise click.ClickException(f"Invalid results file: missing 'results' key in {json_path}")
+         passed = set()
+         for task in data["results"]:
+             task_id = task["task_id"]
+             for cond_key in ("none", "flat_llm", "intent_layer"):
+                 cond_data = task.get(cond_key)
+                 if cond_data is None:
+                     continue
+                 if cond_data.get("success") is True and "error" not in cond_data:
+                     passed.add((task_id, cond_key))
+         return passed, data
+     ```
+     
+     New function `_is_infra_error_dict`:
+     ```python
+     def _is_infra_error_dict(cond_data: dict) -> bool:
+         error = cond_data.get("error")
+         if error is None:
+             return False
+         return error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
+     ```
+     
+     New function `_merge_results` (key section with the fix for has_mixed bug):
+     ```python
+     def _merge_results(new_results: 'EvalResults', prior_data: dict, passed_pairs: set[tuple[str, str]]) -> 'EvalResults':
+         from dataclasses import replace
+         new_by_task = {r["task_id"]: r for r in new_results.results}
+         prior_by_task = {r["task_id"]: r for r in prior_data["results"]}
+         # ... ordering logic ...
+         merged = []
+         for task_id in task_order:
+             # ... None checks ...
+             merged_task = {"task_id": task_id}
+             has_carried = False
+             has_new = False
+             for cond_key in ("none", "flat_llm", "intent_layer"):
+                 if (task_id, cond_key) in passed_pairs:
+                     merged_task[cond_key] = prior_task.get(cond_key)
+                     has_carried = True
+                 elif new_task and new_task.get(cond_key) is not None:
+                     merged_task[cond_key] = new_task[cond_key]
+                     has_new = True
+                 else:
+                     merged_task[cond_key] = prior_task.get(cond_key)
+             has_mixed = has_carried and has_new
+             # ... delta logic ...
+         summary = _recompute_summary(merged)
+         return replace(new_results, results=merged, summary=summary, ...)
+     ```
+     
+     New function `_recompute_summary` computes success rates from merged dicts (handles both single-run and multi-run).
+     
+     CLI wiring changes:
+     ```python
+     @click.option("--resume", default=None, type=click.Path(exists=True),
+                   help="Prior results JSON — skip passed pairs, re-run failures")
+     ```
+     
+     Work queue filtering (before dry_run check):
+     ```python
+     passed_pairs = set()
+     prior_data = None
+     if resume:
+         passed_pairs, prior_data = _load_prior_results(resume)
+         original_len = len(work_queue)
+         work_queue = [item for item in work_queue if (item[1].id, item[2].value) not in passed_pairs]
+         click.echo(f"Resume: {len(passed_pairs)} passed pairs carried forward, {len(work_queue)}/{original_len} to re-run")
+     ```
+     
+     Post-execution merge:
+     ```python
+     if prior_data is not None:
+         eval_results = _merge_results(eval_results, prior_data, passed_pairs)
+         eval_results.summary["resumed_from"] = prior_data.get("eval_id")
+     ```
+
+   - **`eval-harness/tests/test_resume.py`** (CREATED - 17 tests)
+     - `TestLoadPriorResults` (8 tests): identifies passed pairs, excludes infra errors, validates structure, handles null conditions, multi-run passing/failing, mixed single+multi, multiple tasks
+     - `TestRecomputeSummary` (3 tests): single-run, multi-run, infra errors counted
+     - `TestMergeResults` (6 tests): carried forward preserved, mixed deltas cleared, fully rerun uses new deltas, preserves task order, summary recomputed, multi-run carried forward
+     - Helper fixtures: `_passing_condition()`, `_failing_condition()`, `_infra_error_condition()`, `_multi_run_passing()`, `_multi_run_failing()`
+
+   - **`eval-harness/lib/reporter.py`** (READ only - for understanding)
+     - `EvalResults` dataclass, `compile_results`, `_serialize_condition`, `_compute_delta`, `_is_infra_error`, `_compute_summary` (has Wilson Score CI logic that `_recompute_summary` doesn't replicate)
+
+   - **`eval-harness/results/2026-02-17-105514.json`** (READ only - example results)
+     - 8 tasks, mix of passing (all 3 conditions pass) and failing (timeouts, empty-runs)
+
+4. Errors and fixes:
+   - **`test_fully_rerun_task_uses_new_deltas` failed**: The test expected new deltas when all conditions were re-run (passed_pairs empty), but got `{"note": "mixed resume — deltas not recomputed"}`. Root cause: `has_mixed` was set True whenever both prior and new had data for the same condition, even when nothing was carried forward. Fixed by splitting into `has_carried` (any condition kept from prior via passed_pairs) and `has_new` (any condition replaced with new results), with `has_mixed = has_carried and has_new`.
+
+5. Problem Solving:
+   - Successfully implemented the full --resume feature with multi-run support from the start
+   - Fixed the has_mixed logic bug caught by tests
+   - All 17 new tests pass, all 30 existing tests (test_cli.py + test_reporter.py) continue passing
+   - PR review identified issues that still need fixing (see Pending Tasks)
+
+6. All user messages:
+   - Initial message: "Implement the following plan: [detailed plan for --resume feature]"
+   - Mid-implementation: "support multi runs from the get go"
+   - `/pr-review-toolkit:review-pr` (invoked the comprehensive PR review skill)
+
+7. Pending Tasks:
+   Based on the PR review findings that I was about to fix:
+   - **CRITICAL**: `_recompute_summary` needs Wilson Score CI computation to match `Reporter._compute_summary` (currently drops CIs and significance flags for multi-run data)
+   - **IMPORTANT**: Precompute `passed_task_ids = {p[0] for p in passed_pairs}` before the loop at `cli.py:99`
+   - **IMPORTANT**: Wrap `json.load()` in try/except for `json.JSONDecodeError` with actionable error message
+   - **IMPORTANT**: Validate `data` is dict and `data["results"]` is list
+   - **SUGGESTION**: Use `is True` consistently in `_recompute_summary` line 172 (currently truthy check)
+   - **SUGGESTION**: Move `from dataclasses import replace` to module-level imports
+   - **SUGGESTION**: Share infra error prefix list between `_is_infra_error_dict` and `Reporter._is_infra_error`
+
+8. Current Work:
+   I had just aggregated the PR review results from three parallel agents (code-reviewer, silent-failure-hunter, pr-test-analyzer) and presented the summary. I then said "Let me fix the critical and important issues now" and read `cli.py` lines 1-10 to start the fixes. The summary request interrupted before any fixes were applied.
+
+9. Optional Next Step:
+   Fix the issues identified by the PR review, starting with the critical one: add Wilson Score CI computation to `_recompute_summary`. I had explicitly stated "Let me fix the critical and important issues now" and had begun reading the file to make edits. The specific issues to fix are:
+   1. Add CI computation to `_recompute_summary` (import `wilson_score_interval`, `ci_overlap` from `lib.stats`)
+   2. Precompute `passed_task_ids` set before the merge loop
+   3. Add `json.JSONDecodeError` handling in `_load_prior_results`
+   4. Add type validation for `data` and `data["results"]`
+   5. Fix `is True` consistency and hoist `dataclasses.replace` import
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+<task-notification>
+<task-id>a8bca30</task-id>
+<status>completed</status>
+<summary>Agent "Review test coverage for resume" completed</summary>
+<result>All 17 tests pass. Now I have a complete picture of the implementation and tests. Let me do a thorough analysis.
+
+---
+
+## Test Coverage Analysis: `--resume` Feature
+
+### 1. Summary
+
+The test suite at `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py` covers the three core resume functions well for the happy path. It has 17 tests across three test classes (`TestLoadPriorResults`: 8, `TestRecomputeSummary`: 3, `TestMergeResults`: 6). The primary flows -- load prior results, identify what passed, merge old with new, recompute summary -- all have coverage. But there are several meaningful gaps, mostly around edge cases and one real logic bug I found by reading the implementation carefully.
+
+---
+
+### 2. Critical Gaps
+
+**Gap 1: `_is_infra_error_dict` is completely untested as a standalone unit**
+- Criticality: **8/10**
+- The function is called by `_recompute_summary` to decide whether a single-run failure counts as an infra error (excluded from rate calculation) or a real failure (counted in denominator). There's no direct test of this function. The `test_infra_errors_counted` test in `TestRecomputeSummary` exercises one path indirectly (the `[empty-run]` prefix), but the other four prefixes (`[infrastructure]`, `[pre-validation]`, `[skill-generation]`, `[timeout]`) are untested.
+- The function also needs a negative case: a regular failure (e.g., `"error": "tests failed"`) should return `False`.
+- **What it catches**: If someone refactors the prefix strings or changes the `startswith` tuple, there's no test that breaks. Given that the `_failing_condition` fixture uses `[timeout]` in its error field, and the summary test (`test_single_run_summary`) expects `flat_llm_success_rate == 0` for a timeout, it seems the timeout IS being classified as infra error there. But this is implicit and fragile.
+
+**Gap 2: `_load_prior_results` -- a condition with `success=True` AND an `error` field is not tested**
+- Criticality: **8/10**
+- The load function uses `cond_data.get("success") is True and "error" not in cond_data` as its filter (line 46). This means a condition dict like `{"success": True, "error": "something weird"}` would NOT be treated as passed. This is a deliberate guard (maybe against corrupted data), but there's no test verifying this behavior. If someone simplifies the check to just `success is True`, it would silently change the semantics.
+- **What it catches**: Silent carry-forward of corrupted or suspicious results.
+
+**Gap 3: `_merge_results` -- task in prior but not in new run and not in passed_pairs**
+- Criticality: **8/10**
+- Lines 99-101 of `cli.py`:
+  ```python
+  if new_task is None and task_id not in {p[0] for p in passed_pairs}:
+      # Prior task that wasn't in the new run and had no passed pairs — skip
+      continue
+  ```
+  This path drops a prior task entirely from merged results. There's no test for this. The `test_preserves_task_order_from_prior` test is close -- `task-b` is re-run -- but there's no test where a prior task is completely absent from both the new run and the passed set (e.g., a task that was removed from the task YAML between runs).
+- **What it catches**: If this `continue` statement were removed or its condition changed, tasks that should be dropped would silently appear in results, inflating `total_tasks`.
+
+**Gap 4: `_merge_results` -- condition falls through to prior even when failed (the else branch)**
+- Criticality: **7/10**
+- Lines 116-118:
+  ```python
+  else:
+      # Keep prior (even if failed — it wasn't re-run)
+      merged_task[cond_key] = prior_task.get(cond_key)
+  ```
+  This handles the case where a condition is NOT in `passed_pairs` and NOT in the new results. It keeps the prior's value. This happens when, say, only one condition was re-run via `--condition flat_llm` but the prior had all three. The non-re-run failures should be preserved from prior. No test covers this scenario.
+- **What it catches**: If someone accidentally set these to `None` instead of preserving from prior, silent data loss.
+
+---
+
+### 3. Important Improvements
+
+**Gap 5: `_recompute_summary` with zero tasks (empty results list)**
+- Criticality: **6/10**
+- If `merged_results` is `[]`, the function should return `total_tasks: 0` and all rates at `0`. This is a plausible edge case when resuming a run where every prior task was removed from the YAML.
+
+**Gap 6: `_recompute_summary` -- multi-run infra error counting logic**
+- Criticality: **6/10**
+- Lines 162-163: `infra_errors += total_runs - valid`. If `total_valid_runs` is less than `len(runs)`, the difference is counted as infra errors. No test constructs a multi-run condition where some individual runs are infra errors (i.e., `total_valid_runs < len(runs)`). The existing `_multi_run_passing` and `_multi_run_failing` fixtures both have `total_valid_runs == 3 == len(runs)`, so infra errors within multi-run are always 0.
+
+**Gap 7: `_load_prior_results` with file not found or invalid JSON**
+- Criticality: **5/10**
+- The function doesn't handle `FileNotFoundError` or `json.JSONDecodeError`. It would raise raw Python exceptions. The CLI option `type=click.Path(exists=True)` handles the file-not-found case at the CLI level, but `_load_prior_results` as a unit has no guard. If it's only ever called through the CLI, this is fine. But a test documenting the expected error propagation would be useful.
+
+**Gap 8: `_load_prior_results` with task missing `task_id` key**
+- Criticality: **5/10**
+- Line 41 does `task_id = task["task_id"]` with no guard. A malformed prior results file with a task missing `task_id` would raise a `KeyError`. A test documenting this behavior (or a defensive check) would prevent confusion.
+
+**Gap 9: `_merge_results` with new-only tasks not present in prior**
+- Criticality: **5/10**
+- Lines 83-86 handle tasks that appear in new results but not in prior. This would happen if the task YAML was expanded between runs. No test covers this path. The test should verify the new task is appended after prior tasks in the output order.
+
+**Gap 10: `_recompute_summary` -- single-run failure that is NOT an infra error**
+- Criticality: **5/10**
+- The existing tests use `_failing_condition()` which has a `[timeout]` error -- that IS an infra error per `_is_infra_error_dict`. There's no fixture for a "real" test failure (e.g., `{"success": False, "test_output": "FAILED 3 tests", "error": None}`). This means no test verifies that a genuine test failure counts toward the denominator in `cond_stats[cond_key]["total"]`.
+- Looking more closely: `_failing_condition()` has `"error": "[timeout] Claude timed out..."` and `_is_infra_error_dict` returns `True` for `[timeout]`. So in `test_single_run_summary`, the `flat_llm_success_rate` is `0` because the timeout is excluded from the denominator entirely (infra error), not because it's counted as 0/1. If the `_failing_condition` fixture's error string were changed to a non-infra error, `flat_llm_success_rate` would become `0.0` (0 successes / 1 total) which is the same number, hiding the bug. But the `total` field is different. A test that checks `flat_llm` total = 0 vs total = 1 would catch this distinction.
+
+---
+
+### 4. Test Quality Issues
+
+**Issue 1: `_failing_condition` is actually an infra error, not a "real" failure**
+
+The `_failing_condition()` fixture returns a timeout error (`"[timeout] Claude timed out after 300.0s"`). According to `_is_infra_error_dict`, timeouts are infra errors. This means every test that uses `_failing_condition()` is testing infra-error behavior, not genuine-test-failure behavior. The naming is misleading and there's a missing fixture for a condition that failed because the tests actually failed (no `error` field, or an error field that doesn't match infra prefixes).
+
+This matters in `_load_prior_results`: both infra errors and genuine test failures are excluded from `passed` (neither has `success=True`). But in `_recompute_summary`, infra errors don't count toward the denominator while genuine failures do. The test suite doesn't exercise this difference.
+
+**Issue 2: Tests don't verify `_recompute_summary` called correctly within `_merge_results`**
+
+`test_summary_recomputed` verifies the summary values are correct after merge, which is good. But it only tests the case where all conditions end up passing. A test where the merge produces a mix of passes and fails would better verify the summary logic works end-to-end through the merge path.
+
+---
+
+### 5. Positive Observations
+
+- **Both data formats covered**: Single-run and multi-run formats are tested in both `_load_prior_results` and `_merge_results`. The `_multi_run_passing` and `_multi_run_failing` fixtures are well-constructed with realistic data.
+- **Mixed format tested**: `test_mixed_single_and_multi_run` covers the case where a single task has both single-run and multi-run conditions. This is a real scenario during a transition from `--repetitions 1` to `--repetitions 3`.
+- **Task ordering preserved**: `test_preserves_task_order_from_prior` verifies prior task order is maintained in merged output, which prevents report diffs from being noisy.
+- **Null conditions handled**: `test_handles_null_conditions` covers `None` values in condition slots.
+- **Structure validation tested**: `test_validates_structure` confirms bad input raises a `ClickException`.
+- **Delta handling has three-way coverage**: carried-forward deltas, fully-rerun deltas, and mixed-task deltas are all tested.
+- **Fixtures are DAMP**: Each fixture function has a clear name and returns a self-contained data structure. Easy to read and understand what each test is doing.
+
+---
+
+### Recommended Test Additions (prioritized)
+
+Here are the specific tests I'd add, in priority order:
+
+**1.** Test `_is_infra_error_dict` directly with all five prefixes plus negative cases (criticality 8).
+
+**2.** Add a `_genuine_failure_condition()` fixture that has `success=False` and either no `error` field or a non-infra error string. Use it in `_load_prior_results` (verify it's excluded from passed), in `_recompute_summary` (verify it's counted in denominator but not in successes), and in `_merge_results` (verify it gets re-run, not carried forward). This addresses gaps 2, 10, and issue 1 simultaneously (criticality 8).
+
+**3.** Test `_merge_results` with a prior task that has no matching new task and no passed pairs -- verify it's dropped from output (criticality 8).
+
+**4.** Test `_merge_results` with a condition that wasn't re-run and wasn't passed -- verify prior value is preserved (criticality 7).
+
+**5.** Test `_recompute_summary` with an empty results list (criticality 6).
+
+**6.** Test `_merge_results` with a task only in new results, not in prior -- verify it's appended (criticality 5).</result>
+<usage>total_tokens: 51923
+tool_uses: 8
+duration_ms: 89906</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a8bca30.output
+
+---
+
+<task-notification>
+<task-id>a16f06b</task-id>
+<status>completed</status>
+<summary>Agent "Check error handling in resume" completed</summary>
+<result>Now I have a complete picture of the code. Let me do a thorough audit.
+
+---
+
+## Error Handling Audit: `--resume` feature in `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`
+
+Here's a systematic review of every error handling pathway in the new resume code, ordered by severity.
+
+---
+
+### Issue 1: `_load_prior_results` — KeyError on missing `task_id` in malformed results
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, line 41
+
+**Severity:** CRITICAL
+
+**Issue Description:** The code validates that the top-level `"results"` key exists, but then blindly accesses `task["task_id"]` on line 41 without any guard. If any task dict in the results array is missing the `"task_id"` key (truncated file, manual edit, partial write from a prior crash), this raises an unhandled `KeyError` that propagates up as a raw Python traceback instead of an actionable error.
+
+**Hidden Errors:** A `KeyError: 'task_id'` traceback gives the user zero indication that their resume file has a malformed task entry. The traceback points at line 41 of cli.py, which means nothing to someone who just wants to resume their eval run.
+
+**User Impact:** The user sees a raw Python traceback when trying to resume from a corrupted or partially-written JSON file. They don't know which task entry is malformed or how to fix the file.
+
+**Recommendation:** Wrap the task iteration in validation that produces a clear error message identifying the malformed entry by index.
+
+```python
+for i, task in enumerate(data["results"]):
+    if "task_id" not in task:
+        raise click.ClickException(
+            f"Invalid results file: task at index {i} missing 'task_id' in {json_path}"
+        )
+    task_id = task["task_id"]
+```
+
+---
+
+### Issue 2: `_load_prior_results` — `json.JSONDecodeError` and `FileNotFoundError` not caught
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, lines 33-34
+
+**Severity:** HIGH
+
+**Issue Description:** The `open()` + `json.load()` calls have no error handling. While `click.Path(exists=True)` on the `--resume` option catches the file-not-found case at the CLI level, `json.JSONDecodeError` from a corrupted or truncated JSON file produces a raw Python traceback. This is a realistic failure mode: if a prior eval run crashed mid-write, the JSON file could be truncated.
+
+**Hidden Errors:** `json.JSONDecodeError`, `PermissionError`, `IsADirectoryError`, `UnicodeDecodeError` -- all surface as raw tracebacks.
+
+**User Impact:** User passes a truncated JSON file (from a crashed prior run) and gets `json.decoder.JSONDecodeError: Expecting ',' delimiter: line 47 column 1 (char 2048)`. This is technically informative but not actionable. The user doesn't know whether to delete the file, re-run without resume, or try to repair the file.
+
+**Recommendation:**
+
+```python
+try:
+    with open(json_path) as f:
+        data = json.load(f)
+except json.JSONDecodeError as e:
+    raise click.ClickException(
+        f"Cannot parse resume file {json_path}: {e}. "
+        f"The file may be truncated from a prior crash. "
+        f"Re-run without --resume or provide a valid results JSON."
+    )
+except OSError as e:
+    raise click.ClickException(f"Cannot read resume file {json_path}: {e}")
+```
+
+---
+
+### Issue 3: `_load_prior_results` — structurally valid JSON but wrong schema (e.g., results is not a list)
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, lines 36-47
+
+**Severity:** HIGH
+
+**Issue Description:** The code checks `"results" not in data` but never verifies that `data["results"]` is actually a list. If someone passes a JSON file where `"results"` is a string, integer, dict, or null, the `for task in data["results"]` loop will either iterate character-by-character (string), raise `TypeError` (int/None), or iterate over keys (dict). None of these produce a useful error.
+
+Similarly, `data` itself is assumed to be a dict. If the JSON file is a bare array (`[1, 2, 3]`), the `"results" not in data` check raises `TypeError: argument of type 'list' is not iterable` on Python < 3.x or behaves unexpectedly.
+
+**Hidden Errors:** `TypeError` if data is a list or data["results"] is not iterable. Silent incorrect behavior if data["results"] is a string (iterates chars) or dict (iterates keys).
+
+**User Impact:** Passing the wrong JSON file (say, a package.json or some other results format) produces cryptic errors deep in the iteration logic rather than a clear "this isn't a valid results file" message at the boundary.
+
+**Recommendation:**
+
+```python
+if not isinstance(data, dict):
+    raise click.ClickException(
+        f"Invalid results file: expected JSON object, got {type(data).__name__} in {json_path}"
+    )
+if "results" not in data:
+    raise click.ClickException(f"Invalid results file: missing 'results' key in {json_path}")
+if not isinstance(data["results"], list):
+    raise click.ClickException(
+        f"Invalid results file: 'results' must be a list, got {type(data['results']).__name__} in {json_path}"
+    )
+```
+
+---
+
+### Issue 4: `_merge_results` — `new_results.results` contains dicts, but only after `compile_results`
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, line 72
+
+**Severity:** MEDIUM
+
+**Issue Description:** `_merge_results` indexes `new_results.results` by `r["task_id"]`, treating each result as a dict. This works because `reporter.compile_results()` returns `EvalResults` with a `results: list[dict]`. But the type annotation on `EvalResults.results` is `list[dict[str, Any]]`, which is correct. The real issue here is that if `compile_results` returned an empty list (zero new results because everything was filtered by resume), the merge logic still works correctly. However, there's a subtle issue on line 99.
+
+Line 99 builds a set comprehension `{p[0] for p in passed_pairs}` on every iteration of the task_order loop. This is an O(n*m) operation where n is tasks and m is passed_pairs. Not an error handling issue per se, but worth flagging for correctness.
+
+The actual error handling concern: if `new_results` has zero results (all tasks were skipped), and `prior_data` has tasks with no passed pairs, the merge silently drops those tasks (line 99-101). This is arguably intentional behavior but produces no user feedback that tasks were dropped from the merged output.
+
+**User Impact:** If a user resumes with a task file that doesn't include all original tasks, prior tasks that had no passed conditions silently disappear from the output. The user might not realize their merged results are incomplete.
+
+**Recommendation:** Log a message when tasks are dropped:
+
+```python
+if new_task is None and task_id not in {p[0] for p in passed_pairs}:
+    # Prior task that wasn't in the new run and had no passed pairs — drop
+    click.echo(f"  Resume: dropping prior task {task_id} (no passed conditions, not re-run)", err=True)
+    continue
+```
+
+---
+
+### Issue 5: `_merge_results` — `prior_task.get(cond_key)` can return `None` and gets assigned to `merged_task`
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, lines 110, 118
+
+**Severity:** MEDIUM
+
+**Issue Description:** On line 110, when a `(task_id, cond_key)` pair is in `passed_pairs`, the code does `merged_task[cond_key] = prior_task.get(cond_key)`. If the prior result file was malformed and that condition key doesn't exist in the prior task dict, this silently assigns `None`. The pair was identified as "passed" (meaning it existed and had `success=True`), so this shouldn't happen in normal operation. But if the prior file was manually edited between the analysis in `_load_prior_results` and the merge, or if there's a logic bug in the passed-pair detection, the carried-forward "passed" result is silently `None`.
+
+Line 118 has the same pattern for the fallback case: `merged_task[cond_key] = prior_task.get(cond_key)` silently produces `None` without any indication that the prior data was incomplete.
+
+**User Impact:** A condition that was supposedly "passed" gets carried forward as `None`, which `_recompute_summary` correctly skips (line 155). But the user sees a missing condition in their results where they expected a passed one. No log message explains why.
+
+**Recommendation:** Add a guard when carrying forward passed pairs:
+
+```python
+if (task_id, cond_key) in passed_pairs:
+    carried_data = prior_task.get(cond_key)
+    if carried_data is None:
+        click.echo(
+            f"  Warning: passed pair ({task_id}, {cond_key}) not found in prior data, skipping",
+            err=True
+        )
+        continue
+    merged_task[cond_key] = carried_data
+    has_carried = True
+```
+
+---
+
+### Issue 6: `_recompute_summary` — `cond_data.get("success")` truthy check vs explicit `True`
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, line 172
+
+**Severity:** MEDIUM
+
+**Issue Description:** In `_load_prior_results` (line 46), the code correctly checks `cond_data.get("success") is True` (identity check). But in `_recompute_summary` (line 172), the code uses `if cond_data.get("success"):` (truthy check). This is inconsistent. For a boolean field, they behave the same. But if a malformed result has `"success": 1` or `"success": "yes"`, the truthy check counts it as a success while the identity check in `_load_prior_results` would not. This inconsistency between the two functions means the same data can be interpreted differently at different stages of the resume pipeline.
+
+**User Impact:** Unlikely to cause real problems with well-formed data, but the inconsistency is a maintenance hazard. Someone modifying one function might assume the other uses the same check.
+
+**Recommendation:** Use `is True` consistently:
+
+```python
+if cond_data.get("success") is True:
+    cond_stats[cond_key]["successes"] += 1
+```
+
+---
+
+### Issue 7: `_recompute_summary` — multi-run branch trusts `cond_data["runs"]` without validation
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, lines 158-165
+
+**Severity:** MEDIUM
+
+**Issue Description:** When `"runs"` is present in `cond_data`, the code calls `len(cond_data["runs"])` and accesses `cond_data.get("total_valid_runs", 0)` and `cond_data.get("successes", 0)`. If `"runs"` is not a list (e.g., it's a string, dict, or None from malformed data), `len()` will either work incorrectly or raise a `TypeError`. The code also assumes that `total_valid_runs` and `successes` are numeric. If they're strings or None, the `+=` operation on lines 164-165 raises a `TypeError`.
+
+The `.get()` with default `0` handles the missing-key case, but if the value exists and is not numeric (e.g., `"successes": "3"`), the addition fails.
+
+**Hidden Errors:** `TypeError: unsupported operand type(s) for +=: 'int' and 'str'` if prior data has stringified numbers.
+
+**User Impact:** Merged results from a manually-edited or third-party-generated JSON file crash during summary recomputation with an unhelpful TypeError.
+
+**Recommendation:** This is lower priority since the data is machine-generated by the same tool. But if you want to be defensive:
+
+```python
+if "runs" in cond_data:
+    runs = cond_data["runs"]
+    if not isinstance(runs, list):
+        click.echo(
+            f"  Warning: 'runs' for task is not a list, treating as single-run",
+            err=True
+        )
+        # Fall through to single-run branch
+    else:
+        valid = int(cond_data.get("total_valid_runs", 0))
+        successes = int(cond_data.get("successes", 0))
+        ...
+```
+
+---
+
+### Issue 8: `_is_infra_error_dict` — `error.startswith()` with tuple assumes `error` is a string
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, lines 52-57
+
+**Severity:** LOW
+
+**Issue Description:** The function gets `error = cond_data.get("error")`, checks for `None`, then calls `error.startswith(...)`. If `error` is not `None` but also not a string (e.g., `"error": 42` or `"error": {"code": 500}`), `startswith()` raises `AttributeError`. This is a duplicate of `Reporter._is_infra_error` but operates on dicts instead of `TaskResult` objects. The duplication itself is a maintenance risk.
+
+**Hidden Errors:** `AttributeError: 'int' object has no attribute 'startswith'` or similar.
+
+**User Impact:** Unlikely with machine-generated data, but the function provides no guard against non-string error values.
+
+**Recommendation:** Add a type check or use `isinstance`:
+
+```python
+if not isinstance(error, str):
+    return False
+```
+
+Also, consider whether `_is_infra_error_dict` should call or share logic with `Reporter._is_infra_error` to avoid maintaining two copies of the same prefix list.
+
+---
+
+### Issue 9: CLI integration — `eval_results.summary["resumed_from"]` mutates a dataclass field after construction
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, line 441
+
+**Severity:** LOW
+
+**Issue Description:** After `_merge_results` returns, the caller does `eval_results.summary["resumed_from"] = prior_data.get("eval_id")`. This works because `summary` is a dict (mutable), but it's reaching into the dataclass and mutating it after the function that was supposed to build it. `_recompute_summary` already creates a `"resumed_from": None` placeholder (line 186), so the caller fills it in. This is fragile: if `_recompute_summary` ever stops including the key, the mutation still works (dict assignment creates new keys), but the intent becomes unclear.
+
+Also, `prior_data.get("eval_id")` can return `None` if the prior data has no `eval_id` field. In that case, `resumed_from` is `None`, which is indistinguishable from "not a resume run" in `_recompute_summary`'s default. No error is raised for this.
+
+**User Impact:** Minor. If prior data lacks `eval_id`, the resume provenance is lost silently. The user sees `resumed_from: null` in their results and doesn't know whether it was a resume run or not.
+
+**Recommendation:** Log when the prior eval_id is missing:
+
+```python
+prior_eval_id = prior_data.get("eval_id")
+if prior_eval_id is None:
+    click.echo("  Warning: prior results file has no eval_id, resume provenance will be missing", err=True)
+eval_results.summary["resumed_from"] = prior_eval_id
+```
+
+---
+
+### Issue 10: `_merge_results` — `dataclasses.replace` import inside function body
+
+**Location:** `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, line 69
+
+**Severity:** LOW (style/reliability)
+
+**Issue Description:** `from dataclasses import replace` is imported inside the function body. If this import failed (unlikely but possible in a broken Python install), the error would only surface at merge time, not at module load time. This also means the import runs every time `_merge_results` is called, though Python caches module imports so the performance impact is negligible.
+
+**Recommendation:** Move to module-level imports for consistency with the rest of the file, and so any import error surfaces at startup rather than mid-run.
+
+---
+
+### Summary of findings
+
+| # | Severity | Location | Issue |
+|---|----------|----------|-------|
+| 1 | CRITICAL | line 41 | `task["task_id"]` KeyError on malformed task entry, raw traceback |
+| 2 | HIGH | lines 33-34 | No catch for `json.JSONDecodeError` on truncated resume files |
+| 3 | HIGH | lines 36-47 | No validation that `data` is dict or `data["results"]` is list |
+| 4 | MEDIUM | lines 99-101 | Prior tasks silently dropped with no user feedback |
+| 5 | MEDIUM | lines 110, 118 | Passed pair carried forward as `None` if prior data is incomplete |
+| 6 | MEDIUM | line 172 | `cond_data.get("success")` truthy check inconsistent with `is True` in loader |
+| 7 | MEDIUM | lines 158-165 | Multi-run branch trusts `runs`, `total_valid_runs`, `successes` types |
+| 8 | LOW | lines 52-57 | `error.startswith()` assumes string, no guard; duplicated logic from Reporter |
+| 9 | LOW | line 441 | `resumed_from` silently `None` when prior data lacks `eval_id` |
+| 10 | LOW | line 69 | Function-body import delays failure to runtime |
+
+The most likely real-world failure is **Issue 2**: a prior eval run crashes mid-write, producing a truncated JSON file. The user then tries to `--resume` from that file and gets a raw `json.JSONDecodeError` traceback. Issues 1 and 3 are the next most likely, triggered by passing the wrong file to `--resume` (easy to do when you have multiple JSON files in your results directory).
+
+The code handles the happy path well -- the merge logic is thoughtfully designed with clear separation between carried-forward and re-run conditions. But the boundary validation on the resume file input is too thin. All three top-level functions (`_load_prior_results`, `_merge_results`, `_recompute_summary`) assume their inputs conform to the expected schema without defensive checks. For a CLI tool where users manually specify file paths, that's where most of the real failures will come from.</result>
+<usage>total_tokens: 61127
+tool_uses: 8
+duration_ms: 113411</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a16f06b.output

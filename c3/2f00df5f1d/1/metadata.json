@@ -1,9 +1,11 @@
 {
   "cli_version": "0.4.4",
   "checkpoint_id": "c32f00df5f1d",
+  "session_id": "6d5c0373-dde0-4b03-a866-3f1692bf7593",
   "strategy": "manual-commit",
+  "created_at": "2026-02-17T20:29:43.655666Z",
   "branch": "main",
-  "checkpoints_count": 5,
+  "checkpoints_count": 4,
   "files_touched": [
     ".claude/settings.json",
     ".claude/settings.local.json",
@@ -173,9 +175,6 @@
     "eval-harness/docs/reference/agentbench-harness/src/configs/remove_docs.py",
     "eval-harness/docs/reference/agentbench-paper.md",
     "eval-harness/lib/cli.py",
-    "eval-harness/lib/docker_runner.py",
-    "eval-harness/lib/git_ops.py",
-    "eval-harness/lib/task_runner.py",
     "eval-harness/results/2026-02-16-133336.json",
     "eval-harness/results/2026-02-16-133336.md",
     "eval-harness/results/2026-02-16-134621.json",
@@ -207,27 +206,22 @@
     "eval-harness/tests/test_resume.py",
     "eval-harness/uv.lock"
   ],
-  "sessions": [
-    {
-      "metadata": "/c3/2f00df5f1d/0/metadata.json",
-      "transcript": "/c3/2f00df5f1d/0/full.jsonl",
-      "context": "/c3/2f00df5f1d/0/context.md",
-      "content_hash": "/c3/2f00df5f1d/0/content_hash.txt",
-      "prompt": "/c3/2f00df5f1d/0/prompt.txt"
-    },
-    {
-      "metadata": "/c3/2f00df5f1d/1/metadata.json",
-      "transcript": "/c3/2f00df5f1d/1/full.jsonl",
-      "context": "/c3/2f00df5f1d/1/context.md",
-      "content_hash": "/c3/2f00df5f1d/1/content_hash.txt",
-      "prompt": "/c3/2f00df5f1d/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
   "token_usage": {
-    "input_tokens": 12794,
-    "cache_creation_tokens": 390560,
-    "cache_read_tokens": 11679838,
-    "output_tokens": 3329,
-    "api_call_count": 103
-  }
+    "input_tokens": 12715,
+    "cache_creation_tokens": 227241,
+    "cache_read_tokens": 6687290,
+    "output_tokens": 2486,
+    "api_call_count": 58
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-17T20:29:42.726455Z",
+    "agent_lines": 0,
+    "human_added": 56292,
+    "human_modified": 4638,
+    "human_removed": 0,
+    "total_committed": 56292,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/6d5c0373-dde0-4b03-a866-3f1692bf7593.jsonl"
 }
