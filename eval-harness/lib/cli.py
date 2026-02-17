@@ -10,7 +10,7 @@ from pathlib import Path
 import click
 
 from lib.models import TaskFile
-from lib.task_runner import TaskRunner, Condition
+from lib.task_runner import TaskRunner, TaskResult, Condition
 from lib.reporter import Reporter
 from lib.git_scanner import GitScanner
 from lib.git_ops import clone_repo
@@ -205,7 +205,24 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         for future in as_completed(futures):
             item = futures[future]
             _repo, _task, _cond, rep = item
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as e:
+                # Worker crashed (e.g., cache race, OOM) — record as infra error
+                click.echo(f"  {_task.id} ({_cond.value}): CRASH - {e}", err=True)
+                result = TaskResult(
+                    task_id=_task.id,
+                    condition=_cond,
+                    success=False,
+                    test_output="",
+                    wall_clock_seconds=0,
+                    input_tokens=0,
+                    output_tokens=0,
+                    tool_calls=0,
+                    lines_changed=0,
+                    files_touched=[],
+                    error=f"[worker-crash] {e}"
+                )
             results.append(result)
             status = "PASS" if result.success else "FAIL"
             # Build the status line with error info if failed

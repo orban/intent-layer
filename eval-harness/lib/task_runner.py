@@ -1,7 +1,9 @@
 # lib/task_runner.py
 from __future__ import annotations
+import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import shutil
@@ -96,7 +98,7 @@ class TaskRunner:
         if self.progress_callback:
             self.progress_callback(task_id, condition, step, message)
 
-    def _pre_validate(self, task: Task, workspace: str) -> None:
+    def _pre_validate(self, task: Task, workspace: str) -> str | None:
         """Validate that a task is runnable before spending API tokens.
 
         Checks:
@@ -104,8 +106,14 @@ class TaskRunner:
         2. For failing_test tasks: the target test actually fails at pre_fix_commit
         3. Context files were fully stripped (no stale AGENTS.md/CLAUDE.md)
 
+        Returns the test output (stdout+stderr) for failing_test tasks so it
+        can be reused for prompt building, avoiding a redundant Docker run.
+        Returns None for non-test tasks (commit_message smoke tests).
+
         Raises PreValidationError with a descriptive message on failure.
         """
+        test_output = None
+
         # 1. Verify test infrastructure
         if task.prompt_source != "failing_test" and not task.test_file:
             # commit_message tasks without test_file: just verify setup works.
@@ -156,6 +164,9 @@ class TaskRunner:
                     "Docker setup or test infrastructure may be broken."
                 )
 
+            # Save test output for prompt building (avoids redundant Docker run)
+            test_output = result.stdout + result.stderr
+
         # 3. Verify no residual context files (strip worked)
         workspace_path = Path(workspace)
         residual = []
@@ -167,6 +178,8 @@ class TaskRunner:
                 f"Context files remain after stripping: {residual}. "
                 f"Check strip_extra config."
             )
+
+        return test_output
 
     def _strip_context_files(self, workspace: str, strip_extra: list[str] | None = None) -> list[str]:
         """Remove AI context files from workspace. Returns list of removed paths.
@@ -494,7 +507,7 @@ class TaskRunner:
 
             # Pre-validate: confirm test infra works and test actually fails
             self._progress(task.id, cond_str, "pre_validate", "verifying test fails at pre_fix_commit")
-            self._pre_validate(task, workspace)
+            pre_validate_output = self._pre_validate(task, workspace)
             self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
@@ -549,7 +562,7 @@ class TaskRunner:
 
             # Build prompt with condition-appropriate preamble
             self._progress(task.id, cond_str, "prompt", "building prompt")
-            prompt = self._build_prompt(task, workspace, condition)
+            prompt = self._build_prompt(task, workspace, condition, cached_test_output=pre_validate_output)
 
             # Run Claude on the task
             log_dir = Path(self.workspaces_dir).parent / "logs"
@@ -560,8 +573,8 @@ class TaskRunner:
                                        stderr_log=str(fix_log))
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
-            # Detect empty runs: Claude started but produced nothing
-            if (claude_result.wall_clock_seconds > 1
+            # Detect empty runs: Claude returned without doing any work
+            if (claude_result.tool_calls == 0
                     and claude_result.input_tokens == 0
                     and claude_result.output_tokens == 0
                     and not claude_result.timed_out):
@@ -605,12 +618,16 @@ class TaskRunner:
                     is_timeout=True,
                 )
 
-            # Run tests (chain setup commands so pip installs persist in same container)
+            # Run tests — use targeted test file when available (~150s → ~15s)
             test_cmd = self.repo.docker.test_command
+            if task.test_file:
+                test_cmd = f"{test_cmd} {task.test_file}"
+            if task.test_pattern:
+                test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
             if self.repo.docker.setup:
                 setup_chain = " && ".join(self.repo.docker.setup)
                 test_cmd = f"{setup_chain} && {test_cmd}"
-            self._progress(task.id, cond_str, "test", f"running tests: {self.repo.docker.test_command}")
+            self._progress(task.id, cond_str, "test", f"running tests: {test_cmd}")
             test_result = run_in_docker(
                 workspace,
                 self.repo.docker.image,
@@ -697,7 +714,9 @@ class TaskRunner:
         multiple repetitions in parallel.
         """
         repo_name = self.repo.url.split("/")[-1].replace(".git", "")
-        workspace_name = f"{repo_name}-{task.pre_fix_commit[:8]}-{condition.value}-r{rep}"
+        # Include task ID hash to avoid collisions when tasks share a commit
+        task_hash = format(hash(task.id) % 0xFFFF, '04x')
+        workspace_name = f"{repo_name}-{task.pre_fix_commit[:8]}-{task_hash}-{condition.value}-r{rep}"
         workspace = self.workspaces_dir / workspace_name
 
         # Clean if exists
@@ -706,8 +725,13 @@ class TaskRunner:
 
         return str(workspace)
 
-    def _build_prompt(self, task: Task, workspace: str, condition: Condition) -> str:
-        """Build the appropriate prompt based on task config."""
+    def _build_prompt(self, task: Task, workspace: str, condition: Condition, cached_test_output: str | None = None) -> str:
+        """Build the appropriate prompt based on task config.
+
+        Args:
+            cached_test_output: Pre-validation test output to reuse for
+                failing_test prompts, avoiding a redundant Docker run.
+        """
         preamble = {
             Condition.NONE: None,
             Condition.FLAT_LLM: FLAT_PREAMBLE,
@@ -719,7 +743,13 @@ class TaskRunner:
             return build_prompt_from_commit_message(message, preamble=preamble)
 
         elif task.prompt_source == "failing_test":
-            # Run specific test file (focused output) or full suite
+            # Reuse pre-validation output if available (saves ~12s Docker run)
+            if cached_test_output:
+                return build_prompt_from_failing_test(
+                    cached_test_output, preamble=preamble
+                )
+
+            # Fallback: run Docker to get test output
             if task.test_file:
                 test_cmd = f"{self.repo.docker.test_command} {task.test_file}"
             else:
@@ -727,7 +757,6 @@ class TaskRunner:
             if task.test_pattern:
                 test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
 
-            # Chain setup so pip installs are available
             if self.repo.docker.setup:
                 setup_chain = " && ".join(self.repo.docker.setup)
                 test_cmd = f"{setup_chain} && {test_cmd}"
@@ -751,7 +780,6 @@ class TaskRunner:
 
     def _find_agents_files(self, workspace: str) -> list[str]:
         """Find all AGENTS.md and CLAUDE.md files in workspace."""
-        import glob
         workspace_path = Path(workspace)
         files = []
         for pattern in ["CLAUDE.md", "**/AGENTS.md"]:
@@ -767,9 +795,6 @@ class TaskRunner:
         - List of messages (array at top level)
         - Dict with "messages" key
         """
-        import json
-        import re
-
         files_read = set()
         try:
             data = json.loads(claude_output)

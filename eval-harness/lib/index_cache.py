@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+import threading
 from datetime import datetime
 import os
 from urllib.parse import urlparse
@@ -86,8 +87,9 @@ class IndexCache:
     def _save_manifest(self):
         """Save manifest to disk atomically (write tmp + rename).
 
-        Uses PID in the temp filename to avoid collisions when multiple
-        workers save concurrently (each gets its own tmp file).
+        Uses PID + thread ID in the temp filename to avoid collisions
+        when multiple threads save concurrently (ThreadPoolExecutor
+        shares a PID across all workers).
         """
         data = {
             "entries": {
@@ -101,7 +103,7 @@ class IndexCache:
                 for k, v in self.manifest.entries.items()
             }
         }
-        tmp_path = self.manifest_path.with_suffix(f".tmp.{os.getpid()}")
+        tmp_path = self.manifest_path.with_suffix(f".tmp.{os.getpid()}-{threading.get_ident()}")
         with open(tmp_path, "w") as f:
             json.dump(data, f, indent=2)
         tmp_path.rename(self.manifest_path)

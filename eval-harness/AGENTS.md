@@ -42,6 +42,24 @@ lib/
 
 ## Pitfalls
 
+### Cache manifest PID fix prevents crash but not lost updates
+
+Two concurrent workers can each load stale manifest, add their entry, and save — second save overwrites first's entry. Safe in current usage (warm_cache single-threaded, task loop sequential) but needs file locking for true parallel eval runs sharing a cache dir.
+
+_Source: learn.sh | added: 2026-02-17_
+
+### Multiple background task IDs can reference the same process
+
+Background task outputs may show partial data (tail only, or just PID). Cross-reference timestamps between task outputs to confirm they're from the same run. Different task IDs can view the same process differently.
+
+_Source: learn.sh | added: 2026-02-17_
+
+### Empty-run detector misses Claude 0.0s instant returns
+
+The empty-run check requires wall_clock_seconds > 1, so 0.0s returns fall through to test execution. Tests fail since no code was changed, producing misleading FAIL instead of [empty-run]. Fix: change threshold to >= 0 or check tool_calls == 0 directly.
+
+_Source: learn.sh | added: 2026-02-17_
+
 ### Claude CLI JSON output format varies
 
 **Problem**: `claude --output-format json` can return either:
