@@ -1,0 +1,102 @@
+Implement the following plan:
+
+# Plan: Add statistical analysis to eval harness
+
+## Context
+
+Our eval harness runs Claude bug-fix trials under 3 conditions (none, flat_llm, intent_layer) but reports raw pass/fail counts with no statistical analysis. The paper we're replicating (arxiv 2602.11988v1) ran each task once with no confidence intervals — their 2-4% differences are indistinguishable from noise.
+
+We explored integrating with Cerberus (external TypeScript stats tool) but 3 independent reviewers agreed: port the ~80 lines of math directly instead of building a cross-language adapter. Cerberus taught us *what* to compute; we implement it natively.
+
+## What we're adding
+
+Wilson Score confidence intervals on pass rates, rendered inline in the existing reporter output. Run `eval-harness run --repetitions 10` and CIs appear automatically.
+
+## Files to create
+
+### 1. `eval-harness/lib/stats.py` (~80 lines)
+
+Port from `~/dev/cerberus/src/stats.ts` lines 7-176:
+
+- `_inverse_normal_cdf(p: float) -> float` — Abramowitz & Stegun 26.2.23 rational approximation. Direct mechanical port from stats.ts lines 7-67. Avoids scipy dependency.
+- `wilson_score_interval(successes: int, n: int, confidence: float = 0.90) -> tuple[float, float, float]` — returns `(lower, upper, center)`. Port from stats.ts lines 152-176. Wilson is better than Wald for small samples and extreme proportions (0% or 100%).
+- `ci_overlap(ci_a: tuple[float, float], ci_b: tuple[float, float]) -> bool` — returns True if two confidence intervals overlap. Simple comparison: `a_lower <= b_upper and b_lower <= a_upper`.
+
+That's it. No SPRT (deferred — fixed repetitions + CIs already give statistical rigor). No BH correction (we compare per-task, not globally).
+
+## Files to modify
+
+### 2. `eval-harness/lib/reporter.py`
+
+Two changes:
+
+**a) Add CIs to per-condition output when `--repetitions > 1`**
+
+The reporter already computes `success_rate`, `successes`, `total_valid_runs` for multi-run results (in `_serialize_condition()`). Add:
+
+```python
+from lib.stats import wilson_score_interval
+
+ci_lower, ci_upper, ci_center = wilson_score_interval(successes, total_valid, confidence=0.90)
+# Add to the result dict:
+"ci_90": {"lower": round(ci_lower, 3), "upper": round(ci_upper, 3)}
+```
+
+**b) Add CI comparison to markdown output**
+
+In the markdown table generation, change the condition columns from:
+```
+| none: 5/8 (62.5%) |
+```
+to:
+```
+| none: 5/8 62% [42,80] |
+```
+
+And add a comparison column showing whether intent_layer's CI overlaps with none's:
+```
+| IL vs none: +12% (overlap) |  ← CIs overlap, not significant
+| IL vs none: +30% (sig.)    |  ← CIs don't overlap, significant
+```
+
+### 3. `eval-harness/lib/reporter.py` — summary section
+
+Add to the summary block:
+- Per-condition: pass rate with CI (e.g., "intent_layer: 62.5% [42.1%, 79.5%]")
+- Significance flag: which per-task comparisons show non-overlapping CIs
+- CI width as variance proxy: average CI width per condition (wider = more variable)
+
+## What we're NOT doing
+
+- **No Cerberus integration** — reviewers unanimously rejected the adapter pattern
+- **No SPRT** — adaptive early stopping is a cost optimization, not a correctness requirement. Defer until cost is a problem. Fixed `--repetitions N` + Wilson CIs is statistically sound.
+- **No BH correction** — we're comparing per-task (8 comparisons), not testing all 24 studies globally. With only 8 comparisons and 90% CIs, the false discovery risk is manageable. Can add later.
+- **No new CLI commands** — CIs appear automatically in existing output when repetitions > 1
+- **No new dependencies** — the inverse normal CDF approximation avoids needing scipy
+
+## Key files to read during implementation
+
+- `~/dev/cerberus/src/stats.ts` lines 7-176 — source of truth for Wilson CI + inverse CDF
+- `eval-harness/lib/reporter.py` — `_serialize_condition()`, `_compile_markdown()`, `_compute_summary()`
+- `eval-harness/lib/reporter.py` — existing multi-run format: `success_rate`, `successes`, `total_valid_runs`, `median`, `runs`
+
+## Verification
+
+1. **Unit test `stats.py`**: Test `wilson_score_interval` against known values:
+   - `wilson_score_interval(0, 10, 0.90)` → lower near 0, upper > 0
+   - `wilson_score_interval(10, 10, 0.90)` → lower < 1, upper near 1
+   - `wilson_score_interval(5, 10, 0.90)` → center = 0.50, bounds symmetric-ish
+   - Cross-check a few values against Cerberus's TypeScript implementation
+
+2. **Integration test**: Run `eval-harness run --tasks tasks/fastmcp.yaml --repetitions 2 --condition none -p 1` on a single task, verify CIs appear in both JSON and markdown output
+
+3. **Verify CI semantics**: For our existing 8-task single-run results, `wilson_score_interval(5, 8, 0.90)` should give ~[36%, 84%] — confirming the paper's 2-4% differences are well within noise
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+commit this

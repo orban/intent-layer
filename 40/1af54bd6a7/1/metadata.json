@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.4",
   "checkpoint_id": "401af54bd6a7",
+  "session_id": "028cb10b-d816-4d66-b100-17f044d67c91",
   "strategy": "manual-commit",
+  "created_at": "2026-02-17T20:08:16.703397Z",
   "branch": "main",
   "checkpoints_count": 1,
   "files_touched": [
@@ -10,7 +12,6 @@
     ".intent-layer/hooks/injections.log",
     ".intent-layer/hooks/outcomes.log",
     ".superset/config.json",
-    "eval-harness/.gitignore",
     "eval-harness/docs/brainstorms/2026-02-16-agentbench-replication-brainstorm.md",
     "eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md",
     "eval-harness/docs/reference/agentbench-harness/.gitignore",
@@ -173,13 +174,8 @@
     "eval-harness/docs/reference/agentbench-harness/src/configs/plan_constants.py",
     "eval-harness/docs/reference/agentbench-harness/src/configs/remove_docs.py",
     "eval-harness/docs/reference/agentbench-paper.md",
-    "eval-harness/lib/claude_runner.py",
-    "eval-harness/lib/cli.py",
-    "eval-harness/lib/index_cache.py",
-    "eval-harness/lib/prompt_builder.py",
     "eval-harness/lib/reporter.py",
     "eval-harness/lib/stats.py",
-    "eval-harness/lib/task_runner.py",
     "eval-harness/results/2026-02-16-133336.json",
     "eval-harness/results/2026-02-16-133336.md",
     "eval-harness/results/2026-02-16-134621.json",
@@ -204,40 +200,30 @@
     "eval-harness/results/2026-02-16-201138.md",
     "eval-harness/results/2026-02-16-205339.json",
     "eval-harness/results/2026-02-16-205339.md",
-    "eval-harness/results/2026-02-16-consolidated.md",
     "eval-harness/results/2026-02-17-095051.json",
     "eval-harness/results/2026-02-17-095051.md",
     "eval-harness/results/2026-02-17-105514.json",
     "eval-harness/results/2026-02-17-105514.md",
-    "eval-harness/tasks/fastmcp-rerun.yaml",
-    "eval-harness/tasks/fastmcp.yaml",
-    "eval-harness/tests/test_claude_runner.py",
     "eval-harness/tests/test_reporter.py",
     "eval-harness/tests/test_stats.py",
-    "eval-harness/tests/test_task_runner.py",
     "eval-harness/uv.lock"
   ],
-  "sessions": [
-    {
-      "metadata": "/40/1af54bd6a7/0/metadata.json",
-      "transcript": "/40/1af54bd6a7/0/full.jsonl",
-      "context": "/40/1af54bd6a7/0/context.md",
-      "content_hash": "/40/1af54bd6a7/0/content_hash.txt",
-      "prompt": "/40/1af54bd6a7/0/prompt.txt"
-    },
-    {
-      "metadata": "/40/1af54bd6a7/1/metadata.json",
-      "transcript": "/40/1af54bd6a7/1/full.jsonl",
-      "context": "/40/1af54bd6a7/1/context.md",
-      "content_hash": "/40/1af54bd6a7/1/content_hash.txt",
-      "prompt": "/40/1af54bd6a7/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
   "token_usage": {
-    "input_tokens": 71,
-    "cache_creation_tokens": 285778,
-    "cache_read_tokens": 4180953,
-    "output_tokens": 689,
-    "api_call_count": 44
-  }
+    "input_tokens": 37,
+    "cache_creation_tokens": 172522,
+    "cache_read_tokens": 1908167,
+    "output_tokens": 115,
+    "api_call_count": 21
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-17T20:08:16.491318Z",
+    "agent_lines": 577,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 3912,
+    "total_committed": 577,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/028cb10b-d816-4d66-b100-17f044d67c91.jsonl"
 }
