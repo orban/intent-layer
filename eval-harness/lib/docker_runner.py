@@ -19,21 +19,32 @@ def run_in_docker(
     command: str,
     timeout: int = 120,
     memory: str = "4g",
-    cpus: str = "2"
+    cpus: str = "2",
+    cache_volume: str | None = "eval-harness-pipcache"
 ) -> DockerResult:
-    """Run a command in a Docker container with workspace mounted."""
+    """Run a command in a Docker container with workspace mounted.
+
+    Args:
+        cache_volume: Docker named volume for pip/uv cache persistence.
+            Survives across container runs, so ``uv sync`` only downloads
+            packages once. Set to None to disable.
+    """
     # Docker requires absolute paths for bind mounts
     abs_workspace = os.path.abspath(workspace)
     cmd = [
         "docker", "run", "--rm",
         "-v", f"{abs_workspace}:/work",
+    ]
+    if cache_volume:
+        cmd.extend(["-v", f"{cache_volume}:/root/.cache"])
+    cmd.extend([
         "-w", "/work",
         "--network", "host",
         "--memory", memory,
         "--cpus", cpus,
         image,
         "sh", "-c", command
-    ]
+    ])
 
     try:
         result = subprocess.run(

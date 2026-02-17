@@ -42,6 +42,24 @@ lib/
 
 ## Pitfalls
 
+### Unhandled future.result() in as_completed kills entire parallel run
+
+A single worker crash (OOM, race condition) raises an exception from future.result() in the as_completed loop. Without try/except, this kills the entire run. Wrap in try/except and record as a [worker-crash] TaskResult so remaining tasks continue.
+
+_Source: learn.sh | added: 2026-02-17_
+
+### Workspace name collision when parallel tasks share the same base commit
+
+If two tasks have the same pre_fix_commit, workspace names like {repo}-{commit[:8]}-{condition}-r{rep} collide. One task's _setup_workspace calls shutil.rmtree, destroying the other's in-progress work. Fix: include a hash of task.id in the workspace name.
+
+_Source: learn.sh | added: 2026-02-17_
+
+### ThreadPoolExecutor threads share PID — use thread ID for unique tmp filenames
+
+os.getpid() is identical for all threads in a ThreadPoolExecutor. Two threads writing to the same tmp file (e.g., cache-manifest.tmp.61234) causes FileNotFoundError when one renames it before the other. Fix: append threading.get_ident() to tmp filenames.
+
+_Source: learn.sh | added: 2026-02-17_
+
 ### Cache manifest PID fix prevents crash but not lost updates
 
 Two concurrent workers can each load stale manifest, add their entry, and save — second save overwrites first's entry. Safe in current usage (warm_cache single-threaded, task loop sequential) but needs file locking for true parallel eval runs sharing a cache dir.
@@ -91,3 +109,35 @@ _Source: learn.sh | added: 2026-02-17_
 **Symptom**: Accessing `result["skill_generation"]` on `without_skill` results raises KeyError.
 
 **Solution**: Always check `if "skill_generation" in result` before accessing. See `lib/reporter.py` for the defensive pattern. Delta calculations only use top-level fix metrics, which exist in both conditions.
+
+## Patterns
+
+### Pre-validation test output is safely reusable for prompt building
+
+**Preferred**: Pre-validation (step 5) runs before context file generation (step 6). Since .md files don't affect pytest results, test output from pre-validation is identical to what a fresh Docker run produces. Safe to pass cached_test_output to _build_prompt to skip redundant Docker execution.
+
+_Source: learn.sh | added: 2026-02-17_
+
+
+## Context
+
+### AGENTbench paper has no statistical analysis — single runs, no confidence intervals
+
+The paper (arxiv 2602.11988v1) ran each task exactly once per condition (temperature=0). No repetitions, no p-values, no confidence intervals. Their 2-4% differences are indistinguishable from noise. Our replication should use --repetitions 3-5 to measure variance, and variance itself is a signal: more context causing more variance would suggest the context is confusing the agent.
+
+_Source: learn.sh | added: 2026-02-17_
+
+### Targeted test files are safe for comparative eval — no evidence of collateral damage
+
+Across all eval runs, every fix that passed the target test also passed the full test suite. Zero cases of Claude breaking unrelated tests. Running targeted tests (~15s) vs full suite (~150s) is a 10x speedup that's safe for A/B comparison, though final experiments should verify with full suite.
+
+_Source: learn.sh | added: 2026-02-17_
+
+
+## Checks
+
+### Before Single-run eval results are not trustworthy — always use repetitions
+- [ ] LLM task completion is stochastic even at temperature=0 (tool call results, timing, context window effects). A task passing in one run and failing in another is expected. Use --repetitions 3-5 minimum. Analyze: (1) majority-vote pass rate per condition, (2) variance per condition — higher variance with more context suggests the context is confusing the agent rather than helping.
+
+_Source: learn.sh | added: 2026-02-17_
+

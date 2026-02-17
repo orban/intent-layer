@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import shutil
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -37,6 +38,68 @@ ProgressCallback = Callable[[str, str, str, str], None]
 # 120s was too tight for repos with slow test setup (e.g., test_pagination.py
 # under parallel Docker load). 180s gives headroom without masking real issues.
 PRE_VALIDATION_TIMEOUT = 180
+
+# Post-test timeout: running tests after Claude's fix. Should be comparable
+# to pre-validation — if tests don't finish in this window, they're broken.
+POST_TEST_TIMEOUT = 180
+
+
+class PreValidationCache:
+    """Thread-safe cache for pre-validation results across conditions.
+
+    Pre-validation (Docker test run) produces identical results for all
+    conditions of the same task — same commit, same code, same test.
+    This cache ensures we only run Docker once per task, not once per
+    (task, condition) pair.  For 8 tasks × 3 conditions, this eliminates
+    16 redundant Docker runs (~30-60s each).
+
+    Thread safety: when two conditions for the same task start concurrently,
+    the first thread runs Docker while the second waits on an Event.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._results: dict[str, str | None] = {}
+        self._in_progress: dict[str, threading.Event] = {}
+        self._errors: dict[str, BaseException] = {}
+
+    def get_or_compute(self, key: str, fn: Callable[[], str | None]) -> str | None:
+        """Return cached result or compute it. Deduplicates concurrent calls."""
+        with self._lock:
+            if key in self._results:
+                return self._results[key]
+            if key in self._errors:
+                orig = self._errors[key]
+                raise type(orig)(str(orig))
+            if key in self._in_progress:
+                event = self._in_progress[key]
+                is_first = False
+            else:
+                event = threading.Event()
+                self._in_progress[key] = event
+                is_first = True
+
+        if not is_first:
+            # Wait for the first caller to finish
+            event.wait(timeout=PRE_VALIDATION_TIMEOUT + 60)
+            with self._lock:
+                if key in self._errors:
+                    orig = self._errors[key]
+                    raise type(orig)(str(orig))
+                return self._results.get(key)
+
+        # First caller — run the computation
+        try:
+            result = fn()
+            with self._lock:
+                self._results[key] = result
+            return result
+        except BaseException as e:
+            with self._lock:
+                self._errors[key] = e
+            raise
+        finally:
+            event.set()
 
 
 class Condition(Enum):
@@ -90,13 +153,17 @@ class TaskRunner:
         workspaces_dir: str,
         progress_callback: ProgressCallback | None = None,
         cache_dir: str = "workspaces/.index-cache",
-        use_cache: bool = True
+        use_cache: bool = True,
+        reference_clone: str | None = None,
+        pre_val_cache: PreValidationCache | None = None,
     ):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
         self.workspaces_dir.mkdir(parents=True, exist_ok=True)
         self.progress_callback = progress_callback
         self.index_cache = IndexCache(cache_dir) if use_cache else None
+        self.reference_clone = reference_clone
+        self.pre_val_cache = pre_val_cache
 
     def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
         """Report progress if callback is set."""
@@ -435,8 +502,11 @@ class TaskRunner:
             shutil.rmtree(workspace)
 
         try:
-            self._progress("warmup", condition.value, "clone", f"cloning {repo_url}")
-            clone_repo(repo_url, workspace, shallow=False)
+            if self.reference_clone:
+                self._progress("warmup", condition.value, "clone", "local clone from reference")
+            else:
+                self._progress("warmup", condition.value, "clone", f"cloning {repo_url}")
+            clone_repo(repo_url, workspace, shallow=False, reference=self.reference_clone)
             # Use default branch HEAD — no checkout_commit needed
 
             self._progress("warmup", condition.value, "strip", "removing existing context files")
@@ -488,8 +558,11 @@ class TaskRunner:
 
         try:
             # Setup: clone and checkout
-            self._progress(task.id, cond_str, "clone", f"cloning {self.repo.url}")
-            clone_repo(self.repo.url, workspace, shallow=False)
+            if self.reference_clone:
+                self._progress(task.id, cond_str, "clone", f"local clone from reference")
+            else:
+                self._progress(task.id, cond_str, "clone", f"cloning {self.repo.url}")
+            clone_repo(self.repo.url, workspace, shallow=False, reference=self.reference_clone)
             self._progress(task.id, cond_str, "checkout", f"checking out {task.pre_fix_commit[:8]}")
             checkout_commit(workspace, task.pre_fix_commit)
 
@@ -510,9 +583,17 @@ class TaskRunner:
                     self._progress(task.id, cond_str, "inject_test",
                                    f"injected {task.test_file} from fix commit")
 
-            # Pre-validate: confirm test infra works and test actually fails
-            self._progress(task.id, cond_str, "pre_validate", "verifying test fails at pre_fix_commit")
-            pre_validate_output = self._pre_validate(task, workspace)
+            # Pre-validate: confirm test infra works and test actually fails.
+            # Pre-validation is identical across conditions for the same task
+            # (same commit, same code, same test), so we cache the result.
+            if self.pre_val_cache is not None:
+                self._progress(task.id, cond_str, "pre_validate", "checking pre-validation cache")
+                pre_validate_output = self.pre_val_cache.get_or_compute(
+                    task.id, lambda: self._pre_validate(task, workspace)
+                )
+            else:
+                self._progress(task.id, cond_str, "pre_validate", "verifying test fails at pre_fix_commit")
+                pre_validate_output = self._pre_validate(task, workspace)
             self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
@@ -642,7 +723,7 @@ class TaskRunner:
                 workspace,
                 self.repo.docker.image,
                 test_cmd,
-                timeout=300
+                timeout=POST_TEST_TIMEOUT
             )
             test_status = "PASSED" if test_result.exit_code == 0 else "FAILED"
             self._progress(task.id, cond_str, "test_done", f"tests {test_status}")

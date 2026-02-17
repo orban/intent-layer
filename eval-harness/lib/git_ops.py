@@ -13,12 +13,20 @@ class DiffStats:
     files: list[str]
 
 
-def clone_repo(url: str, dest: str, shallow: bool = True) -> None:
-    """Clone a repository."""
-    cmd = ["git", "clone"]
-    if shallow:
-        cmd.extend(["--depth", "1"])
-    cmd.extend([url, dest])
+def clone_repo(url: str, dest: str, shallow: bool = True, reference: str | None = None) -> None:
+    """Clone a repository.
+
+    If reference is provided, creates a local hardlink clone from the
+    reference directory instead of fetching over the network. This is
+    nearly instant and shares object storage via hardlinks.
+    """
+    if reference:
+        cmd = ["git", "clone", "--local", "--no-checkout", reference, dest]
+    else:
+        cmd = ["git", "clone"]
+        if shallow:
+            cmd.extend(["--depth", "1"])
+        cmd.extend([url, dest])
     subprocess.run(cmd, check=True, capture_output=True)
 
 
