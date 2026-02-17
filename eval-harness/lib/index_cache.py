@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 from datetime import datetime
+import os
 from urllib.parse import urlparse
 
 
@@ -100,7 +101,6 @@ class IndexCache:
                 for k, v in self.manifest.entries.items()
             }
         }
-        import os
         tmp_path = self.manifest_path.with_suffix(f".tmp.{os.getpid()}")
         with open(tmp_path, "w") as f:
             json.dump(data, f, indent=2)

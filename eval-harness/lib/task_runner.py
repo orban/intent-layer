@@ -2,6 +2,7 @@
 from __future__ import annotations
 import logging
 import os
+import subprocess
 import tempfile
 import shutil
 import sys
@@ -221,7 +222,6 @@ class TaskRunner:
         if not task.test_file or not task.fix_commit:
             return False
 
-        import subprocess
         try:
             result = subprocess.run(
                 ["git", "show", f"{task.fix_commit}:{task.test_file}"],
