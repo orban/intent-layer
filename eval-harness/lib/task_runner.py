@@ -493,6 +493,30 @@ class TaskRunner:
                                        stderr_log=str(fix_log))
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
+            # Detect empty runs: Claude started but produced nothing
+            if (claude_result.wall_clock_seconds > 1
+                    and claude_result.input_tokens == 0
+                    and claude_result.output_tokens == 0
+                    and not claude_result.timed_out):
+                return TaskResult(
+                    task_id=task.id,
+                    condition=condition,
+                    success=False,
+                    test_output="",
+                    wall_clock_seconds=claude_result.wall_clock_seconds,
+                    input_tokens=0,
+                    output_tokens=0,
+                    tool_calls=0,
+                    lines_changed=0,
+                    files_touched=[],
+                    error=(
+                        f"[empty-run] Claude produced no output "
+                        f"(exit_code={claude_result.exit_code}, "
+                        f"{claude_result.wall_clock_seconds:.1f}s)"
+                    ),
+                    exit_code=claude_result.exit_code,
+                )
+
             # Run tests (chain setup commands so pip installs persist in same container)
             test_cmd = self.repo.docker.test_command
             if self.repo.docker.setup:
@@ -529,7 +553,8 @@ class TaskRunner:
                 lines_changed=diff_stats.lines_changed,
                 files_touched=diff_stats.files,
                 skill_generation=skill_metrics,
-                agents_files_read=agents_files_read
+                agents_files_read=agents_files_read,
+                exit_code=claude_result.exit_code,
             )
         except PreValidationError as e:
             logger.warning("Pre-validation failed for %s (%s): %s", task.id, cond_str, e)

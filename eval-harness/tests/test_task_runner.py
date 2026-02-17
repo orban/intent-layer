@@ -639,3 +639,45 @@ def test_task_result_defaults_exit_code_and_timeout():
     )
     assert result.exit_code is None
     assert result.is_timeout is False
+
+
+def test_empty_run_detection():
+    """A result with >1s wall clock but 0 tokens is an empty run."""
+    from lib.reporter import Reporter
+
+    result = TaskResult(
+        task_id="fix-empty",
+        condition=Condition.INTENT_LAYER,
+        success=False,
+        test_output="",
+        wall_clock_seconds=2.7,
+        input_tokens=0,
+        output_tokens=0,
+        tool_calls=0,
+        lines_changed=0,
+        files_touched=[],
+        error="[empty-run] Claude produced no output (exit_code=1, 2.7s)",
+        exit_code=1,
+    )
+    # Empty runs are infra errors — excluded from success stats
+    assert Reporter._is_infra_error(result) is True
+
+
+def test_empty_run_tag_format():
+    """Verify the [empty-run] tag is recognized by _is_infra_error."""
+    from lib.reporter import Reporter
+
+    result = TaskResult(
+        task_id="fix-emp",
+        condition=Condition.NONE,
+        success=False,
+        test_output="",
+        wall_clock_seconds=3.0,
+        input_tokens=0,
+        output_tokens=0,
+        tool_calls=0,
+        lines_changed=0,
+        files_touched=[],
+        error="[empty-run] Claude produced no output (exit_code=0, 3.0s)",
+    )
+    assert Reporter._is_infra_error(result) is True
