@@ -645,6 +645,39 @@ def test_task_result_has_exit_code_and_timeout():
     assert result.is_timeout is True
 
 
+def test_pre_validate_commit_message_uses_runtime_probe(sample_repo, monkeypatch):
+    """Commit-message prevalidation should not assume Python exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        workspace = os.path.join(tmpdir, "ws")
+        os.makedirs(workspace)
+
+        task = Task(
+            id="commit-message-smoke",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message"
+        )
+
+        captured = {}
+
+        def fake_run_in_docker(workspace_arg, image, command, timeout=120, **_kwargs):
+            captured["command"] = command
+            return type("Result", (), {
+                "exit_code": 0, "stdout": "ok", "stderr": "", "timed_out": False
+            })()
+
+        monkeypatch.setattr("lib.task_runner.run_in_docker", fake_run_in_docker)
+
+        result = runner._pre_validate(task, workspace)
+        assert result is None
+        cmd = captured["command"]
+        assert "command -v python" in cmd
+        assert "command -v node" in cmd
+        assert "smoke-ok" in cmd
+
+
 def test_task_result_defaults_exit_code_and_timeout():
     """exit_code defaults to None, is_timeout defaults to False."""
     result = TaskResult(

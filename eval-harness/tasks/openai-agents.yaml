@@ -1,0 +1,145 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/openai/openai-agents-python
+# Tasks found: 10 (from 12 candidates; dropped #2192 — no new tests, #2323 — 9 files/619 lines too complex)
+
+repo:
+  url: https://github.com/openai/openai-agents-python
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - apt-get update && apt-get install -y --no-install-recommends build-essential linux-libc-dev && rm -rf /var/lib/apt/lists/*
+    - pip install uv && uv sync --frozen --all-extras --all-packages --group dev
+    test_command: OPENAI_API_KEY=fake-for-tests uv run pytest
+  strip_extra:
+  - .agents/
+  - AGENTS.md
+  - CLAUDE.md
+  - PLANS.md
+tasks:
+- id: materialize-iterable-input-history-2496
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 84fa471e5fc538d744a3ae294749fedb3855131b
+  fix_commit: 48cdae42b1c1d03f62c9d54f85ad7b0889e4d0dd
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2496 — materialize iterable input history in ItemHelpers.input_to_new_input_list'
+  _lines_changed: 28
+  _files_changed: 2
+  test_file: tests/test_items_helpers.py
+  # Existing test_input_to_new_input_list_copies_the_ones_produced_by_pydantic modified to cover the bug
+
+- id: drop-unsupported-tracing-usage-fields-2448
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: d2e9c9328b3d38a7b33e9fc97d5767247db111ac
+  fix_commit: 7f59aa58cbf8a87f41d4eef6123a7a7f41fb2960
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2448 — drop unsupported usage fields for OpenAI trace ingest'
+  _lines_changed: 197
+  _files_changed: 2
+  test_file: tests/test_trace_processor.py
+  issue_number: 2444
+  # 5 new test functions added covering trace field filtering
+
+- id: persist-streamed-run-again-tool-items-2433
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: f923b137074465a21bc5819b4aa6d920d7252abf
+  fix_commit: 56ec673e914d99c9ce5e4f0934a1f80d63e3464e
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2433 — persist streamed run-again tool items to session'
+  _lines_changed: 42
+  _files_changed: 2
+  test_file: tests/test_agent_runner_streamed.py
+  issue_number: 2426
+  # New test: test_streamed_run_again_persists_tool_items_to_session
+
+- id: cancel-model-task-on-guardrail-trip-2416
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: c97c95817db5ffa26a3a592b5ebb7cd264a1cccd
+  fix_commit: 48e28a340550304d392b6144d235d7d8bcd3942a
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2416 — cancel model task when parallel input guardrail trips'
+  _lines_changed: 124
+  _files_changed: 3
+  test_file: tests/test_guardrails.py
+  # 2 new tests covering guardrail cancellation behavior
+
+- id: crlf-support-for-apply-diff-2394
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: a9485c800fd16e7a0dc3ea6b651cce16770b0370
+  fix_commit: c62981e32f0559e1d9254fe89d7a839eafc6d4f8
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2394 — CRLF support for apply_diff'
+  _lines_changed: 65
+  _files_changed: 3
+  test_file: tests/test_apply_diff.py
+  # 5 new tests across test_apply_diff.py and test_apply_diff_helpers.py
+
+- id: offload-sync-tool-to-worker-threads-2387
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: d463a97feeb1fe5d1be9a9c6374e32e183bcead6
+  fix_commit: 9a1543a23835e2b89a0dcc984b916b6c817621cd
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2387 — offload sync tool execution to worker threads'
+  _lines_changed: 74
+  _files_changed: 2
+  test_file: tests/test_function_tool.py
+  issue_number: 2386
+  # 2 new tests: sync tool blocking detection
+
+- id: send-truncate-events-independent-of-response-2385
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: ba44e4a9736f253a8248cde609e2669df4d3c737
+  fix_commit: 32c3040195f393d3a99f9e4ffc8cc992755970df
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2385 — send truncate events independent of response state'
+  _lines_changed: 145
+  _files_changed: 3
+  test_file: tests/realtime/test_openai_realtime.py
+  issue_number: 2370
+  # Tests in test_openai_realtime.py and test_playback_tracker.py
+
+- id: defer-compaction-when-tool-outputs-present-2322
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: bf2625cfed6edbdc422dabe9c8c4ec8a0d01f305
+  fix_commit: 86acfb4f7f66743d71b30e36b63a369e9a253a8a
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2322 — defer compaction when local tool outputs present'
+  _lines_changed: 166
+  _files_changed: 3
+  test_file: tests/memory/test_openai_responses_compaction_session.py
+  issue_number: 2317
+  # 3 new tests covering compaction deferral logic
+
+- id: convert-tool-exception-to-runtime-error-2243
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: c4ed605d33df63f7d24e6c0126e072ad7e60a866
+  fix_commit: c35c0afe906ca0b1694c1c40bf6284a24ac9e030
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2243 — convert tool execution exception to runtime error'
+  _lines_changed: 26
+  _files_changed: 2
+  test_file: tests/realtime/test_session.py
+  issue_number: 2204
+  # Test verifies ToolCallError wrapping instead of raw exception
+
+- id: strict-json-schema-missing-in-chat-completions-2182
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 71fa12cd87cec26e076995dfb1c54b8e7c1ebd11
+  fix_commit: 108e148dd614384bd31a91e9b3982f11b92c060e
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #2182 — strict_json_schema missing in Chat Completions API'
+  _lines_changed: 16
+  _files_changed: 2
+  test_file: tests/test_tool_converter.py
+  issue_number: 2181
+  # 2 new assertions in existing test for strict schema flag

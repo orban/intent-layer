@@ -4,7 +4,7 @@
 
 repo:
   url: https://github.com/expressjs/express
-  default_branch: main
+  default_branch: master
   docker:
     image: node:20-slim
     setup:
@@ -13,6 +13,7 @@ repo:
 tasks:
 - id: docs-fix-jsdoc-for-reqaccepts-return-value-and
   category: simple_fix
+  difficulty: easy
   pre_fix_commit: 9a3f7ff4120d7920a2d13809ff5ae78648c8a3d6
   fix_commit: ae265a90c7f6534231b621a846be6c60c54658f5
   prompt_source: commit_message
@@ -23,6 +24,7 @@ tasks:
   issue_number: 6936
 - id: fix-enhance-reqacceptscharsets-method-6088
   category: simple_fix
+  difficulty: medium
   pre_fix_commit: 3e81873b52e107898ed7ba45874959fb0546df3f
   fix_commit: 6cd404eb28ff861180f435b3015f8d0c8c0b44d4
   prompt_source: failing_test
@@ -33,6 +35,7 @@ tasks:
   issue_number: 6088
 - id: doc-fix-securitymd-link-to-point-to-security-tab
   category: simple_fix
+  difficulty: easy
   pre_fix_commit: b8fc000f3116237b2bcc0df41b5b999f95da37ae
   fix_commit: b5aae87594502d543e8ac393847a6f091e9b8321
   prompt_source: commit_message

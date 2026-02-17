@@ -1,0 +1,130 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/vibrantlabsai/ragas
+# Tasks found: 10
+
+repo:
+  url: https://github.com/vibrantlabsai/ragas
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+    - pip install uv && uv pip install --system -e ".[dev-minimal,all,test]"
+    test_command: pytest tests/unit -x
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+tasks:
+- id: optimize-average-precision-algorithm
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: b928239d3c03956acb9e911be60f9ae81298a11e
+  fix_commit: db8eb679f0933f7211e170d1508afebe39a3a49a
+  prompt_source: failing_test
+  _commit_message: 'perf: optimize average precision algorithm'
+  _lines_changed: 158
+  _files_changed: 3
+  test_file: tests/unit/test_average_precision_algorithm.py
+  issue_number: 2567
+
+- id: lazy-init-default-tokenizer-avoid-network
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 979048d4fb8ec627959b23444f1a434c01d0df58
+  fix_commit: 38648500717f5d8ee672bbe06e3f0851e668a79b
+  prompt_source: failing_test
+  _commit_message: 'fix: lazy init DEFAULT_TOKENIZER to avoid network calls at import time'
+  _lines_changed: 89
+  _files_changed: 2
+  test_file: tests/unit/test_tokenizers.py
+
+- id: handle-nested-dicts-lists-toolcallf1-args
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 84c038d9d479bccd91c9a0afd21861431535a837
+  fix_commit: f06e0284810d344901f2fa3abdf4cc1974e3b59f
+  prompt_source: failing_test
+  _commit_message: 'fix: handle nested dicts/lists in ToolCallF1 args to prevent unhashable type error'
+  _lines_changed: 154
+  _files_changed: 3
+  test_file: tests/unit/test_tool_call_f1_collections.py
+
+- id: migrate-chrf-score-to-collections-api
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 22377f8d727c8ed7c6f527e57df2c1133f564d20
+  fix_commit: 51b989dff3b2421713b3c0f5e0c16140353f32d6
+  prompt_source: failing_test
+  _commit_message: 'fix: migrate CHRF Score to new metrics collections'
+  _lines_changed: 370
+  _files_changed: 6
+  test_file: tests/unit/test_chrf_score_collections.py
+
+- id: correct-multiturn-sample-user-input-validation
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: bd46e30102dcb5d1f0d41be1b973f2ce6e59be5a
+  fix_commit: 32b4afc8c5947ca92fead0fcae787ea38639d6ca
+  prompt_source: failing_test
+  _commit_message: 'fix: correct MultiTurnSample user_input validation logic'
+  _lines_changed: 30
+  _files_changed: 2
+  test_file: tests/unit/test_dataset_schema.py
+
+- id: make-gitpython-optional-dependency
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: dd5bce77f89c8222091631922eb790800de42564
+  fix_commit: b4baf61333115272ac09ac4b620e29e310928ee6
+  prompt_source: failing_test
+  _commit_message: 'fix: make GitPython an optional dependency'
+  _lines_changed: 45
+  _files_changed: 3
+  test_file: tests/unit/test_experiment.py
+
+- id: resolve-diskcachebackend-pickling-instructorllm
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 77acfe3dd3575a5aa0948bef262efa8f01bf03c1
+  fix_commit: 979048d4fb8ec627959b23444f1a434c01d0df58
+  prompt_source: commit_message
+  _commit_message: 'fix: resolve DiskCacheBackend pickling issue with InstructorLLM'
+  _lines_changed: 78
+  _files_changed: 3
+  # No new test functions added; fix adds pickling helper + type annotations
+
+- id: detect-openai-compatible-api-generic-providers
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 592670b4bf02fb43fea807a0e0e62ef53e64d6af
+  fix_commit: 3884c7e37c172d3d238ef02e30f705ca9adfbdc8
+  prompt_source: failing_test
+  _commit_message: 'fix: detect and handle OpenAI-compatible API style for generic providers'
+  _lines_changed: 101
+  _files_changed: 3
+  test_file: tests/unit/llms/test_instructor_factory.py
+  issue_number: 2560
+
+- id: add-caching-support-for-embeddings
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: c5b197f0216353e3d5fc31b46b4daf9ad5feb6f1
+  fix_commit: bf61178895136c883b51542879badffa8737d96e
+  prompt_source: failing_test
+  _commit_message: 'feat: add caching support for embeddings'
+  _lines_changed: 401
+  _files_changed: 7
+  test_file: tests/unit/test_embeddings_caching.py
+
+- id: handle-instructor-modes-json-and-tools
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 91c971214209f8a55f79165a4befe53bebd91cbf
+  fix_commit: 9d2d3f27054c1cf941ee9de898a6245afc6506d4
+  prompt_source: commit_message
+  _commit_message: 'fix: handle instructor modes for json and tools'
+  _lines_changed: 31
+  _files_changed: 3
+  # No new test functions; existing test mocks updated for mode= parameter
+  issue_number: 2490

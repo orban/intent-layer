@@ -1,0 +1,153 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/huggingface/transformers
+# Tasks found: 10
+#
+# WARNING: transformers is huge (~450MB). Docker setup installs only core deps
+# plus torch (CPU) and pytest. Individual tasks target specific test files.
+# Many model tests require downloading HF checkpoints — tasks below are chosen
+# to avoid that (unit tests, config tests, utility tests, small model tests).
+
+repo:
+  url: https://github.com/huggingface/transformers
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - apt-get update && apt-get install -y --no-install-recommends git gcc g++ && rm -rf /var/lib/apt/lists/*
+    - pip install -e . pytest
+    - pip install torch --index-url https://download.pytorch.org/whl/cpu
+    test_command: pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+
+tasks:
+# ── simple fixes (< 50 lines, 1-2 files) ────────────────────────────
+
+- id: fix-typeerror-dot-natural-key-mixed-types
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 8008e6c83e1467dbe0ae3c81d19b29c17f4ff456
+  fix_commit: 44412f6e74114b8157fd1c168cfc6f462a284844
+  prompt_source: commit_message
+  _commit_message: 'Fix TypeError in dot_natural_key when state_dict keys have mixed types at same position (#43966)'
+  _lines_changed: 15
+  _files_changed: 1
+  # No new test functions added — 1 file changed (core_model_loading.py)
+  # Pure logic fix: sorted() crashes when int vs str at same position
+  issue_number: 43867
+
+- id: fix-unprotected-torch-import-vibevoice
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: b3fd59f2c162af8ddb15b9af4db89c17711e4dc1
+  fix_commit: 16a3bea3b88e0530f78d4d7a2fcc0f6387ac72b9
+  prompt_source: commit_message
+  _commit_message: 'Fix unprotected torch import (#44055)'
+  _lines_changed: 8
+  _files_changed: 1
+  # Guard torch import behind is_torch_available() check
+  # No new tests — single file fix
+
+- id: fix-get-test-info-parameterized-expand
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 159219a6601ab87787b75cdc270b3b2438a9f0cf
+  fix_commit: d79b0b885288cc71876b5d34e2c315bf66265f2a
+  prompt_source: commit_message
+  _commit_message: 'fix _get_test_info in testing_utils.py (#43259)'
+  _lines_changed: 4
+  _files_changed: 1
+  # frame.function != test_name when @parameterized.expand appends suffix
+  # Fix: use startswith() instead of ==
+
+# ── targeted refactors (2-4 files, focused) ──────────────────────────
+
+- id: fix-dia-config-token-ids-save-load
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 5405f80e0e7bca9206445e36f510821b294bf051
+  fix_commit: 403990cadb8aceac02aaa2b6ec1016105249a738
+  prompt_source: failing_test
+  _commit_message: 'fix(models): Preserve custom token IDs through DiaConfig save and load (#43928)'
+  _lines_changed: 63
+  _files_changed: 2
+  test_file: tests/models/dia/test_modeling_dia.py
+  issue_number: 43927
+
+- id: fix-xlstm-bugs-small-model-training
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 82a5b3d7368c883baae89d49a3a777842c27b878
+  fix_commit: a47a89a4557d07f7556b71440b6c1a321de94e60
+  prompt_source: failing_test
+  _commit_message: '[xLSTM] Fix bugs preventing small model training (#43209)'
+  _lines_changed: 31
+  _files_changed: 2
+  test_file: tests/models/xlstm/test_modeling_xlstm.py
+  issue_number: 43208
+
+- id: fix-weight-decay-exclusions-no-trainer
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: a4fdaa5f72bdbdd1285baee05cf4c75820917fd2
+  fix_commit: 2caa05deb31d7a8e641bbf6b64571fa4fc9c593e
+  prompt_source: commit_message
+  _commit_message: 'Fix weight decay exclusions in run_*_no_trainer.py examples (#42769)'
+  _lines_changed: 27
+  _files_changed: 3
+  # No new tests — changes to example scripts only
+  # Uses robust param grouping logic from trainer.py
+  issue_number: 42754
+
+# ── complex fixes (3+ files or 100+ lines) ───────────────────────────
+
+- id: fix-false-positive-right-padding-warning
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 16a3bea3b88e0530f78d4d7a2fcc0f6387ac72b9
+  fix_commit: 48ad2d5b0f2860578dffac2455c2759216cb7c4a
+  prompt_source: failing_test
+  _commit_message: 'Fix false positive right-padding warning for decoder-only models in pipeline (#44021)'
+  _lines_changed: 35
+  _files_changed: 3
+  test_file: tests/pipelines/test_pipelines_text_generation.py
+  issue_number: 43906
+
+- id: fix-detr-cardinality-error-no-background
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 9e4a8c44573340636ad6295fa153a944c005dc31
+  fix_commit: d7ac5cd00af1784cf23999b9a8f0e69b1bc11c01
+  prompt_source: commit_message
+  _commit_message: 'Fix cardinality error for DETR models without explicit background class (#43513)'
+  _lines_changed: 41
+  _files_changed: 4
+  # No new test functions — fix to loss calculation across 4 loss files
+  # Models using sigmoid/focal loss had wrong cardinality check
+  issue_number: 42199
+
+- id: fix-early-image-processor-return-error
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 2bd902dbc45ff87d6cd1986f8d2d40765bc34853
+  fix_commit: 349e00c1a367ce263624e525038250625dcf20c7
+  prompt_source: failing_test
+  _commit_message: 'Fix early image processor return not raising error (#43981)'
+  _lines_changed: 5
+  _files_changed: 1
+  test_file: tests/models/llava/test_image_processing_llava.py
+  # Early return for square images skipped background_color validation
+
+- id: fix-failing-tests-no-pad-token-id
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: cfe89b27a9fe14ff7aebbc485052e7194391e9cc
+  fix_commit: 2864600922f5d7103e2778c1767b834d88bdde81
+  prompt_source: commit_message
+  _commit_message: 'Fix failing tests due to no attribute pad_token_id (#43453)'
+  _lines_changed: 44
+  _files_changed: 11
+  # Adds pad_token_id to multiple model configs that were missing it
+  # Tests were failing with AttributeError on pad_token_id

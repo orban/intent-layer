@@ -229,11 +229,19 @@ class TaskRunner:
         if task.prompt_source != "failing_test" and not task.test_file:
             # commit_message tasks without test_file: just verify setup works.
             # Running the full suite here is too slow and risks timeouts.
+            # Prefer a runtime check that's compatible with both Python and
+            # JavaScript repos (and falls back to a harmless no-op check).
+            runtime_probe = (
+                "if command -v python >/dev/null 2>&1; then python --version; "
+                "elif command -v node >/dev/null 2>&1; then node --version; "
+                "elif command -v pytest >/dev/null 2>&1; then pytest --version; "
+                "else echo smoke-ok; fi"
+            )
             if self.repo.docker.setup:
                 setup_chain = " && ".join(self.repo.docker.setup)
-                smoke_cmd = f"{setup_chain} && python --version"
+                smoke_cmd = f"{setup_chain} && sh -lc '{runtime_probe}'"
             else:
-                smoke_cmd = "python --version"
+                smoke_cmd = f"sh -lc '{runtime_probe}'"
 
             result = run_in_docker(
                 workspace,
