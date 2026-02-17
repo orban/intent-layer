@@ -623,3 +623,573 @@ Summary:
 
 If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
 Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+any other optimizations we can glean from the output data?
+
+---
+
+Invoke the superpowers:writing-plans skill and follow it exactly as presented to you
+
+---
+
+Base directory for this skill: /Users/ryo/.claude/plugins/cache/claude-plugins-official/superpowers/4.3.0/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+
+**Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+**Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+**Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## Remember
+- Exact file paths always
+- Complete code in plan (not "add validation")
+- Exact commands with expected output
+- Reference relevant skills with @ syntax
+- DRY, YAGNI, TDD, frequent commits
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
+
+**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Stay in this session
+- Fresh subagent per task + code review
+
+**If Parallel Session chosen:**
+- Guide them to open new session in worktree
+- **REQUIRED SUB-SKILL:** New session uses superpowers:executing-plans
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/ryo/.claude/plugins/cache/claude-plugins-official/superpowers/4.3.0/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the entire conversation chronologically:
+
+1. This is a continuation session. The previous session implemented warm_cache, workspace collision fix, and other eval harness improvements.
+
+2. The user asked "any other optimizations we can glean from the output data?" - I analyzed all 10 result JSON files from eval runs.
+
+3. I identified 5 data quality issues from the results:
+   - Context files polluting lines_changed/files_touched (but discovered this was already fixed in get_diff_stats)
+   - input_tokens: 0, output_tokens: 0 "empty runs" 
+   - Massive variance across identical tasks
+   - flat_llm 300s timeout problem
+   - Stale success delta key
+
+4. I proposed 5 optimizations. The user then invoked `/superpowers:write-plan` to create a formal plan.
+
+5. I wrote the plan to `eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md` with 5 tasks:
+   - Task 1: Add exit_code and is_timeout to TaskResult
+   - Task 2: Detect empty runs in run()
+   - Task 3: Detect and tag timeout failures
+   - Task 4: Serialize new fields in reporter output
+   - Task 5: Verify single-run delta key (test-only)
+
+6. User chose option "1" (Subagent-Driven in this session).
+
+7. I invoked the subagent-driven-development skill.
+
+8. Task 1: Dispatched implementer subagent → added `exit_code: int | None = None` and `is_timeout: bool = False` to TaskResult, plus 2 tests. Spec review passed. Committed.
+
+9. Task 2: Dispatched implementer subagent → added `[empty-run]` to `_is_infra_error`, added empty-run detection in `run()` after `run_claude` returns, added `exit_code=claude_result.exit_code` to normal return, plus 2 tests. Spec review passed. Committed.
+
+10. Task 3: Dispatched implementer subagent → added `[timeout]` to `_is_infra_error`, added timeout detection in `run()` after empty-run check, plus 1 test. Committed.
+
+11. Task 4: Dispatched implementer subagent → added `exit_code` and `is_timeout` serialization in `_serialize_single_result`, plus 2 tests. Committed.
+
+12. Task 5 is still pending - it's a verification test for the delta key.
+
+Now let me identify all the specific changes:
+
+**Task 1 commit: "feat: add exit_code and is_timeout fields to TaskResult"**
+- lib/task_runner.py: Added 2 fields to TaskResult dataclass
+- tests/test_task_runner.py: Added test_task_result_has_exit_code_and_timeout, test_task_result_defaults_exit_code_and_timeout
+
+**Task 2 commit: "feat: detect and tag empty Claude runs as [empty-run]"**
+- lib/reporter.py: Added "[empty-run]" to _is_infra_error tuple
+- lib/task_runner.py: Added empty-run detection block in run(), added exit_code to normal return
+- tests/test_task_runner.py: Added test_empty_run_detection, test_empty_run_tag_format
+
+**Task 3 commit: "feat: detect and tag Claude timeouts as [timeout]"**
+- lib/reporter.py: Added "[timeout]" to _is_infra_error tuple
+- lib/task_runner.py: Added timeout detection block in run()
+- tests/test_task_runner.py: Added test_timeout_tag_is_infra_error
+
+**Task 4 commit: "feat: serialize exit_code and is_timeout in JSON output"**
+- lib/reporter.py: Added exit_code and is_timeout serialization
+- tests/test_reporter.py: Added test_serialize_includes_exit_code_and_timeout, test_serialize_omits_exit_code_when_none
+
+Current state: Tasks 1-4 completed, Task 5 pending. Test count at 124 passed + 1 skipped.
+
+The user messages in this session were:
+1. "any other optimizations we can glean from the output data?"
+2. (Invoked /superpowers:write-plan)
+3. "1" (chose subagent-driven execution)
+
+No errors were encountered during implementation. All subagents completed successfully on first attempt.
+
+Summary:
+1. Primary Request and Intent:
+   The user asked "any other optimizations we can glean from the output data?" after completing the warm_cache implementation. I analyzed all 10 eval result JSON files and identified 5 data quality issues. The user then invoked `/superpowers:write-plan` to create a formal implementation plan. After the plan was written, the user chose option "1" (Subagent-Driven Development in this session) to execute it. The plan has 5 tasks, 4 of which are now completed. Task 5 (a verification-only test) is pending.
+
+2. Key Technical Concepts:
+   - **Empty runs**: Claude starts but produces nothing (0 tokens, >1s wall clock, not timed out). Caused by CLI startup failures. Tagged `[empty-run]`.
+   - **Timeout detection**: When `claude_result.timed_out` is True, tag as `[timeout]` instead of running tests and recording as a normal test failure.
+   - **Error tag taxonomy**: `[infrastructure]`, `[pre-validation]`, `[skill-generation]`, `[empty-run]`, `[timeout]` — all recognized by `Reporter._is_infra_error()` and excluded from success rate stats.
+   - **Conditional serialization**: `exit_code` and `is_timeout` only appear in JSON when non-default (backward compat).
+   - **Subagent-Driven Development**: Fresh subagent per task + spec review after each. Using TodoWrite for tracking.
+
+3. Files and Code Sections:
+
+   - **`eval-harness/lib/task_runner.py`** — Core runner. Four commits modified this file:
+     - Task 1: Added fields to TaskResult:
+       ```python
+       exit_code: int | None = None
+       is_timeout: bool = False
+       ```
+     - Task 2: Added empty-run detection in `run()` after `run_claude` returns, before test execution:
+       ```python
+       if (claude_result.wall_clock_seconds > 1
+               and claude_result.input_tokens == 0
+               and claude_result.output_tokens == 0
+               and not claude_result.timed_out):
+           return TaskResult(
+               task_id=task.id, condition=condition, success=False,
+               test_output="", wall_clock_seconds=claude_result.wall_clock_seconds,
+               input_tokens=0, output_tokens=0, tool_calls=0,
+               lines_changed=0, files_touched=[],
+               error=f"[empty-run] Claude produced no output (exit_code={claude_result.exit_code}, {claude_result.wall_clock_seconds:.1f}s)",
+               exit_code=claude_result.exit_code,
+           )
+       ```
+     - Task 2 also: Added `exit_code=claude_result.exit_code` to normal success return
+     - Task 3: Added timeout detection after empty-run check:
+       ```python
+       if claude_result.timed_out:
+           return TaskResult(
+               task_id=task.id, condition=condition, success=False,
+               test_output="", wall_clock_seconds=claude_result.wall_clock_seconds,
+               input_tokens=claude_result.input_tokens, output_tokens=claude_result.output_tokens,
+               tool_calls=claude_result.tool_calls, lines_changed=0, files_touched=[],
+               error=f"[timeout] Claude timed out after {claude_result.wall_clock_seconds:.1f}s",
+               exit_code=claude_result.exit_code, is_timeout=True,
+           )
+       ```
+
+   - **`eval-harness/lib/reporter.py`** — Three commits modified this file:
+     - Task 2: `_is_infra_error` gained `"[empty-run]"`
+     - Task 3: `_is_infra_error` gained `"[timeout]"`:
+       ```python
+       return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
+       ```
+     - Task 4: `_serialize_single_result` gained conditional serialization before `return result`:
+       ```python
+       if r.exit_code is not None:
+           result["exit_code"] = r.exit_code
+       if r.is_timeout:
+           result["is_timeout"] = r.is_timeout
+       ```
+
+   - **`eval-harness/tests/test_task_runner.py`** — Gained 5 new tests across Tasks 1-3:
+     - `test_task_result_has_exit_code_and_timeout`
+     - `test_task_result_defaults_exit_code_and_timeout`
+     - `test_empty_run_detection`
+     - `test_empty_run_tag_format`
+     - `test_timeout_tag_is_infra_error`
+
+   - **`eval-harness/tests/test_reporter.py`** — Gained 2 new tests in Task 4:
+     - `test_serialize_includes_exit_code_and_timeout`
+     - `test_serialize_omits_exit_code_when_none`
+
+   - **`eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md`** — The full implementation plan
+
+4. Errors and fixes:
+   - No errors encountered. All 4 subagent dispatches completed successfully on first attempt.
+   - All spec reviews passed on first attempt.
+   - Test suite grew from 120 to 124 tests (+ 1 skipped Docker integration test), all passing.
+
+5. Problem Solving:
+   - Analyzed 10 eval result JSON files to identify data quality patterns
+   - Discovered that context file filtering in diff stats was already implemented (issue #1 from analysis was a non-issue for current code — old results were generated before the fix)
+   - Designed error tag taxonomy with 5 prefixes, all recognized by a single `_is_infra_error` method
+   - Used conditional serialization to maintain backward compatibility in JSON output
+
+6. All user messages:
+   - "any other optimizations we can glean from the output data?"
+   - (Invoked `/superpowers:write-plan` — "Invoke the superpowers:writing-plans skill and follow it exactly as presented to you")
+   - "1" (chose Subagent-Driven execution option)
+
+7. Pending Tasks:
+   - **Task 5: Verify single-run delta key** — Write a test confirming `_compute_delta` uses `success_rate_delta` (not old `success` key) for single runs. This is a test-only task with no implementation changes. Test goes in `tests/test_reporter.py`.
+
+8. Current Work:
+   Executing a 5-task plan via Subagent-Driven Development. Tasks 1-4 are completed and committed. The TodoWrite shows Task 5 as `pending`. I had just finished Task 4 (serialize new fields) when the summary was requested. The subagent for Task 4 committed with message "feat: serialize exit_code and is_timeout in JSON output". Test count is 124 passed, 1 skipped.
+
+9. Optional Next Step:
+   Dispatch implementer subagent for Task 5. From the plan:
+   
+   > ### Task 5: Clean up stale single-run `success` delta key
+   > This is actually just a verification task... No code change needed — just confirm with a test.
+   
+   The test to add to `tests/test_reporter.py`:
+   ```python
+   def test_single_run_delta_uses_success_rate_delta_key():
+       """Single-run deltas use 'success_rate_delta' (not 'success')."""
+       reporter = Reporter(output_dir="/tmp")
+       baseline = [TaskResult(
+           task_id="fix-key", condition=Condition.NONE, success=False,
+           test_output="FAIL", wall_clock_seconds=100.0,
+           input_tokens=5000, output_tokens=2000, tool_calls=20,
+           lines_changed=50, files_touched=["a.py"]
+       )]
+       treatment = [TaskResult(
+           task_id="fix-key", condition=Condition.FLAT_LLM, success=True,
+           test_output="PASS", wall_clock_seconds=80.0,
+           input_tokens=4000, output_tokens=1500, tool_calls=15,
+           lines_changed=30, files_touched=["a.py"]
+       )]
+       delta = reporter._compute_delta(baseline, treatment)
+       assert "success_rate_delta" in delta
+       assert "success" not in delta
+       assert delta["success_rate_delta"] == "+1"
+   ```
+   Then commit with `git commit -m "test: verify single-run delta uses success_rate_delta key"`. After Task 5, run a final code review per the subagent-driven-development skill workflow.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.

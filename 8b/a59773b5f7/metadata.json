@@ -5,9 +5,12 @@
   "branch": "main",
   "checkpoints_count": 6,
   "files_touched": [
+    "eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md",
     "eval-harness/lib/claude_runner.py",
     "eval-harness/lib/cli.py",
+    "eval-harness/lib/git_ops.py",
     "eval-harness/lib/prompt_builder.py",
+    "eval-harness/lib/reporter.py",
     "eval-harness/lib/task_runner.py",
     "eval-harness/logs/fastmcp-453dcbe8-intent_layer-fix.log",
     "eval-harness/results/2026-02-16-172007.json",
@@ -21,6 +24,8 @@
     "eval-harness/results/2026-02-16-174503.json",
     "eval-harness/results/2026-02-16-174503.md",
     "eval-harness/tests/test_claude_runner.py",
+    "eval-harness/tests/test_git_ops.py",
+    "eval-harness/tests/test_reporter.py",
     "eval-harness/tests/test_task_runner.py"
   ],
   "sessions": [
@@ -40,10 +45,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 4954,
-    "cache_creation_tokens": 436440,
-    "cache_read_tokens": 23233583,
-    "output_tokens": 3772,
-    "api_call_count": 182
+    "input_tokens": 4957,
+    "cache_creation_tokens": 411883,
+    "cache_read_tokens": 24481613,
+    "output_tokens": 3865,
+    "api_call_count": 194
   }
 }
