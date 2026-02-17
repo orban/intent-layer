@@ -509,3 +509,53 @@ def test_get_fix_metrics_all_formats():
     f = Reporter._get_fix_metrics(flat)
     assert f["wall_clock_seconds"] == 100.0
     assert f["tokens"] == 7000
+
+
+def test_serialize_includes_exit_code_and_timeout():
+    """JSON output includes exit_code and is_timeout when present."""
+    reporter = Reporter(output_dir="/tmp")
+
+    result = TaskResult(
+        task_id="fix-meta",
+        condition=Condition.NONE,
+        success=False,
+        test_output="FAIL",
+        wall_clock_seconds=300.0,
+        input_tokens=50000,
+        output_tokens=3000,
+        tool_calls=5,
+        lines_changed=0,
+        files_touched=[],
+        error="[timeout] Claude timed out after 300.0s",
+        exit_code=-1,
+        is_timeout=True,
+    )
+
+    serialized = reporter._serialize_single_result(result)
+
+    assert serialized["exit_code"] == -1
+    assert serialized["is_timeout"] is True
+    assert serialized["error"] == "[timeout] Claude timed out after 300.0s"
+
+
+def test_serialize_omits_exit_code_when_none():
+    """JSON output omits exit_code when it's None (backward compat)."""
+    reporter = Reporter(output_dir="/tmp")
+
+    result = TaskResult(
+        task_id="fix-ok",
+        condition=Condition.NONE,
+        success=True,
+        test_output="PASS",
+        wall_clock_seconds=50.0,
+        input_tokens=2000,
+        output_tokens=1000,
+        tool_calls=10,
+        lines_changed=20,
+        files_touched=["a.py"],
+    )
+
+    serialized = reporter._serialize_single_result(result)
+
+    assert "exit_code" not in serialized
+    assert "is_timeout" not in serialized

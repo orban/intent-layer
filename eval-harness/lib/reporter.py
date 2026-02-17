@@ -114,6 +114,11 @@ class Reporter:
         if r.error:
             result["error"] = r.error
 
+        if r.exit_code is not None:
+            result["exit_code"] = r.exit_code
+        if r.is_timeout:
+            result["is_timeout"] = r.is_timeout
+
         return result
 
     def _serialize_condition(self, runs: list[TaskResult]) -> dict:
