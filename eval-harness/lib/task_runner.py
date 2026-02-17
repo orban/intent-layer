@@ -194,7 +194,8 @@ class TaskRunner:
         repo_url: str,
         commit: str,
         condition: str = "",
-        model: str | None = None
+        model: str | None = None,
+        timeout: int = 600
     ) -> SkillGenerationMetrics:
         """Check cache or generate index. Returns metrics.
 
@@ -202,6 +203,7 @@ class TaskRunner:
             workspace: Path to workspace where index should be
             repo_url: Repository URL
             commit: Commit SHA
+            timeout: Generation timeout in seconds (default 600)
 
         Returns:
             SkillGenerationMetrics with cache_hit flag
@@ -237,7 +239,7 @@ class TaskRunner:
 
         prompt = build_skill_generation_prompt(plugin_root)
         result = run_claude(
-            workspace, prompt, timeout=600, model=model,
+            workspace, prompt, timeout=timeout, model=model,
             extra_env={"CLAUDE_PLUGIN_ROOT": plugin_root},
             stderr_log=str(stderr_log),
         )
@@ -262,7 +264,8 @@ class TaskRunner:
         workspace: str,
         repo_url: str,
         commit: str,
-        model: str | None = None
+        model: str | None = None,
+        timeout: int = 600
     ) -> SkillGenerationMetrics:
         """Generate a flat CLAUDE.md using the paper's prompt. Returns metrics.
 
@@ -292,7 +295,7 @@ class TaskRunner:
         stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-flat_gen.log"
 
         prompt = build_flat_generation_prompt()
-        result = run_claude(workspace, prompt, timeout=600, model=model,
+        result = run_claude(workspace, prompt, timeout=timeout, model=model,
                             stderr_log=str(stderr_log))
 
         # Dual-write: ensure both CLAUDE.md and AGENTS.md exist with same content
@@ -320,11 +323,91 @@ class TaskRunner:
             files_created=agents_files
         )
 
-    def run(self, task: Task, condition: Condition, model: str | None = None) -> TaskResult:
+    def warm_cache(
+        self,
+        repo_url: str,
+        commit: str,
+        condition: Condition,
+        model: str | None = None,
+        timeout: int = 900
+    ) -> SkillGenerationMetrics | None:
+        """Pre-generate context files for a repo+commit+condition into the cache.
+
+        Called once per unique (repo, commit, condition) before the task loop.
+        Subsequent task runs will get instant cache hits instead of regenerating.
+        Uses a longer timeout (default 900s) since this only runs once.
+
+        Returns SkillGenerationMetrics if generation was needed, None for the
+        'none' condition (which has no context files to generate).
+        """
+        if condition == Condition.NONE:
+            return None
+
+        # Already cached? Nothing to do.
+        if self.index_cache:
+            cond_key = condition.value if condition == Condition.INTENT_LAYER else "flat_llm"
+            if self.index_cache.lookup(repo_url, commit, cond_key):
+                logger.info("Cache hit for %s @ %s (%s), skipping warm", repo_url, commit[:8], condition.value)
+                return None
+
+        # Need a temporary workspace to clone into and generate from.
+        # This workspace is only used for generation — task runs get their own.
+        repo_name = repo_url.split("/")[-1].replace(".git", "")
+        workspace_name = f"{repo_name}-{commit[:8]}-{condition.value}-warmup"
+        workspace = str(self.workspaces_dir / workspace_name)
+
+        if Path(workspace).exists():
+            shutil.rmtree(workspace)
+
+        try:
+            self._progress("warmup", condition.value, "clone", f"cloning {repo_url}")
+            clone_repo(repo_url, workspace, shallow=False)
+            checkout_commit(workspace, commit)
+
+            self._progress("warmup", condition.value, "strip", "removing existing context files")
+            strip_extra = self.repo.strip_extra or None
+            self._strip_context_files(workspace, strip_extra)
+
+            self._progress("warmup", condition.value, "generate", f"generating {condition.value} context (timeout={timeout}s)")
+            if condition == Condition.INTENT_LAYER:
+                metrics = self._check_or_generate_index(
+                    workspace=workspace,
+                    repo_url=repo_url,
+                    commit=commit,
+                    condition=condition.value,
+                    model=model,
+                    timeout=timeout
+                )
+            else:  # FLAT_LLM
+                metrics = self._generate_flat_context(
+                    workspace=workspace,
+                    repo_url=repo_url,
+                    commit=commit,
+                    model=model,
+                    timeout=timeout
+                )
+
+            if not metrics.cache_hit and not metrics.files_created:
+                raise SkillGenerationError(
+                    f"{condition.value} generation produced no files "
+                    f"(took {metrics.wall_clock_seconds:.0f}s). "
+                    f"Likely timed out or failed silently."
+                )
+
+            status = "cached" if metrics.cache_hit else f"generated {len(metrics.files_created)} file(s)"
+            self._progress("warmup", condition.value, "done", f"{status} in {metrics.wall_clock_seconds:.1f}s")
+            return metrics
+
+        finally:
+            # Clean up warmup workspace — the files are in the cache now
+            if Path(workspace).exists():
+                shutil.rmtree(workspace)
+
+    def run(self, task: Task, condition: Condition, model: str | None = None, rep: int = 0) -> TaskResult:
         """Execute a single task under the given condition."""
         cond_str = condition.value
         self._progress(task.id, cond_str, "setup", "creating workspace")
-        workspace = self._setup_workspace(task, condition)
+        workspace = self._setup_workspace(task, condition, rep=rep)
 
         try:
             # Setup: clone and checkout
@@ -492,10 +575,14 @@ class TaskRunner:
                 error=f"[infrastructure] {e}"
             )
 
-    def _setup_workspace(self, task: Task, condition: Condition) -> str:
-        """Create workspace directory for this run."""
+    def _setup_workspace(self, task: Task, condition: Condition, rep: int = 0) -> str:
+        """Create workspace directory for this run.
+
+        Includes rep index in the path to avoid collisions when running
+        multiple repetitions in parallel.
+        """
         repo_name = self.repo.url.split("/")[-1].replace(".git", "")
-        workspace_name = f"{repo_name}-{task.pre_fix_commit[:8]}-{condition.value}"
+        workspace_name = f"{repo_name}-{task.pre_fix_commit[:8]}-{condition.value}-r{rep}"
         workspace = self.workspaces_dir / workspace_name
 
         # Clean if exists

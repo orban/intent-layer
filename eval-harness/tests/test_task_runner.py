@@ -519,3 +519,85 @@ def test_error_tag_classification():
         files_touched=[], error="Claude CLI returned exit code 1"
     )
     assert Reporter._is_infra_error(other_error) is False
+
+
+# --- Workspace naming and warm_cache tests ---
+
+
+def test_workspace_name_includes_rep(sample_repo):
+    """Workspace path includes rep index to avoid collisions."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        task = Task(
+            id="fix-rep-test",
+            category="simple_fix",
+            pre_fix_commit="abcdef01",
+            fix_commit="12345678",
+            prompt_source="commit_message"
+        )
+
+        ws0 = runner._setup_workspace(task, Condition.NONE, rep=0)
+        ws1 = runner._setup_workspace(task, Condition.NONE, rep=1)
+        ws5 = runner._setup_workspace(task, Condition.NONE, rep=5)
+
+        assert ws0 != ws1
+        assert ws1 != ws5
+        assert "-r0" in ws0
+        assert "-r1" in ws1
+        assert "-r5" in ws5
+
+
+def test_workspace_default_rep_is_zero(sample_repo):
+    """Default rep=0 for backward compatibility."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        task = Task(
+            id="fix-default-rep",
+            category="simple_fix",
+            pre_fix_commit="abcdef01",
+            fix_commit="12345678",
+            prompt_source="commit_message"
+        )
+
+        ws = runner._setup_workspace(task, Condition.NONE)
+        assert "-r0" in ws
+
+
+def test_warm_cache_none_condition_returns_none(sample_repo):
+    """warm_cache for the NONE condition is a no-op (nothing to generate)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        result = runner.warm_cache(
+            "https://github.com/test/repo",
+            "abcdef01",
+            Condition.NONE
+        )
+        assert result is None
+
+
+def test_warm_cache_skips_when_cached(sample_repo):
+    """warm_cache returns None if the cache already has the entry."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = os.path.join(tmpdir, ".cache")
+        runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
+
+        # Pre-populate cache
+        ws = os.path.join(tmpdir, "fake-ws")
+        os.makedirs(ws)
+        with open(os.path.join(ws, "CLAUDE.md"), "w") as f:
+            f.write("# Cached context")
+
+        runner.index_cache.save(
+            "https://github.com/test/repo",
+            "abcdef0123456789",
+            ws,
+            ["CLAUDE.md"],
+            "intent_layer"
+        )
+
+        result = runner.warm_cache(
+            "https://github.com/test/repo",
+            "abcdef0123456789",
+            Condition.INTENT_LAYER
+        )
+        assert result is None  # Already cached, nothing to do

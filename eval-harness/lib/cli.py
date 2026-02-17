@@ -151,6 +151,42 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     results = []
     progress_callback = _make_progress_callback(verbose)
 
+    # Phase 1: Pre-warm cache — generate context files once per repo+condition.
+    # This runs serially before the parallel task loop so each generation gets
+    # the full timeout budget. Task runs then get instant cache hits.
+    if not no_cache:
+        # Collect unique (repo_url, commit, condition) triples that need generation.
+        # Keep repo config reference so we can create a TaskRunner with the right settings.
+        warmup_items: dict[tuple[str, str, str], 'RepoConfig'] = {}
+        for repo, task in all_tasks:
+            for cond in conditions:
+                if cond == Condition.NONE:
+                    continue
+                key = (repo.url, task.pre_fix_commit, cond.value)
+                if key not in warmup_items:
+                    warmup_items[key] = repo
+
+        if warmup_items:
+            click.echo(f"Pre-warming cache for {len(warmup_items)} repo/condition pair(s)...")
+            for (repo_url, commit, cond_str), repo_config in warmup_items.items():
+                cond = Condition(cond_str)
+                runner = TaskRunner(
+                    repo_config,
+                    str(workspaces_dir),
+                    progress_callback=progress_callback,
+                    cache_dir=cache_dir,
+                    use_cache=True
+                )
+                try:
+                    metrics = runner.warm_cache(repo_url, commit, cond, model=model)
+                    if metrics and not metrics.cache_hit:
+                        click.echo(f"  {cond_str}: generated {len(metrics.files_created)} file(s) in {metrics.wall_clock_seconds:.1f}s")
+                    else:
+                        click.echo(f"  {cond_str}: already cached")
+                except Exception as e:
+                    click.echo(f"  {cond_str}: warmup failed - {e}", err=True)
+                    click.echo(f"    (task runs will retry with their own timeout)", err=True)
+
     def run_single(item):
         repo, task, condition, rep = item
         runner = TaskRunner(
@@ -160,7 +196,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             cache_dir=cache_dir,
             use_cache=not no_cache
         )
-        return runner.run(task, condition, model=model)
+        return runner.run(task, condition, model=model, rep=rep)
 
     with ThreadPoolExecutor(max_workers=parallel) as executor:
         futures = {executor.submit(run_single, item): item for item in work_queue}
