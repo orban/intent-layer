@@ -83,7 +83,11 @@ class IndexCache:
         return manifest
 
     def _save_manifest(self):
-        """Save manifest to disk atomically (write tmp + rename)."""
+        """Save manifest to disk atomically (write tmp + rename).
+
+        Uses PID in the temp filename to avoid collisions when multiple
+        workers save concurrently (each gets its own tmp file).
+        """
         data = {
             "entries": {
                 k: {
@@ -96,7 +100,8 @@ class IndexCache:
                 for k, v in self.manifest.entries.items()
             }
         }
-        tmp_path = self.manifest_path.with_suffix(".tmp")
+        import os
+        tmp_path = self.manifest_path.with_suffix(f".tmp.{os.getpid()}")
         with open(tmp_path, "w") as f:
             json.dump(data, f, indent=2)
         tmp_path.rename(self.manifest_path)

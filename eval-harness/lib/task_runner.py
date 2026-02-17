@@ -100,42 +100,60 @@ class TaskRunner:
 
         Checks:
         1. Docker setup commands succeed (deps install correctly)
-        2. The target test actually fails at pre_fix_commit
+        2. For failing_test tasks: the target test actually fails at pre_fix_commit
         3. Context files were fully stripped (no stale AGENTS.md/CLAUDE.md)
 
         Raises PreValidationError with a descriptive message on failure.
         """
-        # 1. Verify test command works (docker + deps are functional)
-        test_cmd = self.repo.docker.test_command
-        if task.test_file:
-            test_cmd = f"{test_cmd} {task.test_file}"
-        if task.test_pattern:
-            test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
+        # 1. Verify test infrastructure
+        if task.prompt_source != "failing_test" and not task.test_file:
+            # commit_message tasks without test_file: just verify setup works.
+            # Running the full suite here is too slow and risks timeouts.
+            if self.repo.docker.setup:
+                setup_chain = " && ".join(self.repo.docker.setup)
+                smoke_cmd = f"{setup_chain} && python --version"
+            else:
+                smoke_cmd = "python --version"
 
-        if self.repo.docker.setup:
-            setup_chain = " && ".join(self.repo.docker.setup)
-            test_cmd = f"{setup_chain} && {test_cmd}"
+            result = run_in_docker(
+                workspace, self.repo.docker.image, smoke_cmd, timeout=120
+            )
+            if result.timed_out:
+                raise PreValidationError(
+                    "Docker setup timed out during pre-validation."
+                )
+            if result.exit_code != 0:
+                raise PreValidationError(
+                    f"Docker setup failed (exit {result.exit_code})."
+                )
+        else:
+            # Run specific test file or full suite
+            test_cmd = self.repo.docker.test_command
+            if task.test_file:
+                test_cmd = f"{test_cmd} {task.test_file}"
+            if task.test_pattern:
+                test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
 
-        result = run_in_docker(
-            workspace,
-            self.repo.docker.image,
-            test_cmd,
-            timeout=120
-        )
+            if self.repo.docker.setup:
+                setup_chain = " && ".join(self.repo.docker.setup)
+                test_cmd = f"{setup_chain} && {test_cmd}"
 
-        # 2. The test MUST fail at pre_fix_commit (that's the whole point)
-        if task.prompt_source == "failing_test" and result.exit_code == 0:
-            raise PreValidationError(
-                f"Test already passes at pre_fix_commit {task.pre_fix_commit[:8]}. "
-                f"This task is not a valid failing-test scenario."
+            result = run_in_docker(
+                workspace, self.repo.docker.image, test_cmd, timeout=120
             )
 
-        # For non-failing_test prompt sources, we just verify docker works
-        if result.timed_out:
-            raise PreValidationError(
-                f"Test command timed out during pre-validation. "
-                f"Docker setup or test infrastructure may be broken."
-            )
+            # 2. The test MUST fail at pre_fix_commit (that's the whole point)
+            if task.prompt_source == "failing_test" and result.exit_code == 0:
+                raise PreValidationError(
+                    f"Test already passes at pre_fix_commit {task.pre_fix_commit[:8]}. "
+                    f"This task is not a valid failing-test scenario."
+                )
+
+            if result.timed_out:
+                raise PreValidationError(
+                    "Test command timed out during pre-validation. "
+                    "Docker setup or test infrastructure may be broken."
+                )
 
         # 3. Verify no residual context files (strip worked)
         workspace_path = Path(workspace)
@@ -189,6 +207,33 @@ class TaskRunner:
                     removed.append(extra)
 
         return sorted(set(removed))
+
+    def _inject_test_from_fix(self, task: Task, workspace: str) -> bool:
+        """Inject test file from fix_commit into pre_fix workspace.
+
+        Many repos add test functions alongside code fixes. The test file may
+        exist at pre_fix_commit but without the functions that reproduce the bug.
+        Injecting the fix_commit version creates a valid failing-test scenario:
+        the new test functions fail because the code hasn't been fixed yet.
+
+        Returns True if injection was performed.
+        """
+        if not task.test_file or not task.fix_commit:
+            return False
+
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["git", "show", f"{task.fix_commit}:{task.test_file}"],
+                capture_output=True, text=True, check=True,
+                cwd=workspace
+            )
+            test_path = Path(workspace) / task.test_file
+            test_path.parent.mkdir(parents=True, exist_ok=True)
+            test_path.write_text(result.stdout)
+            return True
+        except subprocess.CalledProcessError:
+            return False
 
     def _check_or_generate_index(
         self,
@@ -436,6 +481,16 @@ class TaskRunner:
             removed = self._strip_context_files(workspace, strip_extra)
             if removed:
                 self._progress(task.id, cond_str, "strip_done", f"removed {len(removed)} file(s)")
+
+            # Inject test file from fix commit for failing_test tasks.
+            # Many repos add test functions alongside code fixes, so the test
+            # file at pre_fix_commit passes (the bug-reproducing tests haven't
+            # been written yet). Injecting fix_commit's version gives us
+            # those functions, which fail because the code hasn't been fixed.
+            if task.prompt_source == "failing_test" and task.test_file:
+                if self._inject_test_from_fix(task, workspace):
+                    self._progress(task.id, cond_str, "inject_test",
+                                   f"injected {task.test_file} from fix commit")
 
             # Pre-validate: confirm test infra works and test actually fails
             self._progress(task.id, cond_str, "pre_validate", "verifying test fails at pre_fix_commit")

@@ -18,21 +18,21 @@ tasks:
   category: complex_fix
   pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
   fix_commit: 5dc2432950889d98454500c59df43e015de1fc00
-  prompt_source: failing_test
+  prompt_source: commit_message
   _commit_message: 'Merge pull request #3198 from jlowin/fix/ty-errors'
   _lines_changed: 852
   _files_changed: 10
-  test_file: tests/client/telemetry/test_client_tracing.py
+  # No new test functions added — fix is type-checker/linting changes only
   issue_number: 3198
 - id: fix-ty-0017-diagnostics-and-bump-lockfile
   category: complex_fix
   pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
   fix_commit: 564b4c0d5c692df0231b9f1b35a647f1ea880684
-  prompt_source: failing_test
+  prompt_source: commit_message
   _commit_message: Fix ty 0.0.17 diagnostics and bump lockfile
   _lines_changed: 852
   _files_changed: 10
-  test_file: tests/client/telemetry/test_client_tracing.py
+  # No new test functions added — fix is type-checker/linting changes only
 - id: merge-pull-request-3195-from-jlowinfixstateless
   category: simple_fix
   pre_fix_commit: 453dcbe808fc942a55b04c49a0e9478249fb2655
