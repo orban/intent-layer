@@ -93,7 +93,9 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
               help="Conditions to run (default: all three)")
 @click.option("--model", default=None,
               help="Claude model to use (e.g., claude-sonnet-4-5-20250929)")
-def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model):
+@click.option("--repetitions", "-n", default=1,
+              help="Number of times to repeat each task/condition pair (default: 1)")
+def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model, repetitions):
     """Run eval on task files."""
     # Validate task files exist
     for task_path in tasks:
@@ -122,6 +124,8 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         click.echo("\nDry run - would execute:")
         for repo, task in all_tasks:
             click.echo(f"  - {task.id} ({task.category})")
+        if repetitions > 1:
+            click.echo(f"  (x{repetitions} repetitions each)")
         return
 
     # Determine conditions to run
@@ -130,13 +134,16 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     else:
         conditions = list(Condition)
 
-    # Build work queue
+    # Build work queue (with repetitions)
     work_queue = []
     for repo, task in all_tasks:
         for cond in conditions:
-            work_queue.append((repo, task, cond))
+            for rep in range(repetitions):
+                work_queue.append((repo, task, cond, rep))
 
-    click.echo(f"Running {len(work_queue)} task/condition pairs with {parallel} workers")
+    total_unique = len(all_tasks) * len(conditions)
+    rep_note = f" x{repetitions} reps" if repetitions > 1 else ""
+    click.echo(f"Running {total_unique} task/condition pairs{rep_note} ({len(work_queue)} total) with {parallel} workers")
     if verbose:
         click.echo("Verbose mode: showing detailed progress", err=True)
 
@@ -145,7 +152,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     progress_callback = _make_progress_callback(verbose)
 
     def run_single(item):
-        repo, task, condition = item
+        repo, task, condition, rep = item
         runner = TaskRunner(
             repo,
             str(workspaces_dir),
@@ -159,11 +166,14 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         futures = {executor.submit(run_single, item): item for item in work_queue}
 
         for future in as_completed(futures):
+            item = futures[future]
+            _repo, _task, _cond, rep = item
             result = future.result()
             results.append(result)
             status = "PASS" if result.success else "FAIL"
             # Build the status line with error info if failed
-            line = f"  {result.task_id} ({result.condition.value}): {status}"
+            rep_tag = f" [rep {rep+1}/{repetitions}]" if repetitions > 1 else ""
+            line = f"  {result.task_id} ({result.condition.value}){rep_tag}: {status}"
             if not result.success:
                 if result.error:
                     # Exception during execution - show first line
@@ -171,9 +181,9 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     line += f" - {error_line}"
                 elif result.test_output:
                     # Tests failed - extract last meaningful line from output
-                    lines = [l.strip() for l in result.test_output.strip().split('\n') if l.strip()]
-                    if lines:
-                        last_line = lines[-1][:80]
+                    output_lines = [l.strip() for l in result.test_output.strip().split('\n') if l.strip()]
+                    if output_lines:
+                        last_line = output_lines[-1][:80]
                         line += f" - {last_line}"
             click.echo(line)
             # In verbose mode, show more error context for failures
@@ -182,8 +192,8 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     click.echo(f"    Error: {result.error}", err=True)
                 elif result.test_output:
                     # Show last 10 lines of test output
-                    lines = result.test_output.strip().split('\n')
-                    tail = lines[-10:] if len(lines) > 10 else lines
+                    output_lines = result.test_output.strip().split('\n')
+                    tail = output_lines[-10:] if len(output_lines) > 10 else output_lines
                     click.echo("    Test output (last 10 lines):", err=True)
                     for l in tail:
                         click.echo(f"      {l}", err=True)

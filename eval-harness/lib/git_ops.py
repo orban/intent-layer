@@ -81,10 +81,27 @@ def create_baseline_commit(repo_path: str) -> None:
     )
 
 
-def get_diff_stats(repo_path: str) -> DiffStats:
+_CONTEXT_FILE_PATTERNS = re.compile(
+    r"(^|/)("
+    r"AGENTS\.md|CLAUDE\.md|\.github/|\.claude/|\.cursor/|\.cursorrules"
+    r")"
+)
+
+
+def _is_context_file(path: str) -> bool:
+    """Return True if path is an AI context file that shouldn't count in diffs."""
+    return bool(_CONTEXT_FILE_PATTERNS.search(path))
+
+
+def get_diff_stats(repo_path: str, exclude_context_files: bool = True) -> DiffStats:
     """Get diff stats for uncommitted changes (tracked + untracked).
 
     Stages all changes first so new files created by Claude are included.
+
+    Args:
+        exclude_context_files: If True (default), exclude AGENTS.md, CLAUDE.md,
+            .github/, .claude/, .cursor/ from lines_changed and files counts.
+            These are harness artifacts, not agent work product.
     """
     # Stage everything so untracked files show up in the diff
     subprocess.run(
@@ -100,25 +117,52 @@ def get_diff_stats(repo_path: str) -> DiffStats:
         capture_output=True,
         text=True
     )
-    files = [f for f in result.stdout.strip().split("\n") if f]
+    all_files = [f for f in result.stdout.strip().split("\n") if f]
 
-    # Get line counts (staged vs HEAD)
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--shortstat", "HEAD"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True
-    )
+    if exclude_context_files:
+        files = [f for f in all_files if not _is_context_file(f)]
+    else:
+        files = all_files
 
+    # Get per-file line counts so we can exclude context files precisely
     lines_changed = 0
-    stat_output = result.stdout.strip()
-    # Parse "X files changed, Y insertions(+), Z deletions(-)"
-    matches = re.findall(r"(\d+) insertion|(\d+) deletion", stat_output)
-    for ins, dels in matches:
-        if ins:
-            lines_changed += int(ins)
-        if dels:
-            lines_changed += int(dels)
+    if files:
+        if exclude_context_files:
+            # Use --numstat for per-file granularity, then filter
+            result = subprocess.run(
+                ["git", "diff", "--cached", "--numstat", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True
+            )
+            for line in result.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                parts = line.split("\t")
+                if len(parts) < 3:
+                    continue
+                added, deleted, filepath = parts[0], parts[1], parts[2]
+                if _is_context_file(filepath):
+                    continue
+                # Binary files show "-" for added/deleted
+                if added != "-":
+                    lines_changed += int(added)
+                if deleted != "-":
+                    lines_changed += int(deleted)
+        else:
+            result = subprocess.run(
+                ["git", "diff", "--cached", "--shortstat", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True
+            )
+            stat_output = result.stdout.strip()
+            matches = re.findall(r"(\d+) insertion|(\d+) deletion", stat_output)
+            for ins, dels in matches:
+                if ins:
+                    lines_changed += int(ins)
+                if dels:
+                    lines_changed += int(dels)
 
     return DiffStats(
         lines_changed=lines_changed,

@@ -8,8 +8,8 @@ repo:
   docker:
     image: python:3.11-slim
     setup:
-    - pip install -e '.[dev]'
-    test_command: pytest --ignore=tests/client/transports/test_uv_transport.py
+    - pip install uv && uv sync --frozen --all-groups
+    test_command: uv run --frozen pytest --ignore=tests/client/transports/test_uv_transport.py
   strip_extra:
   - .claude/
   - .cursor/

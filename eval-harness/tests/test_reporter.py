@@ -99,14 +99,14 @@ def test_deltas_relative_to_none(three_condition_results):
     assert deltas["flat_llm"]["time_percent"] == "-20.0%"
     # flat_llm delta: tokens (5500 - 7000) / 7000 = -21.4%
     assert deltas["flat_llm"]["tokens_percent"] == "-21.4%"
-    # flat_llm delta: success +1 (True - False)
-    assert deltas["flat_llm"]["success"] == "+1"
+    # flat_llm delta: success +1 (True - False), single run format
+    assert deltas["flat_llm"]["success_rate_delta"] == "+1"
 
     # intent_layer delta: time (60 - 100) / 100 = -40%
     assert deltas["intent_layer"]["time_percent"] == "-40.0%"
     # intent_layer delta: tokens (4000 - 7000) / 7000 = -42.9%
     assert deltas["intent_layer"]["tokens_percent"] == "-42.9%"
-    assert deltas["intent_layer"]["success"] == "+1"
+    assert deltas["intent_layer"]["success_rate_delta"] == "+1"
 
 
 def test_zero_baseline_delta():
@@ -318,3 +318,194 @@ def test_infrastructure_errors_excluded_from_success_rate():
     assert summary["infrastructure_errors"] == 1
     # Only fix-good counts — 1 success out of 1 valid = 1.0
     assert summary["none_success_rate"] == 1.0
+
+
+def test_pre_validation_and_skill_gen_errors_excluded():
+    """Pre-validation and skill-generation errors are also excluded from stats."""
+    results = [
+        TaskResult(
+            task_id="fix-ok",
+            condition=Condition.NONE,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=50.0,
+            input_tokens=2000,
+            output_tokens=1000,
+            tool_calls=10,
+            lines_changed=20,
+            files_touched=["a.py"]
+        ),
+        TaskResult(
+            task_id="fix-preval",
+            condition=Condition.NONE,
+            success=False,
+            test_output="",
+            wall_clock_seconds=0,
+            input_tokens=0,
+            output_tokens=0,
+            tool_calls=0,
+            lines_changed=0,
+            files_touched=[],
+            error="[pre-validation] test doesn't fail at pre_fix_commit"
+        ),
+        TaskResult(
+            task_id="fix-skillgen",
+            condition=Condition.INTENT_LAYER,
+            success=False,
+            test_output="",
+            wall_clock_seconds=0,
+            input_tokens=0,
+            output_tokens=0,
+            tool_calls=0,
+            lines_changed=0,
+            files_touched=[],
+            error="[skill-generation] no files created"
+        ),
+    ]
+
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(results)
+
+    summary = eval_results.summary
+    assert summary["infrastructure_errors"] == 2
+    assert summary["none_success_rate"] == 1.0
+    assert summary["intent_layer_success_rate"] == 0
+
+
+def test_multi_run_serialize_condition():
+    """Multiple runs produce success_rate, median, and runs array."""
+    reporter = Reporter(output_dir="/tmp")
+
+    runs = [
+        TaskResult(
+            task_id="fix-multi",
+            condition=Condition.NONE,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=100.0,
+            input_tokens=5000,
+            output_tokens=2000,
+            tool_calls=20,
+            lines_changed=50,
+            files_touched=["a.py"]
+        ),
+        TaskResult(
+            task_id="fix-multi",
+            condition=Condition.NONE,
+            success=False,
+            test_output="FAIL",
+            wall_clock_seconds=120.0,
+            input_tokens=6000,
+            output_tokens=2500,
+            tool_calls=25,
+            lines_changed=60,
+            files_touched=["a.py", "b.py"]
+        ),
+        TaskResult(
+            task_id="fix-multi",
+            condition=Condition.NONE,
+            success=True,
+            test_output="PASS",
+            wall_clock_seconds=90.0,
+            input_tokens=4500,
+            output_tokens=1800,
+            tool_calls=18,
+            lines_changed=45,
+            files_touched=["a.py"]
+        ),
+    ]
+
+    result = reporter._serialize_condition(runs)
+
+    # Success rate: 2/3
+    assert result["success_rate"] == 0.67
+    assert result["success"] is True  # majority pass
+    assert result["successes"] == 2
+    assert result["total_valid_runs"] == 3
+
+    # Median efficiency (sorted: 90, 100, 120 → median 100)
+    assert result["median"]["wall_clock_seconds"] == 100.0
+    assert result["median"]["tool_calls"] == 20
+
+    # Individual runs preserved
+    assert len(result["runs"]) == 3
+    assert result["runs"][0]["success"] is True
+    assert result["runs"][1]["success"] is False
+
+
+def test_multi_run_delta():
+    """Multiple runs compute deltas using medians and success rate."""
+    reporter = Reporter(output_dir="/tmp")
+
+    baseline = [
+        TaskResult(
+            task_id="fix-delta", condition=Condition.NONE, success=True,
+            test_output="PASS", wall_clock_seconds=100.0,
+            input_tokens=5000, output_tokens=2000, tool_calls=20,
+            lines_changed=50, files_touched=["a.py"]
+        ),
+        TaskResult(
+            task_id="fix-delta", condition=Condition.NONE, success=False,
+            test_output="FAIL", wall_clock_seconds=100.0,
+            input_tokens=5000, output_tokens=2000, tool_calls=20,
+            lines_changed=50, files_touched=["a.py"]
+        ),
+    ]
+    treatment = [
+        TaskResult(
+            task_id="fix-delta", condition=Condition.FLAT_LLM, success=True,
+            test_output="PASS", wall_clock_seconds=80.0,
+            input_tokens=4000, output_tokens=1500, tool_calls=15,
+            lines_changed=30, files_touched=["a.py"]
+        ),
+        TaskResult(
+            task_id="fix-delta", condition=Condition.FLAT_LLM, success=True,
+            test_output="PASS", wall_clock_seconds=80.0,
+            input_tokens=4000, output_tokens=1500, tool_calls=15,
+            lines_changed=30, files_touched=["a.py"]
+        ),
+    ]
+
+    delta = reporter._compute_delta(baseline, treatment)
+
+    # Success rate: baseline 50%, treatment 100%, delta +50%
+    assert delta["success_rate_delta"] == "+50%"
+    # Time: (80 - 100) / 100 = -20%
+    assert delta["time_percent"] == "-20.0%"
+    # Tokens: (5500 - 7000) / 7000 = -21.4%
+    assert delta["tokens_percent"] == "-21.4%"
+
+
+def test_get_fix_metrics_all_formats():
+    """_get_fix_metrics extracts correctly from all three data shapes."""
+    # Multi-run median format
+    multi = {"median": {
+        "wall_clock_seconds": 50.0,
+        "input_tokens": 3000, "output_tokens": 1000,
+        "tool_calls": 10, "lines_changed": 25,
+    }}
+    m = Reporter._get_fix_metrics(multi)
+    assert m["wall_clock_seconds"] == 50.0
+    assert m["tokens"] == 4000
+    assert m["tool_calls"] == 10
+    assert m["lines_changed"] == 25
+
+    # Single-run with skill_generation (fix_only)
+    single_sg = {"fix_only": {
+        "wall_clock_seconds": 80.0,
+        "input_tokens": 4000, "output_tokens": 1500,
+        "tool_calls": 15, "lines_changed": 30,
+    }}
+    s = Reporter._get_fix_metrics(single_sg)
+    assert s["wall_clock_seconds"] == 80.0
+    assert s["tokens"] == 5500
+
+    # Single-run flat (no skill_generation)
+    flat = {
+        "wall_clock_seconds": 100.0,
+        "input_tokens": 5000, "output_tokens": 2000,
+        "tool_calls": 20, "lines_changed": 50,
+    }
+    f = Reporter._get_fix_metrics(flat)
+    assert f["wall_clock_seconds"] == 100.0
+    assert f["tokens"] == 7000

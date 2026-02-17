@@ -63,6 +63,16 @@ class TaskResult:
     error: str | None = None
 
 
+class PreValidationError(Exception):
+    """Raised when a task fails pre-validation checks."""
+    pass
+
+
+class SkillGenerationError(Exception):
+    """Raised when skill generation fails (timeout or empty output)."""
+    pass
+
+
 class TaskRunner:
     def __init__(
         self,
@@ -82,6 +92,60 @@ class TaskRunner:
         """Report progress if callback is set."""
         if self.progress_callback:
             self.progress_callback(task_id, condition, step, message)
+
+    def _pre_validate(self, task: Task, workspace: str) -> None:
+        """Validate that a task is runnable before spending API tokens.
+
+        Checks:
+        1. Docker setup commands succeed (deps install correctly)
+        2. The target test actually fails at pre_fix_commit
+        3. Context files were fully stripped (no stale AGENTS.md/CLAUDE.md)
+
+        Raises PreValidationError with a descriptive message on failure.
+        """
+        # 1. Verify test command works (docker + deps are functional)
+        test_cmd = self.repo.docker.test_command
+        if task.test_file:
+            test_cmd = f"{test_cmd} {task.test_file}"
+        if task.test_pattern:
+            test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
+
+        if self.repo.docker.setup:
+            setup_chain = " && ".join(self.repo.docker.setup)
+            test_cmd = f"{setup_chain} && {test_cmd}"
+
+        result = run_in_docker(
+            workspace,
+            self.repo.docker.image,
+            test_cmd,
+            timeout=120
+        )
+
+        # 2. The test MUST fail at pre_fix_commit (that's the whole point)
+        if task.prompt_source == "failing_test" and result.exit_code == 0:
+            raise PreValidationError(
+                f"Test already passes at pre_fix_commit {task.pre_fix_commit[:8]}. "
+                f"This task is not a valid failing-test scenario."
+            )
+
+        # For non-failing_test prompt sources, we just verify docker works
+        if result.timed_out:
+            raise PreValidationError(
+                f"Test command timed out during pre-validation. "
+                f"Docker setup or test infrastructure may be broken."
+            )
+
+        # 3. Verify no residual context files (strip worked)
+        workspace_path = Path(workspace)
+        residual = []
+        for pattern in ["**/AGENTS.md", "**/CLAUDE.md"]:
+            for match in workspace_path.glob(pattern):
+                residual.append(str(match.relative_to(workspace_path)))
+        if residual:
+            raise PreValidationError(
+                f"Context files remain after stripping: {residual}. "
+                f"Check strip_extra config."
+            )
 
     def _strip_context_files(self, workspace: str, strip_extra: list[str] | None = None) -> list[str]:
         """Remove AI context files from workspace. Returns list of removed paths.
@@ -269,17 +333,17 @@ class TaskRunner:
             self._progress(task.id, cond_str, "checkout", f"checking out {task.pre_fix_commit[:8]}")
             checkout_commit(workspace, task.pre_fix_commit)
 
-            # Run docker setup
-            for i, setup_cmd in enumerate(self.repo.docker.setup, 1):
-                self._progress(task.id, cond_str, "docker_setup", f"[{i}/{len(self.repo.docker.setup)}] {setup_cmd}")
-                run_in_docker(workspace, self.repo.docker.image, setup_cmd)
-
             # Strip context files (all conditions — paper's methodology)
             self._progress(task.id, cond_str, "strip", "removing existing context files")
             strip_extra = self.repo.strip_extra or None
             removed = self._strip_context_files(workspace, strip_extra)
             if removed:
                 self._progress(task.id, cond_str, "strip_done", f"removed {len(removed)} file(s)")
+
+            # Pre-validate: confirm test infra works and test actually fails
+            self._progress(task.id, cond_str, "pre_validate", "verifying test fails at pre_fix_commit")
+            self._pre_validate(task, workspace)
+            self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
             skill_metrics = None
@@ -296,6 +360,12 @@ class TaskRunner:
                     condition=condition.value,
                     model=model
                 )
+                if not skill_metrics.cache_hit and not skill_metrics.files_created:
+                    raise SkillGenerationError(
+                        f"Intent Layer generation produced no files "
+                        f"(took {skill_metrics.wall_clock_seconds:.0f}s). "
+                        f"Likely timed out or failed silently."
+                    )
                 cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
                 self._progress(task.id, cond_str, "skill_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
@@ -310,6 +380,12 @@ class TaskRunner:
                     commit=task.pre_fix_commit,
                     model=model
                 )
+                if not skill_metrics.cache_hit and not skill_metrics.files_created:
+                    raise SkillGenerationError(
+                        f"Flat CLAUDE.md generation produced no files "
+                        f"(took {skill_metrics.wall_clock_seconds:.0f}s). "
+                        f"Likely timed out or failed silently."
+                    )
                 cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
                 self._progress(task.id, cond_str, "flat_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
@@ -370,6 +446,36 @@ class TaskRunner:
                 skill_generation=skill_metrics,
                 agents_files_read=agents_files_read
             )
+        except PreValidationError as e:
+            logger.warning("Pre-validation failed for %s (%s): %s", task.id, cond_str, e)
+            return TaskResult(
+                task_id=task.id,
+                condition=condition,
+                success=False,
+                test_output="",
+                wall_clock_seconds=0,
+                input_tokens=0,
+                output_tokens=0,
+                tool_calls=0,
+                lines_changed=0,
+                files_touched=[],
+                error=f"[pre-validation] {e}"
+            )
+        except SkillGenerationError as e:
+            logger.warning("Skill generation failed for %s (%s): %s", task.id, cond_str, e)
+            return TaskResult(
+                task_id=task.id,
+                condition=condition,
+                success=False,
+                test_output="",
+                wall_clock_seconds=0,
+                input_tokens=0,
+                output_tokens=0,
+                tool_calls=0,
+                lines_changed=0,
+                files_touched=[],
+                error=f"[skill-generation] {e}"
+            )
         except Exception as e:
             logger.error("Infrastructure error in task %s (%s): %s", task.id, cond_str, e, exc_info=True)
             return TaskResult(
@@ -411,8 +517,11 @@ class TaskRunner:
             return build_prompt_from_commit_message(message, preamble=preamble)
 
         elif task.prompt_source == "failing_test":
-            # Run the test to get failure output
-            test_cmd = self.repo.docker.test_command
+            # Run specific test file (focused output) or full suite
+            if task.test_file:
+                test_cmd = f"{self.repo.docker.test_command} {task.test_file}"
+            else:
+                test_cmd = self.repo.docker.test_command
             if task.test_pattern:
                 test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
 
