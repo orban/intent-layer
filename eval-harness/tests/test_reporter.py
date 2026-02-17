@@ -559,3 +559,24 @@ def test_serialize_omits_exit_code_when_none():
 
     assert "exit_code" not in serialized
     assert "is_timeout" not in serialized
+
+
+def test_single_run_delta_uses_success_rate_delta_key():
+    """Single-run deltas use 'success_rate_delta' (not 'success')."""
+    reporter = Reporter(output_dir="/tmp")
+    baseline = [TaskResult(
+        task_id="fix-key", condition=Condition.NONE, success=False,
+        test_output="FAIL", wall_clock_seconds=100.0,
+        input_tokens=5000, output_tokens=2000, tool_calls=20,
+        lines_changed=50, files_touched=["a.py"]
+    )]
+    treatment = [TaskResult(
+        task_id="fix-key", condition=Condition.FLAT_LLM, success=True,
+        test_output="PASS", wall_clock_seconds=80.0,
+        input_tokens=4000, output_tokens=1500, tool_calls=15,
+        lines_changed=30, files_touched=["a.py"]
+    )]
+    delta = reporter._compute_delta(baseline, treatment)
+    assert "success_rate_delta" in delta
+    assert "success" not in delta
+    assert delta["success_rate_delta"] == "+1"
