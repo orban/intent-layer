@@ -330,3 +330,23 @@ Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-
 </task-notification>
 Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b4f9bb7.output
 
+### Prompt 40
+
+<task-notification>
+<task-id>b1ab205</task-id>
+<output-file>/private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b1ab205.output</output-file>
+<status>completed</status>
+<summary>Background command "Run single task (simple_fix, none condition) to test injection pipeline" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b1ab205.output
+
+### Prompt 41
+
+<task-notification>
+<task-id>b6ba277</task-id>
+<output-file>/private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b6ba277.output</output-file>
+<status>failed</status>
+<summary>Background command "Full 3-condition eval run (unbuffered output)" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b6ba277.output
+
