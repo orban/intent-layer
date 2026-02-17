@@ -52,7 +52,11 @@ def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], dict]:
         raise click.ClickException(f"Invalid results file: 'results' must be a list in {json_path}")
 
     passed = set()
-    for task in data["results"]:
+    for i, task in enumerate(data["results"]):
+        if not isinstance(task, dict) or "task_id" not in task:
+            raise click.ClickException(
+                f"Invalid results file: task at index {i} missing 'task_id' in {json_path}"
+            )
         task_id = task["task_id"]
         for cond_key in ("none", "flat_llm", "intent_layer"):
             cond_data = task.get(cond_key)
