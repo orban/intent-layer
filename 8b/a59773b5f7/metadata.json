@@ -3,12 +3,24 @@
   "checkpoint_id": "8ba59773b5f7",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 5,
+  "checkpoints_count": 8,
   "files_touched": [
+    ".superset/config.json",
     "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/cli.py",
+    "eval-harness/lib/git_ops.py",
     "eval-harness/lib/prompt_builder.py",
+    "eval-harness/lib/reporter.py",
     "eval-harness/lib/task_runner.py",
+    "eval-harness/logs/fastmcp-175479f6-intent_layer-fix.log",
+    "eval-harness/logs/fastmcp-175479f6-skill_gen.log",
+    "eval-harness/logs/fastmcp-359575b1-flat_gen.log",
+    "eval-harness/logs/fastmcp-359575b1-flat_llm-fix.log",
+    "eval-harness/logs/fastmcp-359575b1-intent_layer-fix.log",
+    "eval-harness/logs/fastmcp-359575b1-skill_gen.log",
     "eval-harness/logs/fastmcp-453dcbe8-intent_layer-fix.log",
+    "eval-harness/logs/fastmcp-f75cd05e-flat_gen.log",
+    "eval-harness/logs/fastmcp-f75cd05e-none-fix.log",
     "eval-harness/results/2026-02-16-172007.json",
     "eval-harness/results/2026-02-16-172007.md",
     "eval-harness/results/2026-02-16-173014.json",
@@ -20,7 +32,10 @@
     "eval-harness/results/2026-02-16-174503.json",
     "eval-harness/results/2026-02-16-174503.md",
     "eval-harness/tests/test_claude_runner.py",
-    "eval-harness/tests/test_task_runner.py"
+    "eval-harness/tests/test_git_ops.py",
+    "eval-harness/tests/test_reporter.py",
+    "eval-harness/tests/test_task_runner.py",
+    "eval-harness/uv.lock"
   ],
   "sessions": [
     {
@@ -29,13 +44,20 @@
       "context": "/8b/a59773b5f7/0/context.md",
       "content_hash": "/8b/a59773b5f7/0/content_hash.txt",
       "prompt": "/8b/a59773b5f7/0/prompt.txt"
+    },
+    {
+      "metadata": "/8b/a59773b5f7/1/metadata.json",
+      "transcript": "/8b/a59773b5f7/1/full.jsonl",
+      "context": "/8b/a59773b5f7/1/context.md",
+      "content_hash": "/8b/a59773b5f7/1/content_hash.txt",
+      "prompt": "/8b/a59773b5f7/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4907,
-    "cache_creation_tokens": 285219,
-    "cache_read_tokens": 20271561,
-    "output_tokens": 3638,
-    "api_call_count": 159
+    "input_tokens": 15593,
+    "cache_creation_tokens": 504315,
+    "cache_read_tokens": 29083283,
+    "output_tokens": 4365,
+    "api_call_count": 234
   }
 }
