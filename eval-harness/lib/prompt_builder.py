@@ -77,17 +77,66 @@ Usage notes:
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.'''
 
 
-def build_skill_generation_prompt() -> str:
-    """Build prompt for Intent Layer generation."""
-    return """Create an Intent Layer for this codebase to help with bug fixing.
+def build_skill_generation_prompt(plugin_root: str) -> str:
+    """Build prompt for Intent Layer generation using the actual plugin.
 
-1. Run scripts/detect_state.sh to check current state
-2. Run scripts/analyze_structure.sh to find semantic boundaries
-3. Create a root CLAUDE.md with:
-   - Entry points for key functionality
-   - Architecture overview (components, data flow)
-   - Pitfalls extracted from git history (use git-history sub-skill)
-   - Contracts that must be maintained
-4. Create AGENTS.md child nodes for directories with distinct responsibilities
+    Mirrors what happens when a user invokes /intent-layer:
+    CLAUDE_PLUGIN_ROOT is set in the env (by the caller), and the prompt
+    gives Claude the same workflow from the skill.
+    """
+    return f"""Create an Intent Layer for this codebase to help future agents fix bugs.
+
+The Intent Layer plugin scripts are available at: {plugin_root}/scripts/
+
+## Step 0: Detect State
+
+Run: {plugin_root}/scripts/detect_state.sh .
+
+## Step 1: Measure
+
+Run: {plugin_root}/scripts/estimate_all_candidates.sh .
+This shows which directories are large enough to warrant their own AGENTS.md.
+
+## Step 2: Mine Git History
+
+Run: {plugin_root}/scripts/mine_git_history.sh .
+This extracts pitfalls, anti-patterns, and contracts from past bug fixes and reverts.
+Git-mined pitfalls are the highest-value content in any node.
+
+## Step 3: Create Root CLAUDE.md
+
+Create a CLAUDE.md at the project root with these sections:
+- **TL;DR**: One-line project description
+- **Entry Points**: Table of common tasks and where to start
+- **Architecture**: Components, data flow, key patterns (big picture only)
+- **Contracts**: Non-type-enforced invariants that must hold
+- **Pitfalls**: What looks wrong but is correct, what looks correct but breaks
+  (include findings from git history mining)
+- **Downlinks**: Table linking to child AGENTS.md nodes
+
+Rules:
+- Keep under 4000 tokens (target 100:1 compression ratio)
+- Don't list every file — focus on non-obvious locations
+- Don't include generic dev practices
+- Include how to build, test, and run the project
+
+## Step 4: Create Child AGENTS.md Nodes
+
+For each directory that has >20k tokens OR a distinct responsibility, create an AGENTS.md with:
+- Purpose and design rationale
+- Code map (non-obvious file locations)
+- Key exports used by other modules
+- Contracts specific to this area
+- Pitfalls specific to this area (include git history findings)
+
+Rules:
+- Each node under 4000 tokens
+- Don't create nodes for simple utilities or config-only dirs
+- Child nodes are named AGENTS.md (not CLAUDE.md)
+
+## Step 5: Validate
+
+Run: {plugin_root}/scripts/validate_node.sh CLAUDE.md
+Run validation on each child AGENTS.md too.
 
 Focus on information that would help someone unfamiliar with the codebase navigate and fix bugs safely."""

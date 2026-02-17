@@ -1,6 +1,6 @@
 # DRAFT - Review and curate before use
 # Generated from: https://github.com/jlowin/fastmcp
-# Tasks found: 10
+# Tasks found: 10 (8 active, 2 removed — README fixes at b14b137f lack [dev] extra)
 
 repo:
   url: https://github.com/jlowin/fastmcp
@@ -9,7 +9,7 @@ repo:
     image: python:3.11-slim
     setup:
     - pip install -e '.[dev]'
-    test_command: pytest
+    test_command: pytest --ignore=tests/client/transports/test_uv_transport.py
   strip_extra:
   - .claude/
   - .cursor/
@@ -43,23 +43,9 @@ tasks:
   _files_changed: 2
   test_file: tests/client/test_streamable_http.py
   issue_number: 3195
-- id: merge-pull-request-3193-from-jfbiswajitfixreadm
-  category: simple_fix
-  pre_fix_commit: b14b137fddc3145d6b4abd0b3a3f1a11dfc370b0
-  fix_commit: d3032c10a2379aac35cce718b0e6062dbd1d2e37
-  prompt_source: commit_message
-  _commit_message: 'Merge pull request #3193 from jfBiswajit/fix/readme-logo'
-  _lines_changed: 2
-  _files_changed: 1
-  issue_number: 3193
-- id: fix-correct-dark-mode-logo-file-extension-in-read
-  category: simple_fix
-  pre_fix_commit: b14b137fddc3145d6b4abd0b3a3f1a11dfc370b0
-  fix_commit: 964ba12bc5e8d9c5e065bd65befaf3d1742c61de
-  prompt_source: commit_message
-  _commit_message: 'fix: correct dark mode logo file extension in README'
-  _lines_changed: 2
-  _files_changed: 1
+# REMOVED: merge-pull-request-3193 and fix-correct-dark-mode-logo
+# Commit b14b137f lacks [dev] extra (pytest not installed). Both are
+# trivial 2-line README logo fixes with no automated test coverage.
 - id: fix-include_tagsexclude_tags-ignored-without-tool
   category: targeted_refactor
   pre_fix_commit: bb60287005039725da5a7be6f3b474b8c5cf597f

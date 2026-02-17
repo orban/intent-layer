@@ -160,11 +160,23 @@ class TaskRunner:
                     files_created=cache_entry.agents_files
                 )
 
-        # Cache miss: generate index
+        # Cache miss: generate index using the actual Intent Layer skill
         from lib.prompt_builder import build_skill_generation_prompt
 
-        prompt = build_skill_generation_prompt()
-        result = run_claude(workspace, prompt, timeout=600, model=model)
+        # Resolve plugin root (this repo) so scripts are findable
+        plugin_root = str(Path(__file__).resolve().parent.parent.parent)
+
+        # Write stderr to a log file so callers can tail for live progress
+        log_dir = Path(self.workspaces_dir).parent / "logs"
+        repo_slug = repo_url.split("/")[-1].replace(".git", "")
+        stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-skill_gen.log"
+
+        prompt = build_skill_generation_prompt(plugin_root)
+        result = run_claude(
+            workspace, prompt, timeout=600, model=model,
+            extra_env={"CLAUDE_PLUGIN_ROOT": plugin_root},
+            stderr_log=str(stderr_log),
+        )
 
         # Find generated AGENTS.md files
         agents_files = self._find_agents_files(workspace)
@@ -210,8 +222,14 @@ class TaskRunner:
 
         from lib.prompt_builder import build_flat_generation_prompt
 
+        # Write stderr to a log file so callers can tail for live progress
+        log_dir = Path(self.workspaces_dir).parent / "logs"
+        repo_slug = repo_url.split("/")[-1].replace(".git", "")
+        stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-flat_gen.log"
+
         prompt = build_flat_generation_prompt()
-        result = run_claude(workspace, prompt, timeout=600, model=model)
+        result = run_claude(workspace, prompt, timeout=600, model=model,
+                            stderr_log=str(stderr_log))
 
         # Dual-write: ensure both CLAUDE.md and AGENTS.md exist with same content
         workspace_path = Path(workspace)
@@ -267,7 +285,10 @@ class TaskRunner:
             skill_metrics = None
 
             if condition == Condition.INTENT_LAYER:
-                self._progress(task.id, cond_str, "skill_gen", "checking cache or generating Intent Layer...")
+                log_dir = Path(self.workspaces_dir).parent / "logs"
+                repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
+                skill_log = log_dir / f"{repo_slug}-{task.pre_fix_commit[:8]}-skill_gen.log"
+                self._progress(task.id, cond_str, "skill_gen", f"checking cache or generating Intent Layer... (tail -f {skill_log})")
                 skill_metrics = self._check_or_generate_index(
                     workspace=workspace,
                     repo_url=self.repo.url,
@@ -279,7 +300,10 @@ class TaskRunner:
                 self._progress(task.id, cond_str, "skill_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
             elif condition == Condition.FLAT_LLM:
-                self._progress(task.id, cond_str, "flat_gen", "checking cache or generating flat CLAUDE.md...")
+                log_dir = Path(self.workspaces_dir).parent / "logs"
+                repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
+                flat_log = log_dir / f"{repo_slug}-{task.pre_fix_commit[:8]}-flat_gen.log"
+                self._progress(task.id, cond_str, "flat_gen", f"checking cache or generating flat CLAUDE.md... (tail -f {flat_log})")
                 skill_metrics = self._generate_flat_context(
                     workspace=workspace,
                     repo_url=self.repo.url,
@@ -300,8 +324,12 @@ class TaskRunner:
             prompt = self._build_prompt(task, workspace, condition)
 
             # Run Claude on the task
-            self._progress(task.id, cond_str, "claude", "running Claude to fix the bug...")
-            claude_result = run_claude(workspace, prompt, model=model)
+            log_dir = Path(self.workspaces_dir).parent / "logs"
+            repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
+            fix_log = log_dir / f"{repo_slug}-{task.pre_fix_commit[:8]}-{cond_str}-fix.log"
+            self._progress(task.id, cond_str, "claude", f"running Claude to fix the bug... (tail -f {fix_log})")
+            claude_result = run_claude(workspace, prompt, model=model,
+                                       stderr_log=str(fix_log))
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Run tests (chain setup commands so pip installs persist in same container)

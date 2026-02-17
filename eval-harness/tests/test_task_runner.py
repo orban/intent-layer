@@ -111,12 +111,13 @@ def test_skill_generation_metrics_with_cache_hit():
 
 
 def test_skill_generation_prompt_content():
-    prompt = build_skill_generation_prompt()
+    prompt = build_skill_generation_prompt("/fake/plugin")
     assert "Intent Layer" in prompt
     assert "CLAUDE.md" in prompt
     assert "AGENTS.md" in prompt
-    assert "git history" in prompt
-    assert "Pitfalls" in prompt
+    assert "/fake/plugin/scripts/" in prompt
+    assert "mine_git_history" in prompt
+    assert "validate_node" in prompt
 
 
 def test_condition_enum():

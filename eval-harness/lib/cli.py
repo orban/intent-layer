@@ -199,10 +199,21 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     click.echo(f"  JSON: {json_path}")
     click.echo(f"  Markdown: {md_path}")
 
-    # Cleanup
+    # Cleanup workspaces but preserve index cache
     if not keep_workspaces and workspaces_dir.exists():
         import shutil
+        cache_path = Path(cache_dir)
+        # Move cache out, remove workspaces, move cache back
+        tmp_cache = None
+        if cache_path.exists() and cache_path.is_relative_to(workspaces_dir):
+            tmp_cache = workspaces_dir.parent / ".index-cache-preserve"
+            if tmp_cache.exists():
+                shutil.rmtree(tmp_cache)
+            shutil.move(str(cache_path), str(tmp_cache))
         shutil.rmtree(workspaces_dir)
+        if tmp_cache and tmp_cache.exists():
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(tmp_cache), str(cache_path))
         click.echo("Cleaned up workspaces")
 
 

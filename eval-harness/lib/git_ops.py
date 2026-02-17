@@ -63,6 +63,9 @@ def create_baseline_commit(repo_path: str) -> None:
 
     Called after strip + context generation so that get_diff_stats
     only measures changes made by Claude, not by the harness itself.
+
+    Disables GPG/SSH signing to avoid failures from global git config
+    (e.g., 1Password SSH signing).
     """
     subprocess.run(
         ["git", "add", "-A"],
@@ -71,7 +74,8 @@ def create_baseline_commit(repo_path: str) -> None:
         capture_output=True
     )
     subprocess.run(
-        ["git", "commit", "--allow-empty", "-m", "eval-harness baseline"],
+        ["git", "-c", "commit.gpgsign=false", "commit",
+         "--allow-empty", "-m", "eval-harness baseline"],
         cwd=repo_path,
         capture_output=True  # don't check — nothing to commit is fine
     )
