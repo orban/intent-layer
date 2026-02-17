@@ -3,7 +3,7 @@
   "checkpoint_id": "8ba59773b5f7",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 6,
   "files_touched": [
     "eval-harness/docs/plans/2026-02-16-eval-data-quality-optimizations.md",
     "eval-harness/lib/cli.py",
@@ -13,7 +13,10 @@
     "eval-harness/lib/task_runner.py",
     "eval-harness/results/2026-02-16-201138.json",
     "eval-harness/results/2026-02-16-201138.md",
-    "eval-harness/results/2026-02-16-consolidated.md",
+    "eval-harness/results/2026-02-17-095051.json",
+    "eval-harness/results/2026-02-17-095051.md",
+    "eval-harness/results/2026-02-17-105514.json",
+    "eval-harness/results/2026-02-17-105514.md",
     "eval-harness/tests/test_git_ops.py",
     "eval-harness/tests/test_reporter.py",
     "eval-harness/tests/test_task_runner.py",
@@ -36,10 +39,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 121,
-    "cache_creation_tokens": 110102,
-    "cache_read_tokens": 8807010,
-    "output_tokens": 3304,
-    "api_call_count": 72
+    "input_tokens": 277,
+    "cache_creation_tokens": 403634,
+    "cache_read_tokens": 20954856,
+    "output_tokens": 1600,
+    "api_call_count": 165
   }
 }

@@ -3,31 +3,37 @@
   "checkpoint_id": "8ba59773b5f7",
   "session_id": "ec9bc11e-facf-484d-929b-1562d71d5715",
   "strategy": "manual-commit",
-  "created_at": "2026-02-17T06:39:28.219235Z",
+  "created_at": "2026-02-17T19:43:21.451652Z",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 4,
   "files_touched": [
-    "eval-harness/results/2026-02-16-consolidated.md"
+    "eval-harness/lib/cli.py",
+    "eval-harness/lib/index_cache.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/results/2026-02-17-095051.json",
+    "eval-harness/results/2026-02-17-095051.md",
+    "eval-harness/results/2026-02-17-105514.json",
+    "eval-harness/results/2026-02-17-105514.md"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "1ebfe7fc-dc18-44a1-bb3c-e5fb85068f08",
-  "checkpoint_transcript_start": 10682,
-  "transcript_lines_at_start": 10682,
+  "transcript_identifier_at_start": "1af40cfc-c324-4213-b76d-072e40e9693b",
+  "checkpoint_transcript_start": 10863,
+  "transcript_lines_at_start": 10863,
   "token_usage": {
-    "input_tokens": 43,
-    "cache_creation_tokens": 27099,
-    "cache_read_tokens": 3842526,
-    "output_tokens": 3028,
-    "api_call_count": 29
+    "input_tokens": 199,
+    "cache_creation_tokens": 320631,
+    "cache_read_tokens": 15990372,
+    "output_tokens": 1324,
+    "api_call_count": 122
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-17T06:39:25.567556Z",
-    "agent_lines": 0,
-    "human_added": 20297,
-    "human_modified": 0,
+    "calculated_at": "2026-02-17T19:43:17.697434Z",
+    "agent_lines": 65,
+    "human_added": 80154,
+    "human_modified": 734,
     "human_removed": 0,
-    "total_committed": 20297,
-    "agent_percentage": 0
+    "total_committed": 80953,
+    "agent_percentage": 0.08029350363791336
   },
   "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/ec9bc11e-facf-484d-929b-1562d71d5715.jsonl"
 }
