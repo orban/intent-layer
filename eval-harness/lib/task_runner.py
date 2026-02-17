@@ -517,6 +517,27 @@ class TaskRunner:
                     exit_code=claude_result.exit_code,
                 )
 
+            # Detect timeout: Claude ran out of time
+            if claude_result.timed_out:
+                return TaskResult(
+                    task_id=task.id,
+                    condition=condition,
+                    success=False,
+                    test_output="",
+                    wall_clock_seconds=claude_result.wall_clock_seconds,
+                    input_tokens=claude_result.input_tokens,
+                    output_tokens=claude_result.output_tokens,
+                    tool_calls=claude_result.tool_calls,
+                    lines_changed=0,
+                    files_touched=[],
+                    error=(
+                        f"[timeout] Claude timed out after "
+                        f"{claude_result.wall_clock_seconds:.1f}s"
+                    ),
+                    exit_code=claude_result.exit_code,
+                    is_timeout=True,
+                )
+
             # Run tests (chain setup commands so pip installs persist in same container)
             test_cmd = self.repo.docker.test_command
             if self.repo.docker.setup:

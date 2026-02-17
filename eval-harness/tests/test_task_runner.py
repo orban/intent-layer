@@ -681,3 +681,24 @@ def test_empty_run_tag_format():
         error="[empty-run] Claude produced no output (exit_code=0, 3.0s)",
     )
     assert Reporter._is_infra_error(result) is True
+
+
+def test_timeout_tag_is_infra_error():
+    """[timeout] errors are excluded from success stats."""
+    from lib.reporter import Reporter
+
+    result = TaskResult(
+        task_id="fix-timeout",
+        condition=Condition.FLAT_LLM,
+        success=False,
+        test_output="",
+        wall_clock_seconds=300.0,
+        input_tokens=50000,
+        output_tokens=3000,
+        tool_calls=5,
+        lines_changed=0,
+        files_touched=[],
+        error="[timeout] Claude timed out after 300.0s",
+        is_timeout=True,
+    )
+    assert Reporter._is_infra_error(result) is True

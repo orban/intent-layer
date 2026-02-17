@@ -243,7 +243,7 @@ class Reporter:
         """
         if r.error is None:
             return False
-        return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]"))
+        return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
 
     def _compute_summary(self, results: list[TaskResult]) -> dict:
         """Compute overall summary statistics.
