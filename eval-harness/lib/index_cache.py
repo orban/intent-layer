@@ -29,24 +29,55 @@ class IndexCache:
         self.manifest = self._load_manifest()
 
     def _load_manifest(self) -> CacheManifest:
-        """Load manifest from disk or create empty one."""
+        """Load manifest from disk, repair orphan directories, or create empty."""
         if self.manifest_path.exists():
             with open(self.manifest_path) as f:
                 data = json.load(f)
                 entries = {
                     k: CacheEntry(**v) for k, v in data.get("entries", {}).items()
                 }
-                return CacheManifest(entries=entries)
+                manifest = CacheManifest(entries=entries)
         else:
             manifest = CacheManifest(entries={})
-            # Save empty manifest
-            data = {"entries": {}}
-            with open(self.manifest_path, "w") as f:
-                json.dump(data, f, indent=2)
-            return manifest
+
+        # Repair: scan for directories not in the manifest (orphaned by killed runs)
+        repaired = 0
+        for child in sorted(self.cache_dir.iterdir()):
+            if not child.is_dir() or child.name in manifest.entries:
+                continue
+            # Find .md files to reconstruct the entry
+            md_files = sorted(
+                str(p.relative_to(child))
+                for p in child.rglob("*.md")
+                if p.is_file()
+            )
+            if not md_files:
+                continue
+            # Infer repo and commit from directory name: <repo>-<commit8>-<condition>
+            parts = child.name.rsplit("-", 2)
+            if len(parts) < 3:
+                continue
+            repo_name, commit_short, condition = parts
+            manifest.entries[child.name] = CacheEntry(
+                repo=f"https://github.com/unknown/{repo_name}",
+                commit=commit_short,
+                workspace_path=str(child),
+                created_at=datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                agents_files=md_files,
+            )
+            repaired += 1
+
+        if repaired:
+            import logging
+            logging.getLogger(__name__).info("Repaired %d orphan cache entries", repaired)
+
+        # Persist (creates file if new, updates if repaired)
+        self.manifest = manifest
+        self._save_manifest()
+        return manifest
 
     def _save_manifest(self):
-        """Save manifest to disk."""
+        """Save manifest to disk atomically (write tmp + rename)."""
         data = {
             "entries": {
                 k: {
@@ -59,8 +90,10 @@ class IndexCache:
                 for k, v in self.manifest.entries.items()
             }
         }
-        with open(self.manifest_path, "w") as f:
+        tmp_path = self.manifest_path.with_suffix(".tmp")
+        with open(tmp_path, "w") as f:
             json.dump(data, f, indent=2)
+        tmp_path.rename(self.manifest_path)
 
     def get_cache_key(self, repo: str, commit: str, condition: str = "") -> str:
         """Generate cache key from repo URL, commit SHA, and condition.
