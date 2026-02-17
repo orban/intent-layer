@@ -601,3 +601,41 @@ def test_warm_cache_skips_when_cached(sample_repo):
             Condition.INTENT_LAYER
         )
         assert result is None  # Already cached, nothing to do
+
+
+def test_task_result_has_exit_code_and_timeout():
+    """TaskResult supports exit_code and is_timeout fields."""
+    result = TaskResult(
+        task_id="fix-meta",
+        condition=Condition.NONE,
+        success=False,
+        test_output="",
+        wall_clock_seconds=300.0,
+        input_tokens=0,
+        output_tokens=0,
+        tool_calls=0,
+        lines_changed=0,
+        files_touched=[],
+        exit_code=1,
+        is_timeout=True,
+    )
+    assert result.exit_code == 1
+    assert result.is_timeout is True
+
+
+def test_task_result_defaults_exit_code_and_timeout():
+    """exit_code defaults to None, is_timeout defaults to False."""
+    result = TaskResult(
+        task_id="fix-defaults",
+        condition=Condition.NONE,
+        success=True,
+        test_output="PASS",
+        wall_clock_seconds=50.0,
+        input_tokens=2000,
+        output_tokens=1000,
+        tool_calls=10,
+        lines_changed=20,
+        files_touched=["a.py"],
+    )
+    assert result.exit_code is None
+    assert result.is_timeout is False

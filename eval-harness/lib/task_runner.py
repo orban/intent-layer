@@ -61,6 +61,8 @@ class TaskResult:
     skill_generation: SkillGenerationMetrics | None = None
     agents_files_read: list[str] | None = None
     error: str | None = None
+    exit_code: int | None = None
+    is_timeout: bool = False
 
 
 class PreValidationError(Exception):
