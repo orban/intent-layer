@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "401af54bd6a7",
+  "session_id": "147d7ed2-b454-4da2-a522-b05238452d97",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-17T20:13:06.772496Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/task_runner.py"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 58,
+    "cache_creation_tokens": 119446,
+    "cache_read_tokens": 5033171,
+    "output_tokens": 406,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-17T20:13:06.265082Z",
+    "agent_lines": 0,
+    "human_added": 20494,
+    "human_modified": 37,
+    "human_removed": 0,
+    "total_committed": 20531,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/147d7ed2-b454-4da2-a522-b05238452d97.jsonl"
+}
