@@ -102,3 +102,297 @@ Here's a systematic review of every error handling pathway in the new resume cod
 
 ### Issue 1: `_load_prior_results` — KeyError on missing `t...
 
+### Prompt 7
+
+commit this
+
+### Prompt 8
+
+push
+
+### Prompt 9
+
+run --tasks tasks/fastmcp.yaml --resume results/2026-02-17-105514.json --dry-run
+
+### Prompt 10
+
+continue
+
+### Prompt 11
+
+<task-notification>
+<task-id>bf90e6e</task-id>
+<output-file>/private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/bf90e6e.output</output-file>
+<status>completed</status>
+<summary>Background command "Run resume eval — re-run 10 failed pairs from prior run" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/bf90e6e.output
+
+### Prompt 12
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Context from prior session**: The user had implemented `--resume` for the eval harness CLI. A plan existed. The implementation was done with multi-run support. PR review agents had run and identified issues. The prior session ended just as fixes were about to begin.
+
+2. **This sess...
+
+### Prompt 13
+
+Do our results match what they got in the paper so far?
+
+### Prompt 14
+
+let's run on another repo to get more data points
+
+### Prompt 15
+
+[Request interrupted by user]
+
+### Prompt 16
+
+there are 12 repos identified in agentbench. dispatch an agent for each and generate the necessary files for testing
+
+### Prompt 17
+
+<task-notification>
+<task-id>a39b973</task-id>
+<status>completed</status>
+<summary>Agent "Generate transformers task YAML" completed</summary>
+<result>The file is written and looks correct. Here's a summary of what was generated.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/transformers.yaml`
+
+**10 tasks** from `huggingface/transformers`, all merged PRs from the last ~3 months. Here's the breakdown:
+
+**Simple fixes (3 tasks, < 50 lines, 1-2 files):**
+
+1. `fix-typeerror-dot-nat...
+
+### Prompt 18
+
+<task-notification>
+<task-id>a2337ea</task-id>
+<status>completed</status>
+<summary>Agent "Generate ansible task YAML" completed</summary>
+<result>The YAML parses correctly. Here's a summary of the file written to `/Users/ryo/dev/intent-layer/eval-harness/tasks/ansible.yaml`:
+
+---
+
+**10 tasks total**, drawn from merged bug-fix PRs on the `ansible/ansible` repo's `devel` branch over the last ~3 months.
+
+**Task breakdown by prompt_source:**
+- 6 with `failing_test` (have unit test files in `test/uni...
+
+### Prompt 19
+
+<task-notification>
+<task-id>a58bbe6</task-id>
+<status>completed</status>
+<summary>Agent "Generate tinygrad task YAML" completed</summary>
+<result>The YAML parses correctly and has a good distribution. Here's a summary of what I created:
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/tinygrad.yaml`
+
+**10 tasks** from the tinygrad/tinygrad repository, all from merged PRs in January-February 2026. All tasks are CPU-only (no GPU hardware required).
+
+**Category breakdown:**
+- **5 si...
+
+### Prompt 20
+
+<task-notification>
+<task-id>af77b6c</task-id>
+<status>completed</status>
+<summary>Agent "Generate opshin task YAML" completed</summary>
+<result>The YAML parses cleanly and the task distribution looks good. Here's the summary of what was created.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/opshin.yaml`
+
+**10 tasks** across the opshin/opshin Cardano smart contract compiler (Python).
+
+**Repo setup**:
+- Default branch: `dev` (not `main` -- all PRs target `dev`)
+- Docker: `python...
+
+### Prompt 21
+
+<task-notification>
+<task-id>a798b46</task-id>
+<status>completed</status>
+<summary>Agent "Generate ragas task YAML" completed</summary>
+<result>The YAML is valid and well-structured. Here's a summary of what was generated.
+
+---
+
+**File written:** `/Users/ryo/dev/intent-layer/eval-harness/tasks/ragas.yaml`
+
+**Repo:** `vibrantlabsai/ragas` (the explodinggradients/ragas repo was renamed/moved here)
+
+**10 tasks total**, from merged PRs between Nov 2025 and Jan 2026:
+
+| Category | Count |
+|---|---|
+|...
+
+### Prompt 22
+
+<task-notification>
+<task-id>a5d1245</task-id>
+<status>completed</status>
+<summary>Agent "Generate graphiti task YAML" completed</summary>
+<result>The file is clean and well-structured. Here's the summary of what was generated:
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/graphiti.yaml`
+
+**10 tasks** from the `getzep/graphiti` repo (a temporal graph building library), spanning October 2025 through February 2026.
+
+**Docker setup**: Uses `python:3.10-slim` (matching CI), install...
+
+### Prompt 23
+
+<task-notification>
+<task-id>a00cef3</task-id>
+<status>completed</status>
+<summary>Agent "Generate smolagents task YAML" completed</summary>
+<result>YAML parses cleanly, no duplicate pre_fix_commits, and the task distribution looks right.
+
+Here is a summary of the generated file at `/Users/ryo/dev/intent-layer/eval-harness/tasks/smolagents.yaml`:
+
+**Repo**: `huggingface/smolagents` -- a Python library for AI agents that write code to call tools and orchestrate other agents. ~25k GitHub stars.
+
+*...
+
+### Prompt 24
+
+<task-notification>
+<task-id>a1c83f5</task-id>
+<status>completed</status>
+<summary>Agent "Generate pdm task YAML" completed</summary>
+<result>The file is valid. Here's a summary of what was created.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/pdm.yaml`
+
+**10 tasks** from the `pdm-project/pdm` repo (a Python package manager), drawn from merged bug-fix PRs between September 2025 and January 2026.
+
+**Docker setup**: Uses `python:3.11-slim` with git installed, then `pip install -...
+
+### Prompt 25
+
+<task-notification>
+<task-id>a643d3b</task-id>
+<status>completed</status>
+<summary>Agent "Generate openai-agents task YAML" completed</summary>
+<result>`★ Insight ─────────────────────────────────────`
+
+**Why full 40-char SHAs matter for eval harness tasks:**
+Git's short SHA resolution is context-dependent -- an 8-char prefix that's unique today can become ambiguous as the repo grows. In an automated eval harness that cl...
+
+### Prompt 26
+
+<task-notification>
+<task-id>ab3555b</task-id>
+<status>completed</status>
+<summary>Agent "Generate pr-agent task YAML" completed</summary>
+<result>The file looks good. Here's a summary of what was created.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/pr-agent.yaml`
+
+**10 tasks** from the `qodo-ai/pr-agent` repo, spanning August 2025 through February 2026.
+
+**Docker setup**: Uses `python:3.12-slim` (matching their Dockerfile's base image), installs `git` and `curl` (required by...
+
+### Prompt 27
+
+<task-notification>
+<task-id>a26660c</task-id>
+<status>completed</status>
+<summary>Agent "Generate wagtail task YAML" completed</summary>
+<result>Good, all pre_fix_commits are unique. I notice that task 1's `pre_fix_commit` (`38f1d405f0f5`) is task 5's `fix_commit`'s parent... wait, task 5's `pre_fix_commit` is `b687315282cd` which is task 1's `fix_commit`. That's fine - they're sequential commits. No workspace collision since the pre_fix_commits are different.
+
+The YAML is valid and well-struct...
+
+### Prompt 28
+
+let's start with smolagents since all tasks have failing tests
+
+### Prompt 29
+
+# Phone a Friend: Codex Consultation
+
+You are calling OpenAI's Codex CLI. Use the helper script to manage the call.
+
+## Modes
+
+Pick the right mode based on what the user needs:
+- **explore**: User wants alternatives or is choosing between approaches. Codex generates orthogonal options.
+- **critique**: User wants independent flaw-finding on code or a design. Codex rates findings by severity.
+- **verify**: User wants a pass/fail gate. Codex returns VERDICT: PASS/FAIL/UNSURE with exit code 0/1/2.
+-...
+
+### Prompt 30
+
+but the intent layer hierarchy is auto-generated
+
+### Prompt 31
+
+how should we address them?
+
+### Prompt 32
+
+<task-notification>
+<task-id>b0863f5</task-id>
+<output-file>/private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b0863f5.output</output-file>
+<status>completed</status>
+<summary>Background command "Run smolagents eval (10 tasks × 3 conditions)" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b0863f5.output
+
+### Prompt 33
+
+investigate why intent_layer generation failed for smolagents
+
+### Prompt 34
+
+fix the issues first
+
+### Prompt 35
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session continuation**: This session continued from a prior one where `--resume` was implemented for the eval harness. The resume feature was complete, tested (34 tests), committed, pushed, and validated with a real eval run.
+
+2. **User: "Do our results match what they got in...
+
+### Prompt 36
+
+yes, kick off the smolagents resume run
+
+### Prompt 37
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session continuation**: This session continued from a prior conversation about the AGENTbench replication study. The summary provided extensive context about what was previously done.
+
+2. **First action**: I picked up from where the previous session left off - three methodolo...
+

@@ -977,3 +977,1288 @@ tool_uses: 8
 duration_ms: 113411</usage>
 </task-notification>
 Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a16f06b.output
+
+---
+
+commit this
+
+---
+
+push
+
+---
+
+run --tasks tasks/fastmcp.yaml --resume results/2026-02-17-105514.json --dry-run
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>bf90e6e</task-id>
+<output-file>/private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/bf90e6e.output</output-file>
+<status>completed</status>
+<summary>Background command "Run resume eval — re-run 10 failed pairs from prior run" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/bf90e6e.output
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Context from prior session**: The user had implemented `--resume` for the eval harness CLI. A plan existed. The implementation was done with multi-run support. PR review agents had run and identified issues. The prior session ended just as fixes were about to begin.
+
+2. **This session starts**: I picked up where the prior session left off, fixing PR review issues in `eval-harness/lib/cli.py` and `eval-harness/tests/test_resume.py`.
+
+3. **Fix sequence**:
+   - Fix 1: Hoisted `from dataclasses import replace` to module level, added `wilson_score_interval`/`ci_overlap` imports, added `_INFRA_ERROR_PREFIXES` shared tuple
+   - Fix 2: Added `json.JSONDecodeError` handling and type validation (`isinstance` checks for dict and list)
+   - Fix 3: Updated `_is_infra_error_dict` to use shared `_INFRA_ERROR_PREFIXES`
+   - Fix 4: Removed inline import from `_merge_results`, precomputed `passed_task_ids` set (hit a linter modification issue, had to re-read and retry)
+   - Fix 5 (CRITICAL): Rewrote `_recompute_summary` to include Wilson Score CIs and significance flags, matching `Reporter._compute_summary`
+   - Added tests for JSON validation (3 tests) and CI computation (2 tests)
+   - Tests: 22/22 passed, existing 49 tests still passing
+
+4. **Test coverage reviewer agent completed**: Identified gaps including missing `_genuine_failure_condition` fixture, untested `_is_infra_error_dict`, missing merge edge cases.
+
+5. **Addressed coverage gaps**:
+   - Added `_genuine_failure_condition()` fixture
+   - Added `_is_infra_error_dict` import and 4 direct tests
+   - Added genuine failure tests for `_recompute_summary` and `_load_prior_results`
+   - Added merge edge case tests (dropped tasks, new-only tasks, preserved prior conditions)
+   - 33/33 passed, 188 total suite passed
+
+6. **Error handling reviewer agent completed**: Most issues already fixed. One remaining: `task["task_id"]` KeyError on malformed entries.
+
+7. **Fixed task_id validation**: Added `isinstance(task, dict) or "task_id" not in task` guard with index-aware error message. Added test. 34/34 passed.
+
+8. **User requested commit**: Committed as `87d889e`
+9. **User requested push**: Pushed to origin/main
+10. **User requested dry-run**: Showed 14 passed pairs carried forward, 10 to re-run
+11. **User said "continue"**: Ran the actual resume eval
+12. **Results**: Merged results written to `results/2026-02-17-125440.json` and `.md`. 8 tasks, none 83%, flat_llm 80%, intent_layer 83%.
+13. **User requested summary**: Current request.
+
+Key files:
+- `eval-harness/lib/cli.py` - all resume functions
+- `eval-harness/tests/test_resume.py` - 34 tests
+- `eval-harness/lib/reporter.py` - reference for CI computation
+- `eval-harness/lib/stats.py` - Wilson Score interval implementation
+- `eval-harness/results/2026-02-17-125440.json` - merged resume results
+
+Summary:
+1. Primary Request and Intent:
+   The user's session continued from a prior conversation that implemented `--resume <results.json>` for the eval harness CLI. This session focused on:
+   - Fixing all issues identified by three PR review agents (code-reviewer, silent-failure-hunter, pr-test-analyzer)
+   - Addressing test coverage gaps identified by a test coverage reviewer agent
+   - Fixing an error handling gap identified by an error handling reviewer agent
+   - Committing and pushing the fixes
+   - Running a dry-run to verify resume filtering, then executing the actual resume eval run against `tasks/fastmcp.yaml`
+
+2. Key Technical Concepts:
+   - **Wilson Score confidence intervals**: Statistical method for binomial proportions, better than Wald for small samples. Used in `_recompute_summary` for multi-run data.
+   - **Condition-level carry-forward**: Resume unit is `(task_id, condition_key)` pairs where condition is "none", "flat_llm", or "intent_layer"
+   - **JSON-level merge**: Works at dict level, not reconstructing TaskResult objects from JSON
+   - **Infra errors vs genuine failures**: Infra errors (prefixed `[infrastructure]`, `[pre-validation]`, `[skill-generation]`, `[empty-run]`, `[timeout]`) are excluded from success rate denominators. Genuine failures count as 0/1 in the denominator.
+   - **Mixed tasks**: Tasks where some conditions are carried forward and some re-run get `deltas: {"note": "mixed resume — deltas not recomputed"}`
+   - **`_INFRA_ERROR_PREFIXES`**: Shared tuple between `_is_infra_error_dict` (cli.py) and conceptually with `Reporter._is_infra_error` (reporter.py)
+   - **EvalResults dataclass**: `eval_id`, `timestamp`, `results: list[dict]`, `summary: dict`
+
+3. Files and Code Sections:
+
+   - **`eval-harness/lib/cli.py`** (MODIFIED — 8 fixes applied)
+     - Primary file containing all resume logic
+     - Module-level imports now include `replace`, `EvalResults`, `wilson_score_interval`, `ci_overlap`
+     - Added `_INFRA_ERROR_PREFIXES` shared tuple at module level
+     - `_load_prior_results`: Added `json.JSONDecodeError` handling, `isinstance` checks for dict/list, task_id validation with index
+     - `_is_infra_error_dict`: Now uses `_INFRA_ERROR_PREFIXES` instead of inline tuple
+     - `_merge_results`: Removed inline `from dataclasses import replace`, added `passed_task_ids` precomputation
+     - `_recompute_summary`: Complete rewrite adding Wilson Score CIs, significance flags, `is True` consistency
+
+     Key new code in `_recompute_summary`:
+     ```python
+     if has_multi_run:
+         for label in ("none", "flat_llm", "intent_layer"):
+             stats = cond_stats[label]
+             if stats["total"] > 0:
+                 ci_lower, ci_upper, _ = wilson_score_interval(
+                     stats["successes"], stats["total"], 0.90
+                 )
+                 summary[f"{label}_ci_90"] = {
+                     "lower": round(ci_lower, 3),
+                     "upper": round(ci_upper, 3),
+                 }
+         none_ci = summary.get("none_ci_90")
+         if none_ci:
+             for treatment in ("flat_llm", "intent_layer"):
+                 t_ci = summary.get(f"{treatment}_ci_90")
+                 if t_ci:
+                     overlaps = ci_overlap(
+                         (none_ci["lower"], none_ci["upper"]),
+                         (t_ci["lower"], t_ci["upper"]),
+                     )
+                     summary[f"{treatment}_vs_none_significant"] = not overlaps
+     ```
+
+     Key validation in `_load_prior_results`:
+     ```python
+     try:
+         with open(json_path) as f:
+             data = json.load(f)
+     except json.JSONDecodeError as e:
+         raise click.ClickException(f"Invalid JSON in {json_path}: {e}")
+     if not isinstance(data, dict) or "results" not in data:
+         raise click.ClickException(f"Invalid results file: missing 'results' key in {json_path}")
+     if not isinstance(data["results"], list):
+         raise click.ClickException(f"Invalid results file: 'results' must be a list in {json_path}")
+     # ...
+     for i, task in enumerate(data["results"]):
+         if not isinstance(task, dict) or "task_id" not in task:
+             raise click.ClickException(
+                 f"Invalid results file: task at index {i} missing 'task_id' in {json_path}"
+             )
+     ```
+
+   - **`eval-harness/tests/test_resume.py`** (CREATED — 34 tests total)
+     - Comprehensive test suite for all resume functions
+     - 7 test classes: `TestLoadPriorResults` (12), `TestRecomputeSummary` (5), `TestMergeResults` (9), `TestIsInfraErrorDict` (4), `TestRecomputeSummaryGenuineFailures` (2), `TestLoadGenuineFailures` (2)
+     - Key fixtures: `_passing_condition()`, `_failing_condition()` (timeout/infra), `_infra_error_condition()` (empty-run), `_genuine_failure_condition()` (real test failure), `_multi_run_passing()`, `_multi_run_failing()`
+     - Tests cover: input validation (JSON errors, type checks, missing task_id), pass detection (single/multi-run, genuine failures, suspicious success+error), CI computation (present for multi-run, absent for single-run), merge logic (carried forward, dropped tasks, new-only tasks, preserved prior, mixed deltas), infra error classification (all 5 prefixes, negatives)
+
+   - **`eval-harness/lib/reporter.py`** (READ — reference for CI computation)
+     - `_compute_summary` method (lines 260-318) was the reference implementation for Wilson Score CIs
+     - Imports `wilson_score_interval`, `ci_overlap` from `lib.stats`
+
+   - **`eval-harness/lib/stats.py`** (READ — Wilson Score implementation)
+     - `wilson_score_interval(successes, n, confidence)` returns `(lower, upper, center)`
+     - `ci_overlap(ci_a, ci_b)` returns bool
+
+   - **`eval-harness/results/2026-02-17-125440.json`** and **`.md`** (GENERATED — resume run output)
+     - Merged results: 8 tasks, 14 carried forward + 10 re-run
+     - Final rates: none 83%, flat_llm 80%, intent_layer 83%
+
+4. Errors and fixes:
+   - **Linter auto-modification**: When editing `_merge_results` to remove inline import and add `passed_task_ids`, the linter had modified the file (added `PreValidationCache` to imports). Had to re-read and retry the edit.
+   - **No code logic errors**: All fixes applied cleanly, all tests passed on first try after each change.
+
+5. Problem Solving:
+   - Systematically addressed all PR review findings (7 code issues from 3 reviewer agents)
+   - Addressed test coverage gaps from test coverage reviewer (added `_genuine_failure_condition` fixture to distinguish infra errors from real test failures)
+   - Addressed error handling gap from error handling reviewer (task_id KeyError validation)
+   - Successfully ran resume eval, confirming the merge logic works end-to-end with real data
+
+6. All user messages:
+   - (Session continuation — no explicit first message, picked up from prior context)
+   - "commit this"
+   - "push"
+   - "run --tasks tasks/fastmcp.yaml --resume results/2026-02-17-105514.json --dry-run"
+   - "continue" (meaning: run the actual eval, not just dry-run)
+   - (Summary request)
+
+7. Pending Tasks:
+   - No explicitly pending tasks. The resume feature is implemented, reviewed, tested (34 tests), committed (`87d889e`), pushed, and validated with a real eval run.
+   - The eval results (`2026-02-17-125440`) show that most previously-failing tasks are genuinely hard (timeouts again). Notable finding: `docs-fix-stale-get` passed only with `intent_layer` condition.
+   - `fix-guard-client-pagination` appears to be an empty-run issue across all conditions (1 tool call, ~6s).
+
+8. Current Work:
+   The resume eval run completed. Results were written to `results/2026-02-17-125440.json` and `.md`. I presented the results showing:
+   - 14 passed pairs carried forward, 10 re-run
+   - Most re-runs timed out again (fix-ty-0017, fix-stale-request-context, docs-fix-stale-get none/flat_llm)
+   - `docs-fix-stale-get` passed only with intent_layer (57.5s) — differentiation signal
+   - `fix-guard-client-pagination` empty-run across all 3 conditions
+   - Final merged rates: none 83%, flat_llm 80%, intent_layer 83%
+
+9. Optional Next Step:
+   No explicit next step requested. The user's last substantive request ("continue") was to run the eval, which completed successfully. Possible follow-ups the user might want:
+   - Analyze why `fix-guard-client-pagination` produces empty runs (1 tool call across all conditions)
+   - Investigate `docs-fix-stale-get` where intent_layer succeeded but none/flat_llm timed out
+   - Run with `--repetitions` for statistical significance
+   - Increase timeout beyond 300s for the chronically-timing-out tasks
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Do our results match what they got in the paper so far?
+
+---
+
+let's run on another repo to get more data points
+
+---
+
+[Request interrupted by user]
+
+---
+
+there are 12 repos identified in agentbench. dispatch an agent for each and generate the necessary files for testing
+
+---
+
+<task-notification>
+<task-id>a39b973</task-id>
+<status>completed</status>
+<summary>Agent "Generate transformers task YAML" completed</summary>
+<result>The file is written and looks correct. Here's a summary of what was generated.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/transformers.yaml`
+
+**10 tasks** from `huggingface/transformers`, all merged PRs from the last ~3 months. Here's the breakdown:
+
+**Simple fixes (3 tasks, < 50 lines, 1-2 files):**
+
+1. `fix-typeerror-dot-natural-key-mixed-types` (PR #43966) -- `sorted()` crashes when state_dict keys mix int/str at the same position. 15 lines, 1 file. No new tests.
+2. `fix-unprotected-torch-import-vibevoice` (PR #44055) -- bare `import torch` needs `is_torch_available()` guard. 8 lines, 1 file. No new tests.
+3. `fix-get-test-info-parameterized-expand` (PR #43259) -- `frame.function == test_name` fails with `@parameterized.expand` suffixes. 4 lines, 1 file.
+
+**Targeted refactors (3 tasks, 2-4 files, focused):**
+
+4. `fix-dia-config-token-ids-save-load` (PR #43928) -- custom token IDs lost after DiaConfig save/load round-trip. 63 lines, 2 files. Has test file (`tests/models/dia/test_modeling_dia.py`).
+5. `fix-xlstm-bugs-small-model-training` (PR #43209) -- three bugs (typo, shape mismatch, default value) prevented training small xLSTM models. 31 lines, 2 files. Has test file (`tests/models/xlstm/test_modeling_xlstm.py`).
+6. `fix-weight-decay-exclusions-no-trainer` (PR #42769) -- example scripts used fragile string matching for weight decay exclusion. 27 lines, 3 files.
+
+**Complex fixes (4 tasks, 3+ files or broader scope):**
+
+7. `fix-false-positive-right-padding-warning` (PR #44021) -- spurious "right-padding detected" warning for Qwen3 and similar models. 35 lines, 3 files. Has test file.
+8. `fix-detr-cardinality-error-no-background` (PR #43513) -- cardinality loss wrong for DETR models using sigmoid/focal loss. 41 lines, 4 files. No new tests.
+9. `fix-early-image-processor-return-error` (PR #43981) -- early return for square images skipped validation. 5 lines, 1 file. Has test file.
+10. `fix-failing-tests-no-pad-token-id` (PR #43453) -- multiple model configs missing `pad_token_id` attribute. 44 lines, 11 files.
+
+**Docker setup notes:**
+- Uses `python:3.11-slim` with CPU-only PyTorch (avoids GPU requirement)
+- Installs `.[dev]` for test deps
+- Needs `git`, `gcc`, `g++` for C extensions in some transitive deps
+- Tests should target specific test files, not the full suite (which takes hours)
+
+**Caveats to check before running:**
+- Some tasks with `prompt_source: failing_test` need verification that the test_file's tests actually fail at `pre_fix_commit` and pass at `fix_commit`
+- The `fix-early-image-processor-return-error` task only changes a test file (the actual fix was reverted and the test was adjusted instead), so it may behave differently than expected
+- xLSTM and Dia tests may need torch to instantiate small models -- CPU torch should suffice but verify</result>
+<usage>total_tokens: 135822
+tool_uses: 35
+duration_ms: 177518</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a39b973.output
+
+---
+
+<task-notification>
+<task-id>a2337ea</task-id>
+<status>completed</status>
+<summary>Agent "Generate ansible task YAML" completed</summary>
+<result>The YAML parses correctly. Here's a summary of the file written to `/Users/ryo/dev/intent-layer/eval-harness/tasks/ansible.yaml`:
+
+---
+
+**10 tasks total**, drawn from merged bug-fix PRs on the `ansible/ansible` repo's `devel` branch over the last ~3 months.
+
+**Task breakdown by prompt_source:**
+- 6 with `failing_test` (have unit test files in `test/units/`)
+- 4 with `commit_message` (integration tests only, or no new tests)
+
+**Task breakdown by category:**
+- 7 `simple_fix` (1-2 source files, < 60 lines typically)
+- 3 `targeted_refactor` (multiple files, 100+ lines)
+
+**Docker setup:**
+- Base image: `python:3.12-slim` (ansible-core requires Python 3.12+)
+- Installs `git` (needed by ansible internally), then `pip install -e .` for editable install of ansible-core
+- Test deps: `pytest`, `pytest-mock`, `passlib`, `bcrypt`, `pexpect`, `pywinrm` (from `test/units/requirements.txt`)
+- Test command: `pytest --tb=short -q`
+
+**Key observations about the repo:**
+- Ansible's `devel` branch is the default (not `main`/`master`)
+- Most ansible bug fixes come with integration tests (YAML playbooks run via `ansible-test`), not pytest unit tests. I prioritized the PRs that do touch `test/units/` since the eval harness runs pytest
+- The 4 `commit_message` tasks don't have pytest-runnable tests, so the harness will need to rely on the commit message as the prompt and broader test coverage to detect correctness
+- The repo already has `.claude/` and `AGENTS.md` files upstream, which `strip_extra` will remove for the `none` condition</result>
+<usage>total_tokens: 164553
+tool_uses: 48
+duration_ms: 220802</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a2337ea.output
+
+---
+
+<task-notification>
+<task-id>a58bbe6</task-id>
+<status>completed</status>
+<summary>Agent "Generate tinygrad task YAML" completed</summary>
+<result>The YAML parses correctly and has a good distribution. Here's a summary of what I created:
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/tinygrad.yaml`
+
+**10 tasks** from the tinygrad/tinygrad repository, all from merged PRs in January-February 2026. All tasks are CPU-only (no GPU hardware required).
+
+**Category breakdown:**
+- **5 simple_fix** (2-17 lines, 1-3 files) -- getitem indexing, copysign edge cases, decomposition tag fix, Tensor.mean/var type fix
+- **4 targeted_refactor** (17-30 lines, 2-3 files) -- assign hazard, REDUCE/RANGE codegen, uops estimation, chained assign
+- **1 complex_fix** (103 lines, 2 files) -- torch_load shared storage slicing
+
+**Prompt sources:**
+- 8 tasks use `prompt_source: failing_test` with specific `test_file` paths
+- 2 tasks use `prompt_source: commit_message` (single-file fixes where no new test was added, but existing tests cover the behavior)
+
+**Docker setup:**
+- Image: `python:3.11-slim` (matches tinygrad's `requires-python = ">=3.11"`)
+- Install: `pip install -e '.[testing_minimal]'` -- this pulls pytest, numpy, torch, hypothesis, z3-solver (the minimal test dependencies without heavy ML libs like onnx, transformers, etc.)
+- Test command: `python -m pytest`
+- Default branch: `master` (not `main`)
+
+**Key decisions:**
+- Skipped all GPU/hardware-specific PRs (hcq, amd, nv, webgpu)
+- Skipped CI-only and docs-only PRs
+- Used `testing_minimal` extra instead of full `testing` to avoid heavy deps (onnx, opencv, transformers) that most tasks don't need
+- Every `pre_fix_commit` is the base SHA from the PR target branch at merge time, so checking out that SHA gives the exact pre-fix state</result>
+<usage>total_tokens: 144552
+tool_uses: 46
+duration_ms: 186983</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a58bbe6.output
+
+---
+
+<task-notification>
+<task-id>af77b6c</task-id>
+<status>completed</status>
+<summary>Agent "Generate opshin task YAML" completed</summary>
+<result>The YAML parses cleanly and the task distribution looks good. Here's the summary of what was created.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/opshin.yaml`
+
+**10 tasks** across the opshin/opshin Cardano smart contract compiler (Python).
+
+**Repo setup**:
+- Default branch: `dev` (not `main` -- all PRs target `dev`)
+- Docker: `python:3.11-slim` with `uv sync --frozen --dev`
+- Test command: `uv run pytest tests`
+- Strips `.claude/`, `.cursor/`, `.codex/`, and the repo's existing `AGENTS.md`
+
+**Task breakdown by category**:
+- 4 `simple_fix` (2-62 lines, 1-2 files)
+- 4 `targeted_refactor` (48-134 lines, 2-4 files)
+- 1 `complex_fix` (145 lines, 4 files)
+- 1 `simple_fix` with just 2 lines changed (optimization config order)
+
+**Prompt sources**:
+- 8 tasks use `failing_test` with specific `test_file` paths -- the harness injects the test from the fix commit into the pre-fix workspace
+- 2 tasks use `commit_message` (no new test functions were added in those commits)
+
+**Key details per task**:
+
+| # | Task ID | What it fixes | Lines |
+|---|---------|---------------|-------|
+| 1 | `fix-blueprint-schema-conversion-plutusdata` | Blueprint schema round-trip for PlutusData types | 52 |
+| 2 | `fix-negative-access-to-pairs` | Negative indexing on pair types in compiler | 75 |
+| 3 | `fix-negative-index-handling-in-tuples` | Negative indexing on tuples (related to #2) | 26 |
+| 4 | `fix-error-messages-list-dict-without-import` | Error messages when using `List`/`Dict` without proper import | 145 |
+| 5 | `derive-type-for-empty-literal-lists-and-dicts` | Type inference for empty `[]` and `{}` literals | 62 |
+| 6 | `catch-errors-importing-invalid-modules` | Graceful error on invalid module imports | 50 |
+| 7 | `fix-annotation-handling-py39-blueprint` | Python 3.9 class annotation compatibility | 78 |
+| 8 | `fix-order-of-optimization-config-applications` | 1-line fix for O3 optimization config order | 2 |
+| 9 | `fixes-constant-folding-default-tests` | Constant folding default behavior + dedicated tests | 134 |
+| 10 | `loosen-typing-imports-unify-self` | Loosen `from typing import` requirements | 91 |
+
+**Caveats to review before running**:
+- Tasks 2 and 3 are from PR #539 (audit fix) and share overlapping test files (`test_stdlib.py`). If run in parallel they won't collide (different pre_fix_commits), but the fixes are related -- task 3 builds on top of task 2's commit.
+- Task 6 spans two consecutive commits (code fix in `e3c013fa`, test in `d0b1669f`). The harness's `_inject_test_from_fix` handles this correctly by extracting the test file from the fix_commit.
+- Task 7 has no new test functions; it uses `commit_message` prompt source. Existing tests in `test_misc.py` cover the behavior but weren't explicitly added for this fix.
+- All commits are from the `dev` branch in the Sept-Nov 2025 timeframe, from the main contributor `nielstron`.</result>
+<usage>total_tokens: 122023
+tool_uses: 61
+duration_ms: 255382</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/af77b6c.output
+
+---
+
+<task-notification>
+<task-id>a798b46</task-id>
+<status>completed</status>
+<summary>Agent "Generate ragas task YAML" completed</summary>
+<result>The YAML is valid and well-structured. Here's a summary of what was generated.
+
+---
+
+**File written:** `/Users/ryo/dev/intent-layer/eval-harness/tasks/ragas.yaml`
+
+**Repo:** `vibrantlabsai/ragas` (the explodinggradients/ragas repo was renamed/moved here)
+
+**10 tasks total**, from merged PRs between Nov 2025 and Jan 2026:
+
+| Category | Count |
+|---|---|
+| simple_fix | 4 |
+| targeted_refactor | 4 |
+| complex_fix | 2 |
+
+| Prompt source | Count |
+|---|---|
+| failing_test (new test added in the fix commit) | 8 |
+| commit_message (no new test, agent guided by commit msg) | 2 |
+
+**Docker setup:**
+- Image: `python:3.11-slim`
+- Install: `pip install uv && uv pip install -e ".[dev-minimal,all,test]"` -- this installs the dev tools (pytest, etc.), all optional deps (sacrebleu for CHRF, etc.), and the test extra (scipy)
+- Test command: `pytest tests/unit -x`
+- Strip: `.claude/`, `.cursor/`, `.codex/`
+
+**Task difficulty distribution:**
+
+- **simple_fix** (4 tasks, <50 lines, 1-3 files): tokenizer lazy init, MultiTurnSample validation (`not` -> `all`), GitPython optional, instructor mode JSON
+- **targeted_refactor** (4 tasks, 2-3 files, focused changes): average precision algorithm, ToolCallF1 nested dict hashing, DiskCacheBackend pickling, OpenAI-compatible provider detection
+- **complex_fix** (2 tasks, 6-7 files, 370-401 lines): CHRF Score collections migration, embeddings caching support
+
+**Things to watch during curation:**
+
+1. The `issue_number` field on tasks 1 and 8 points to the PR number since the PRs reference the issue in title/description. Verify these map to actual GitHub issues if the harness uses them for prompt building.
+
+2. Task `resolve-diskcachebackend-pickling-instructorllm` and `handle-instructor-modes-json-and-tools` use `prompt_source: commit_message` because the PRs don't add new test functions -- they only modify existing test mocks. These are harder for the agent since there's no failing test to guide it.
+
+3. The `migrate-chrf-score-to-collections-api` task is large (370 lines, 6 files) and creates entirely new module files. This may be too hard for the eval since it's more of a feature than a bug fix. Consider removing it if pass rates are too low across all conditions.
+
+4. The `add-caching-support-for-embeddings` task (401 lines, 7 files) touches many provider files. Same concern -- it's a feature addition, not a pure bug fix.</result>
+<usage>total_tokens: 151989
+tool_uses: 56
+duration_ms: 235923</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a798b46.output
+
+---
+
+<task-notification>
+<task-id>a5d1245</task-id>
+<status>completed</status>
+<summary>Agent "Generate graphiti task YAML" completed</summary>
+<result>The file is clean and well-structured. Here's the summary of what was generated:
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/graphiti.yaml`
+
+**10 tasks** from the `getzep/graphiti` repo (a temporal graph building library), spanning October 2025 through February 2026.
+
+**Docker setup**: Uses `python:3.10-slim` (matching CI), installs with `uv sync --frozen --all-extras`, and runs `pytest -m "not integration"` with `DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1` to skip all database driver imports. The ignore list mirrors the repo's `unit_tests.yml` CI workflow, plus `test_add_triplet.py` which requires a real graph database.
+
+**Task breakdown**:
+
+| # | ID | Category | Source | Lines | Files | PR |
+|---|------|----------|--------|-------|-------|-----|
+| 1 | `fix-azure-structured-completions` | targeted_refactor | failing_test | 176 | 2 | #1039 |
+| 2 | `preserve-all-signatures-when-edge-type-reused` | targeted_refactor | failing_test | 164 | 3 | #1197 |
+| 3 | `exclude-duplicate-edges-from-node-summary` | targeted_refactor | failing_test | 58 | 4 | #1223 |
+| 4 | `fix-entity-extraction-adaptive-chunking` | complex_fix | failing_test | 2200 | 6 | #1129 |
+| 5 | `fix-limited-number-of-edges` | simple_fix | commit_message | 18 | 2 | #1124 |
+| 6 | `fix-datetime-comparison-normalize-utc` | simple_fix | commit_message | 37 | 2 | #988 |
+| 7 | `sanitize-pipe-slash-in-falkordb-fulltext` | simple_fix | commit_message | 7 | 1 | #1183 |
+| 8 | `escape-group-ids-in-redisearch-fulltext` | simple_fix | commit_message | 5 | 1 | #1175 |
+| 9 | `filter-falsey-values-before-creating-embeddings` | simple_fix | commit_message | 24 | 4 | #966 |
+| 10 | `validate-nodes-edges-not-falsey` | simple_fix | commit_message | 15 | 4 | #973 |
+
+**Difficulty mix**: 1 complex_fix, 3 targeted_refactors, 6 simple_fixes. The 4 `failing_test` tasks have tests that were either added or modified in the fix commit -- the harness's `_inject_test_from_fix` mechanism will handle injecting new test files into the pre-fix workspace. The 6 `commit_message` tasks lack new tests but have well-described commit messages as prompts; the agent's fix is validated against the full unit test suite.
+
+**Key decisions**:
+- Excluded PR #1224 (1713-line `feat:` refactor, too large and not a bug fix)
+- Excluded PRs touching only docs, CI workflows, or dependency bumps
+- Excluded PRs needing external infrastructure (Neo4j, FalkorDB, APIs)
+- The repo already has `CLAUDE.md` and `AGENTS.md` in `strip_extra` so they get removed for the `none` and `flat_llm` conditions</result>
+<usage>total_tokens: 134696
+tool_uses: 86
+duration_ms: 339113</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a5d1245.output
+
+---
+
+<task-notification>
+<task-id>a00cef3</task-id>
+<status>completed</status>
+<summary>Agent "Generate smolagents task YAML" completed</summary>
+<result>YAML parses cleanly, no duplicate pre_fix_commits, and the task distribution looks right.
+
+Here is a summary of the generated file at `/Users/ryo/dev/intent-layer/eval-harness/tasks/smolagents.yaml`:
+
+**Repo**: `huggingface/smolagents` -- a Python library for AI agents that write code to call tools and orchestrate other agents. ~25k GitHub stars.
+
+**Docker setup**: `python:3.11-slim` with `uv pip install --system "smolagents[test] @ ."`, which matches their CI workflow. The `[test]` extra pulls in all dependencies including `pytest`, `litellm`, `openai`, `docker` (Python client), etc.
+
+**10 tasks across 3 difficulty tiers**:
+
+| Category | Count | Line range |
+|----------|-------|-----------|
+| simple_fix | 5 | 18-50 lines |
+| targeted_refactor | 3 | 139-218 lines |
+| complex_fix | 2 | 122-157 lines |
+
+All 10 tasks have `prompt_source: failing_test` because every PR added new test functions in its diff. This is ideal for the eval harness -- the agent gets pointed at a failing test and needs to figure out the fix.
+
+**What the tasks cover**:
+
+1. **#1914** - `FinalAnswerException` incorrectly caught by `except Exception` in the Python executor
+2. **#1833** - `MessageRole` enum not properly deserialized from dict representation
+3. **#1826** - `None` content crashes stop-sequence trimming logic
+4. **#1797** - `Enum` and metaclass-based classes fail in the sandboxed executor
+5. **#1763** - `dict(message)` fails for `ChatMessage` dataclass objects in memory replay
+6. **#1823** - Nested dict/set comprehensions not supported in the sandboxed executor
+7. **#1802** - Stop sequences not stripped from model output post-generation
+8. **#1900** - API tool calls (Pydantic models from OpenAI/LiteLLM) not coerced to internal dataclass format
+9. **#1983** - `SafeSerializer.get_deserializer_code()` generates non-executable Python snippets
+10. **#1944** - Deserialization uses fragile `importlib` instead of a registry, failing on invalid class names
+
+**Exclusions**: I skipped docs-only PRs, CI changes, dep bumps, and anything requiring external infrastructure (Docker daemon, AWS Bedrock credentials, Selenium/browser, vLLM server, HuggingFace API tokens). All selected tests mock their external dependencies or test pure logic.</result>
+<usage>total_tokens: 96301
+tool_uses: 45
+duration_ms: 339477</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a00cef3.output
+
+---
+
+<task-notification>
+<task-id>a1c83f5</task-id>
+<status>completed</status>
+<summary>Agent "Generate pdm task YAML" completed</summary>
+<result>The file is valid. Here's a summary of what was created.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/pdm.yaml`
+
+**10 tasks** from the `pdm-project/pdm` repo (a Python package manager), drawn from merged bug-fix PRs between September 2025 and January 2026.
+
+**Docker setup**: Uses `python:3.11-slim` with git installed, then `pip install -e .` for the project and its test dependencies. The CI workflow shows PDM uses `pdm install -Gtest` normally, but since we're in a fresh container without pdm itself, a direct pip install is the right approach. The source layout is `src/pdm/` with tests in `tests/`.
+
+**Task breakdown by prompt_source**:
+- 4 `failing_test` tasks (tests exist in the diff or were modified with new expectations)
+- 6 `commit_message` tasks (no new/modified tests in the diff)
+
+**Task breakdown by category**:
+- 6 `simple_fix` (1-2 files changed, <15 lines)
+- 4 `targeted_refactor` (2-4 files, 19-64 lines)
+
+**Tasks with `failing_test` (best for eval)**:
+
+1. **fix-uv-lock-parsing-direct-url-sources** (PR #3641) -- Adds a new `test_parse_uv_lock_with_source_url_fallback` function. The fix changes how `make_hash()` handles direct URL sources in uv.lock where the URL is on the `source` object rather than individual `sdist`/`wheel` entries.
+
+2. **fix-ignore-python-requirement-during-lock** (PR #3643) -- Adds `test_lock_with_invalid_python_requirement`. The fix filters out `python` from the requirements list before resolution since it's not a real package.
+
+3. **fix-expand-env-vars-empty-string-missing** (PR #3655) -- Modifies existing test expectations. Previously `${BAR}` (undefined var) was left as-is; now it returns empty string. A 1-line fix in `src/pdm/utils.py`.
+
+4. **fix-python-314-default-formatter-usage** (PR #3683) -- Modifies test assertions to be case-insensitive. Python 3.14 changed argparse help output casing. The fix uses `RawDescriptionHelpFormatter` on 3.14+.
+
+**Tasks with `commit_message`** cover resolution excludes, pylock.toml git deps, publish skip-existing for Nexus, pre_build hook config reloading, packaging 26 compat, and http cache directory cleanup.
+
+**Notes for curation**:
+- Task `fix-python-314-default-formatter-usage` only fails on Python 3.14, so it won't fail on the 3.11-slim Docker image. You may want to remove it or change the Docker image to 3.14.
+- Task `fix-packaging-26-compatibility` depends on having `packaging>=26` installed. The pdm.lock pins packaging 26, but a bare `pip install -e .` might pull a different version. May need `pip install packaging==26.0` in setup.
+- The `strip_extra` list includes `AGENTS.md` and `CLAUDE.md` since pdm's repo already has those files.</result>
+<usage>total_tokens: 126874
+tool_uses: 93
+duration_ms: 326698</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a1c83f5.output
+
+---
+
+<task-notification>
+<task-id>a643d3b</task-id>
+<status>completed</status>
+<summary>Agent "Generate openai-agents task YAML" completed</summary>
+<result>`★ Insight ─────────────────────────────────────`
+
+**Why full 40-char SHAs matter for eval harness tasks:**
+Git's short SHA resolution is context-dependent -- an 8-char prefix that's unique today can become ambiguous as the repo grows. In an automated eval harness that clones repos and checks out commits, an ambiguous short SHA causes `git checkout` to fail silently or error. Full SHAs are deterministic forever.
+
+**The strip_extra field and its role in the A/B eval:**
+The `strip_extra` list (`.agents/`, `AGENTS.md`, `CLAUDE.md`, `PLANS.md`) tells the harness which AI context files to remove in the "none" condition (no context) and the "flat_llm" condition (flat context dumped into the prompt). Only in the "intent_layer" condition are these files left in place (or replaced with generated hierarchical nodes). This is the core experimental variable -- whether structured context helps, hurts, or does nothing for agent performance on real bug fixes.
+
+**Why all 10 tasks use prompt_source: failing_test:**
+This repo had unusually strong test coverage in its bug-fix PRs -- every selected PR added or modified test functions. `failing_test` is the gold standard for eval prompts because it gives the agent a concrete, verifiable signal ("make this test pass") rather than a vague commit message. It also means the harness can run just the target test file (~15s) instead of the full suite (~150s) for the A/B comparison, with full-suite verification as a final check.
+
+`─────────────────────────────────────────────────`
+
+---
+
+The eval harness task YAML file is complete at `/Users/ryo/dev/intent-layer/eval-harness/tasks/openai-agents.yaml`.
+
+Here's a summary of what was generated:
+
+**Repository**: `openai/openai-agents-python`
+
+**Docker setup**: `python:3.11-slim` with `pip install uv && uv sync --frozen --all-extras --all-packages --group dev`
+
+**Test command**: `OPENAI_API_KEY=fake-for-tests uv run pytest`
+
+**Strip extra** (AI context files to remove in baseline conditions): `.agents/`, `AGENTS.md`, `CLAUDE.md`, `PLANS.md`
+
+**10 tasks selected** from 12 candidates (dropped #2192 for lacking new tests, #2323 for being too large at 9 files/619 lines):
+
+| # | Task | Category | Lines | Files | Issue |
+|---|------|----------|-------|-------|-------|
+| 1 | materialize-iterable-input-history-2496 | simple_fix | 28 | 2 | -- |
+| 2 | drop-unsupported-tracing-usage-fields-2448 | targeted_refactor | 197 | 2 | #2444 |
+| 3 | persist-streamed-run-again-tool-items-2433 | simple_fix | 42 | 2 | #2426 |
+| 4 | cancel-model-task-on-guardrail-trip-2416 | targeted_refactor | 124 | 3 | -- |
+| 5 | crlf-support-for-apply-diff-2394 | targeted_refactor | 65 | 3 | -- |
+| 6 | offload-sync-tool-to-worker-threads-2387 | simple_fix | 74 | 2 | #2386 |
+| 7 | send-truncate-events-independent-of-response-2385 | targeted_refactor | 145 | 3 | #2370 |
+| 8 | defer-compaction-when-tool-outputs-present-2322 | complex_fix | 166 | 3 | #2317 |
+| 9 | convert-tool-exception-to-runtime-error-2243 | simple_fix | 26 | 2 | #2204 |
+| 10 | strict-json-schema-missing-in-chat-completions-2182 | simple_fix | 16 | 2 | #2181 |
+
+**Category distribution**: 5 simple_fix, 4 targeted_refactor, 1 complex_fix
+
+All 10 tasks use `prompt_source: failing_test` since every selected PR included new or modified test functions. All commit SHAs are full 40-character hashes matching the convention in existing task files.</result>
+<usage>total_tokens: 83163
+tool_uses: 83
+duration_ms: 367691</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a643d3b.output
+
+---
+
+<task-notification>
+<task-id>ab3555b</task-id>
+<status>completed</status>
+<summary>Agent "Generate pr-agent task YAML" completed</summary>
+<result>The file looks good. Here's a summary of what was created.
+
+---
+
+**File**: `/Users/ryo/dev/intent-layer/eval-harness/tasks/pr-agent.yaml`
+
+**10 tasks** from the `qodo-ai/pr-agent` repo, spanning August 2025 through February 2026.
+
+**Docker setup**: Uses `python:3.12-slim` (matching their Dockerfile's base image), installs `git` and `curl` (required by the project), then `pip install . && pip install -r requirements-dev.txt`. Test command is `pytest -v tests/unittest` (matching their CI workflow exactly).
+
+**Task breakdown by category**:
+- 3 `simple_fix` (2-70 lines, 1-2 files)
+- 3 `targeted_refactor` (112-279 lines, 3-6 files)
+- 3 `complex_fix` (207-715 lines, 3-12 files)
+- 1 `targeted_refactor` (128 lines, 3 files, refactor)
+
+**Prompt source breakdown**:
+- 7 tasks use `failing_test` (they introduced new or modified test files in the PR)
+- 3 tasks use `commit_message` (no test changes in the diff)
+
+**Notable tasks**:
+
+1. **fix-respect-reasoning-effort-config-for-gpt5** (PR #2131) -- The biggest task. GPT-5 models had `reasoning_effort` hardcoded to `'minimal'`, ignoring user config. Fix touches the litellm AI handler, utils, and adds 668 lines of tests.
+
+2. **fix-handle-similar-issue-on-non-github** (PR #2158) -- Clean bug fix. The `/similar_issue` command crashed on non-GitHub providers. 18 lines of source fix + 49 lines of new test.
+
+3. **add-aws-secrets-manager-for-lambda-deployments** (PR #1839) -- Large feature addition with 3 new test files, new provider class, and config loader changes across 12 files.
+
+4. **add-ignore-repositories-config-for-pr-filtering** (PR #1736) -- Adds repo ignore list to GitHub, Bitbucket, and GitLab webhook handlers, with a dedicated test file.
+
+5. **gitea-update-auth-to-authorization-header-token** (PR #2142) -- Changes the Gitea provider's auth method and updates 237 lines of existing tests.
+
+**Caveats to watch for**:
+- This project requires Python 3.12+ (`requires-python = ">=3.12"` in pyproject.toml). The Docker image matches.
+- The `requirements.txt` includes heavy dependencies (`litellm`, `anthropic`, `openai`, `google-cloud-aiplatform`) that need LLM API keys at runtime but not for unit tests (the unit tests mock everything).
+- The `AGENTS.md` file in the repo's root is stripped via `strip_extra` so it doesn't interfere with the A/B comparison.
+- Several tasks are merge commits (squash-merged PRs), so `pre_fix_commit` is the first parent of the merge commit.</result>
+<usage>total_tokens: 131207
+tool_uses: 76
+duration_ms: 379683</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/ab3555b.output
+
+---
+
+<task-notification>
+<task-id>a26660c</task-id>
+<status>completed</status>
+<summary>Agent "Generate wagtail task YAML" completed</summary>
+<result>Good, all pre_fix_commits are unique. I notice that task 1's `pre_fix_commit` (`38f1d405f0f5`) is task 5's `fix_commit`'s parent... wait, task 5's `pre_fix_commit` is `b687315282cd` which is task 1's `fix_commit`. That's fine - they're sequential commits. No workspace collision since the pre_fix_commits are different.
+
+The YAML is valid and well-structured. Let me do a final review of the file.
+
+Here's a summary of what was created at `/Users/ryo/dev/intent-layer/eval-harness/tasks/wagtail.yaml`:
+
+**10 tasks** from the wagtail/wagtail repo, covering merged PRs from June 2025 through January 2026.
+
+**Docker setup**: Uses `python:3.13-slim` with system packages for Pillow/image handling (`gcc`, `libjpeg-dev`, `zlib1g-dev`, `libffi-dev`), installs wagtail with testing extras and Django 5.2, and runs tests via `runtests.py` with SQLite backend.
+
+**Task breakdown by category**:
+- 4 `simple_fix` (28-88 lines, 2-6 files)
+- 3 `targeted_refactor` (38-136 lines, 4-9 files)
+- 3 `complex_fix` (137-389 lines, 6-10 files)
+
+**Task breakdown by prompt source**:
+- 9 `failing_test` - the harness injects the test file from the fix commit; the agent sees failing tests and must find + fix the bug
+- 1 `commit_message` - PR 13618 needs model/migration changes alongside the code fix, so the test can't be injected alone
+
+**Tasks in detail**:
+
+| # | ID | PR | What it fixes |
+|---|---|---|---|
+| 1 | `fix-correct-converter-pk-type-for-modelviewset` | #13490 | ModelViewSet used wrong URL converter for non-integer PKs, causing 404s |
+| 2 | `fix-normalize-redirect-paths-to-unicode` | #13653 | Percent-encoded redirect paths weren't matched case-insensitively |
+| 3 | `fix-avatar-preserves-original-format` | #13529 | Avatar upload always converted to PNG, losing original JPG/PNG format |
+| 4 | `fix-disable-usage-count-ordering-when-searching` | #13560 | Ordering by usage count broke when combined with search queries |
+| 5 | `fix-register-icons-hook-accumulated-icons` | #13420 | `register_icons` hook didn't pass accumulated icons to each hook function |
+| 6 | `fix-admin-api-renderer-classes-no-rest-framework` | #13284 | Admin API broke when `rest_framework` wasn't in INSTALLED_APPS |
+| 7 | `fix-preserve-svg-multiple-renditions` | #13125 | `preserve-svg` filter directive didn't work with `get_renditions()` (multiple renditions) |
+| 8 | `fix-database-backends-complex-order-by` | #12965 | Search backends crashed on complex `order_by` expressions like `F("field").asc(nulls_first=True)` |
+| 9 | `fix-alias-of-draft-page-shows-edit-form` | #13210 | Alias of an unpublished/draft page showed the full edit form instead of the alias redirect |
+| 10 | `fix-referenceindex-multiple-manytoone-fields` | #13618 | ReferenceIndex failed to traverse nested ManyToOne relationships properly |
+
+**Selection criteria applied**:
+- Skipped docs-only, CI-only, dependency bumps, and JS-only changes
+- Skipped tasks needing Elasticsearch or other external services
+- Skipped tasks where injected test files would need companion model/migration/URL changes that aren't in the test file (PRs 13436, 13700)
+- Verified each `failing_test` task's test functions use only pre-existing models and don't require new migrations
+- All pre_fix_commits are unique (no workspace collision risk)</result>
+<usage>total_tokens: 99251
+tool_uses: 114
+duration_ms: 588896</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a26660c.output
+
+---
+
+let's start with smolagents since all tasks have failing tests
+
+---
+
+# Phone a Friend: Codex Consultation
+
+You are calling OpenAI's Codex CLI. Use the helper script to manage the call.
+
+## Modes
+
+Pick the right mode based on what the user needs:
+- **explore**: User wants alternatives or is choosing between approaches. Codex generates orthogonal options.
+- **critique**: User wants independent flaw-finding on code or a design. Codex rates findings by severity.
+- **verify**: User wants a pass/fail gate. Codex returns VERDICT: PASS/FAIL/UNSURE with exit code 0/1/2.
+- *(omit)*: General open-ended consultation.
+
+If the user doesn't specify a mode, infer it:
+- "What do you think?" / "Any other approaches?" → `explore`
+- "Find bugs" / "What am I missing?" → `critique`
+- "Is this correct?" / "Am I done?" → `verify`
+- Everything else → omit mode (general)
+
+## Instructions
+
+1. Parse arguments. Optional QUESTION, optional flags: `--mode`, `--input-file FILE`, `--model MODEL`, `--max-depth N`.
+
+2. **Build a self-contained prompt for Codex.** Codex has ZERO context from this conversation. Package up:
+   - What the user is working on (task/goal)
+   - Your most recent response or analysis
+   - Relevant code, errors, diffs, file contents
+
+   **For large content** (diffs, full files): Write the content to a temp file and use `--input-file`:
+   ```bash
+   # Write context to temp file to avoid shell arg limits
+   # Then pass via --input-file
+   "/Users/ryo/.claude/plugins/cache/ryo-marketplace/phone-a-friend/1.0.0/scripts/call-codex.sh" "YOUR_QUESTION" --mode critique --input-file /tmp/context.txt --working-dir "$(pwd)"
+   ```
+
+   **If NO question was provided (bare `/phone-a-friend`):**
+   - Summarize the recent exchange and ask Codex for their take
+   - Infer the appropriate mode from conversation context
+
+3. Call Codex:
+```bash
+"/Users/ryo/.claude/plugins/cache/ryo-marketplace/phone-a-friend/1.0.0/scripts/call-codex.sh" "YOUR_PROMPT" --mode MODE --working-dir "$(pwd)" [--input-file /tmp/context.txt]
+```
+
+4. Present Codex's response. Synthesize with your own analysis:
+   - Where you agree
+   - Where Codex found something you missed
+   - Your combined recommendation
+
+5. For `verify` mode: check the exit code. If FAIL (1) or UNSURE (2), flag it clearly.
+
+## Important
+
+- Prompt MUST be self-contained — Codex has no conversation context.
+- Use `--input-file` for diffs, large code blocks, or multi-file content.
+- If Codex found something you missed, acknowledge it honestly.
+
+---
+
+but the intent layer hierarchy is auto-generated
+
+---
+
+how should we address them?
+
+---
+
+<task-notification>
+<task-id>b0863f5</task-id>
+<output-file>/private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b0863f5.output</output-file>
+<status>completed</status>
+<summary>Background command "Run smolagents eval (10 tasks × 3 conditions)" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/b0863f5.output
+
+---
+
+investigate why intent_layer generation failed for smolagents
+
+---
+
+fix the issues first
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session continuation**: This session continued from a prior one where `--resume` was implemented for the eval harness. The resume feature was complete, tested (34 tests), committed, pushed, and validated with a real eval run.
+
+2. **User: "Do our results match what they got in the paper so far?"**
+   - I read paper notes from memory (`paper-agentbench-2602-11988.md`) and consolidated results (`eval-harness/results/2026-02-16-consolidated.md`)
+   - Provided detailed comparison: flat context matches paper (no help), hierarchical context diverges (+12.5% in run 1)
+   - Key insight: paper only tested flat root-level files, never hierarchical
+
+3. **User: "let's run on another repo to get more data points"**
+   - Started looking at available task YAMLs and the repo list
+
+4. **User: "there are 12 repos identified in agentbench. dispatch an agent for each and generate the necessary files for testing"**
+   - Dispatched 11 parallel agents (all AGENTbench repos minus fastmcp which was already done)
+   - Each agent researched PRs, figured out Docker setup, and generated task YAML files
+   - All 11 completed successfully: ansible (10), graphiti (10), smolagents (10), transformers (10), openai-agents (10), opshin (10), pdm (10), pr-agent (10), tinygrad (10), ragas (10), wagtail (10)
+   - Total: 118 tasks across 12 repos
+
+5. **User: "let's start with smolagents since all tasks have failing tests"**
+   - Reviewed smolagents.yaml, ran dry-run (30 pairs), then launched eval in background
+
+6. **User invoked /phone-a-friend**
+   - Packaged study context for Codex critique
+   - Codex returned 9 findings ranked by severity
+   - I synthesized: agreed on most points, noted the treatment confound concern
+
+7. **User: "but the intent layer hierarchy is auto-generated"**
+   - User corrected me — Intent Layer files ARE auto-generated by the plugin, not hand-curated
+   - This partially addresses Codex's Finding 3 (treatment confound)
+   - I acknowledged the correction and noted the remaining confound (generation pipeline differs)
+
+8. **User: "how should we address them?"**
+   - I ranked the remaining valid critiques and proposed fixes:
+     1. Single-run stochasticity → `--repetitions 3`
+     2. Pre-registered difficulty → add `difficulty` field to YAMLs before seeing results
+     3. ITT scoring → report both per-protocol and intent-to-treat rates
+     4. Repo clustering → mixed-effects regression (later)
+     5. Content-vs-structure ablation → new condition (later)
+
+9. **Smolagents eval completed** (background task b0863f5)
+   - Read results: none 70%, flat_llm 78%, intent_layer 67%
+   - Discovered intent_layer warmup failed — "produced no files (took 31s)"
+   - All 10 tasks had 0 intent_layer context files
+   - intent_layer results are effectively a second `none` run
+
+10. **User: "investigate why intent_layer generation failed for smolagents"**
+    - Found skill generation log: `smolagents-latest-skill_gen.log`
+    - Root cause #1: Claude ran scripts against plugin root (`/Users/ryo/dev/intent-layer/`) instead of workspace
+    - Root cause #2: Cache saved empty `agents_files: []` result
+    - Root cause #3: Cache lookup treated empty file list as valid cache hit
+    - Fixed prompt_builder.py: added explicit "your cwd IS the target" instruction
+    - Fixed index_cache.py: `save()` early-returns when `agents_files` is empty
+    - Fixed task_runner.py: lookup checks `cache_entry and cache_entry.agents_files`
+    - Cleared poisoned cache entry from manifest JSON
+    - Tests: 189 passed
+
+11. **User: "fix the issues first"**
+    - User wants the methodological fixes done before re-running
+    - Started adding ITT scoring to reporter.py `_compute_summary`
+    - Added `itt_rate()` function and three new summary fields
+    - Still need to add difficulty classifications to all YAML files
+
+Key files modified in this session:
+- `eval-harness/lib/prompt_builder.py` — fixed skill generation prompt ambiguity
+- `eval-harness/lib/index_cache.py` — prevent caching empty results
+- `eval-harness/lib/task_runner.py` — skip empty cache entries on lookup
+- `eval-harness/lib/reporter.py` — added ITT scoring
+- `eval-harness/workspaces/.index-cache/cache-manifest.json` — removed poisoned entry
+- 11 new task YAML files generated in `eval-harness/tasks/`
+
+Still pending:
+- Add `difficulty` field to all 12 YAML files (pre-registered classification)
+- Also need to update `_recompute_summary` in cli.py to match the new ITT fields
+- Run tests to verify ITT changes
+- Re-run smolagents with fixed intent_layer generation
+
+Summary:
+1. Primary Request and Intent:
+   The user is running an AGENTbench replication study comparing flat vs hierarchical AI context files for coding agents. This session covered:
+   - Comparing our results against the paper's findings (arxiv 2602.11988v1)
+   - Generating task YAML files for all 12 AGENTbench repos (11 new, dispatched in parallel)
+   - Running the smolagents eval (10 tasks × 3 conditions)
+   - Getting a Codex critique of our methodology via /phone-a-friend
+   - Addressing methodological issues identified by Codex (pre-registered difficulty, ITT scoring)
+   - Investigating and fixing why intent_layer generation failed for smolagents (cache poisoning + prompt ambiguity)
+   - The user explicitly wants all fixes completed before re-running the eval
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: 12 Python repos, 3 conditions (none, flat_llm, intent_layer), testing if hierarchical context helps coding agents
+   - **Intent-to-treat (ITT) scoring**: All assigned tasks count, timeout/infra errors = fail (more conservative than per-protocol)
+   - **Pre-registered difficulty**: Classify task difficulty BEFORE seeing results to avoid cherry-picking
+   - **Cache poisoning**: Empty generation results cached and served as valid hits
+   - **Prompt ambiguity**: Claude agent confused plugin script paths with target repo path
+   - **Wilson Score confidence intervals**: Already implemented for multi-run data
+   - **Treatment confound**: User corrected that Intent Layer IS auto-generated (not hand-curated), partially addressing Codex's concern
+
+3. Files and Code Sections:
+
+   - **`eval-harness/lib/prompt_builder.py`** (MODIFIED)
+     - Fixed skill generation prompt that caused Claude to run scripts against wrong directory
+     - Added explicit "your cwd IS the target" instruction, shortened plugin_root to `scripts` variable
+     ```python
+     def build_skill_generation_prompt(plugin_root: str) -> str:
+         scripts = f"{plugin_root}/scripts"
+         return f"""Create an Intent Layer for this codebase to help future agents fix bugs.
+
+     IMPORTANT: Your current working directory is the TARGET repository to analyze.
+     All commands below use "." (current directory) as the target. Do NOT pass any
+     other path — the scripts at {scripts}/ are tools, not the target.
+
+     ## Step 0: Detect State
+
+     Run: {scripts}/detect_state.sh .
+
+     If this reports "complete", the Intent Layer already exists. In that case, skip
+     to Step 5 (validate). Otherwise continue.
+     ...
+     ```
+
+   - **`eval-harness/lib/index_cache.py`** (MODIFIED)
+     - Added early return in `save()` to prevent caching empty results
+     ```python
+     def save(self, repo, commit, workspace, agents_files, condition="", repo_level=False):
+         # Never cache empty results — they poison all subsequent lookups
+         if not agents_files:
+             return
+         # ... rest of save logic
+     ```
+
+   - **`eval-harness/lib/task_runner.py`** (MODIFIED)
+     - Cache lookup now skips entries with empty file lists
+     ```python
+     if cache_entry and cache_entry.agents_files:
+         # Cache hit with actual files: restore them
+         ...
+     ```
+
+   - **`eval-harness/lib/reporter.py`** (MODIFIED — in progress)
+     - Added ITT (intent-to-treat) scoring alongside per-protocol rates
+     ```python
+     def itt_rate(task_results: list[TaskResult]) -> float:
+         """Intent-to-treat: all tasks count, non-success = fail."""
+         if not task_results:
+             return 0
+         return round(sum(1 for r in task_results if r.success) / len(task_results), 2)
+
+     # ... in summary dict:
+     "none_itt_rate": itt_rate(none_results),
+     "flat_llm_itt_rate": itt_rate(flat_results),
+     "intent_layer_itt_rate": itt_rate(il_results),
+     ```
+
+   - **`eval-harness/workspaces/.index-cache/cache-manifest.json`** (MODIFIED)
+     - Removed poisoned `smolagents-intent_layer` entry with empty `agents_files: []`
+
+   - **11 new task YAML files generated** in `eval-harness/tasks/`:
+     - `ansible.yaml` (10 tasks, uses `devel` branch, 4 lack pytest tests)
+     - `graphiti.yaml` (10 tasks, task 4 is 2200 lines)
+     - `smolagents.yaml` (10 tasks, all `failing_test` — ideal)
+     - `transformers.yaml` (10 tasks, CPU-only)
+     - `openai-agents.yaml` (10 tasks, all `failing_test`)
+     - `opshin.yaml` (10 tasks, uses `dev` branch)
+     - `pdm.yaml` (10 tasks, one needs Python 3.14 — should drop)
+     - `pr-agent.yaml` (10 tasks, needs Python 3.12+)
+     - `tinygrad.yaml` (10 tasks, CPU-only, uses `master` branch)
+     - `ragas.yaml` (10 tasks, 2 complex tasks are feature additions)
+     - `wagtail.yaml` (10 tasks, Django-based, needs image libs)
+
+   - **`eval-harness/results/2026-02-17-145755.md`** (READ — smolagents results)
+     - none: 7/10 (70%), flat_llm: 7/9 excl infra (78%), intent_layer: 6/9 (67%)
+     - Intent_layer results INVALID — 0 context files generated for all tasks
+
+   - **`eval-harness/logs/smolagents-latest-skill_gen.log`** (READ — diagnosed failure)
+     ```
+     [tool] Bash: /Users/ryo/dev/intent-layer/scripts/detect_state.sh /Users/ryo/dev/intent-layer/
+     [tool] Bash: /Users/ryo/dev/intent-layer/scripts/estimate_all_candidates.sh /Users/ryo/dev/intent-layer/
+     [tool] Bash: ls /Users/ryo/dev/intent-layer/eval-harness/workspaces/smolagents-intent_layer-warmup
+     [tool] Bash: git log --oneline -5
+     [tool] Bash: git checkout HEAD -- .
+     [result] 8 turns, $0.3669
+     ```
+
+4. Errors and fixes:
+   - **Intent Layer generation ran against wrong directory**: Claude ran `detect_state.sh /Users/ryo/dev/intent-layer/` (plugin root) instead of `.` (workspace). The prompt's `{plugin_root}/scripts/detect_state.sh .` was ambiguous — Claude saw the full path and used the plugin root as the target. Fixed by adding explicit "your cwd IS the target" instruction.
+   - **Cache poisoned with empty results**: `save()` in index_cache.py cached `agents_files: []` when generation failed. Fixed by early-returning from `save()` when list is empty.
+   - **Cache lookup accepted empty entries**: `_check_or_generate_index` checked `if cache_entry:` which is truthy even with empty files. Fixed by checking `if cache_entry and cache_entry.agents_files:`.
+   - **User correction on treatment confound**: I initially agreed with Codex that intent_layer was "curated" vs flat_llm being "auto-generated". User corrected: "but the intent layer hierarchy is auto-generated." I acknowledged both are machine-generated, reducing the confound concern. Remaining confound: generation pipelines differ.
+
+5. Problem Solving:
+   - Diagnosed why intent_layer produced 0 files across all smolagents tasks by tracing: warmup log → prompt text → script invocations → detected it ran against plugin root
+   - Identified the cache poisoning chain: empty warmup result → cached → every task lookup found cached empty → all tasks ran with no context
+   - Synthesized Codex critique with our own analysis, identifying which concerns were already addressed (auto-generation) vs still valid (stochasticity, post-hoc difficulty)
+
+6. All user messages:
+   - "Do our results match what they got in the paper so far?"
+   - "let's run on another repo to get more data points"
+   - "there are 12 repos identified in agentbench. dispatch an agent for each and generate the necessary files for testing"
+   - "let's start with smolagents since all tasks have failing tests"
+   - (invoked /phone-a-friend for Codex consultation)
+   - "but the intent layer hierarchy is auto-generated"
+   - "how should we address them?"
+   - "investigate why intent_layer generation failed for smolagents"
+   - "fix the issues first"
+
+7. Pending Tasks:
+   - **Add `difficulty` field to all 12 YAML files** — Pre-registered classification: easy (simple_fix, ≤2 files, ≤30 lines), medium (targeted_refactor, or simple_fix with 3+ files), hard (complex_fix, or 100+ lines across 4+ files). Must be done BEFORE seeing results.
+   - **Update `_recompute_summary` in cli.py** to include the new ITT fields (for --resume merge to work with new format)
+   - **Run tests** to verify ITT and reporter changes
+   - **Re-run smolagents eval** with `--resume` to carry forward none/flat_llm and only re-run intent_layer with fixed generation
+   - **Eventually**: Run `--repetitions 3` on interesting repos, add mixed-effects regression
+
+8. Current Work:
+   I was in the middle of implementing the three methodological fixes the user requested before re-running:
+   1. ✅ Cache/prompt bugs fixed (prompt_builder.py, index_cache.py, task_runner.py)
+   2. ✅ ITT scoring partially added to reporter.py `_compute_summary` (added `itt_rate()` function and three new summary fields)
+   3. ❌ Pre-registered difficulty classifications NOT YET added to YAML files
+   
+   The ITT edit to reporter.py just completed. Tests have not been run yet for the reporter change. The `_recompute_summary` in cli.py (used by --resume) also needs matching ITT fields.
+
+9. Optional Next Step:
+   Continue the methodological fixes the user requested with "fix the issues first":
+   - Run tests to verify the ITT reporter change
+   - Update `_recompute_summary` in `eval-harness/lib/cli.py` to include matching ITT fields
+   - Add `difficulty` field to all 12 YAML task files using pre-registered classification
+   - Then re-run smolagents with fixed intent_layer generation
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+yes, kick off the smolagents resume run
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session continuation**: This session continued from a prior conversation about the AGENTbench replication study. The summary provided extensive context about what was previously done.
+
+2. **First action**: I picked up from where the previous session left off - three methodological fixes needed before re-running smolagents:
+   - Cache/prompt bugs (already fixed in prior session)
+   - ITT scoring (partially added to reporter.py in prior session)
+   - Pre-registered difficulty classifications (not yet done)
+
+3. **Reading files**: I read reporter.py and cli.py to check current state. Found:
+   - reporter.py already had ITT scoring in `_compute_summary` (lines 274-278, 292-294)
+   - cli.py's `_recompute_summary` was MISSING ITT fields
+
+4. **Fix 1: ITT in _recompute_summary (cli.py)**:
+   - Added `assigned` counter to track ALL tasks (including infra errors) per condition
+   - Added `itt_rate()` function 
+   - Added three ITT fields to summary dict
+   - Tests: 189 passed
+
+5. **Reading all 12 YAML files**: Read all task YAMLs to classify difficulty.
+
+6. **Fix 2: Added `difficulty` field to Task model (models.py)**:
+   - Added `difficulty: Literal["easy", "medium", "hard"] | None = None`
+
+7. **Fix 3: Classified and injected difficulty into all 13 YAMLs**:
+   - Classification algorithm: easy (simple_fix, ≤2 files, ≤30 lines), medium (targeted_refactor or simple_fix exceeding easy), hard (complex_fix or 100+ lines across 4+ files)
+   - Used Python script to classify, then text injection script to add `difficulty:` after `category:` lines
+   - Distribution: 29 easy (24%), 63 medium (52%), 29 hard (24%)
+   - All 121 tasks across 13 files validated
+
+8. **Fix 4: Added ITT test assertions**:
+   - test_resume.py: Added ITT assertions to `test_single_run_summary`
+   - test_reporter.py: Added ITT assertions to `test_summary_three_success_rates` and `test_infrastructure_errors_excluded_from_success_rate`
+   - The infra error test is key: per-protocol = 1.0 (excludes infra), ITT = 0.5 (includes infra as failure)
+
+9. **User: "yes, kick off the smolagents resume run"**:
+   - Launched: `python -m lib.cli run --tasks tasks/smolagents.yaml --resume results/2026-02-17-105514.json --condition intent_layer --parallel 2 --verbose --timeout 300`
+   - 14 passed pairs carried forward, 10 intent_layer pairs to re-run
+   - Warmup generated 2 files (CLAUDE.md + src/smolagents/AGENTS.md) in 468.8s
+   - Cache hits working correctly (0.0s for each task's skill_gen)
+
+10. **Run progress**:
+   - fix-final-answer-exception: PASS (72.3s, 10 tool calls)
+   - fix-role-not-converted: PASS (44.0s, 6 tool calls)
+   - fix-none-content: PASS (implied from output flow)
+   - fix-dict-message: PASS (43.1s, 5 tool calls)
+   - add-nested-dictcomp: PASS (112.0s, 17 tool calls)
+   - fix-stop-sequence: FAIL (test output shows model loading issues)
+   - coerce-tool-calls: PASS (165.0s, 26 tool calls)
+   - fix-safe-serializer: PASS (210.3s, 24 tool calls)
+   - fix-enum-metaclass: PASS (implied)
+   - refactor-deserialization: Running tests at last check (183.2s, 29 tool calls)
+
+11. **User message during run**: "seems like there is very little variation in score between the approaches" - User is observing that none/flat_llm/intent_layer scores are converging, suggesting single-run stochasticity is the dominant factor.
+
+12. **User: /compact** - Requested conversation compaction.
+
+The run is still in progress - the last task (refactor-deserialization) was running its test suite when the summary was requested.
+
+Files modified in this session:
+- eval-harness/lib/cli.py - Added ITT fields to _recompute_summary
+- eval-harness/lib/models.py - Added difficulty field to Task model
+- eval-harness/tests/test_resume.py - Added ITT assertions
+- eval-harness/tests/test_reporter.py - Added ITT assertions
+- 13 YAML files in eval-harness/tasks/ - Added difficulty field to all 121 tasks
+
+Summary:
+1. Primary Request and Intent:
+   The user is running an AGENTbench replication study (arxiv 2602.11988v1) comparing 3 conditions: none, flat_llm, and intent_layer (hierarchical AGENTS.md files). In this session, the user wanted to:
+   - Complete three methodological fixes identified from a Codex critique (prior session): (a) ITT scoring, (b) pre-registered difficulty classifications, (c) cache/prompt bug fixes (already done)
+   - Re-run the smolagents eval with fixed intent_layer generation using `--resume` to carry forward passing none/flat_llm results
+   - The user noted "seems like there is very little variation in score between the approaches" — observing that single-run stochasticity may dominate
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: 12 Python repos, 3 conditions (none, flat_llm, intent_layer), testing if hierarchical context helps coding agents
+   - **Intent-to-treat (ITT) scoring**: All assigned tasks count in denominator, timeout/infra errors = fail (conservative). Per-protocol excludes infra errors from denominator.
+   - **Pre-registered difficulty**: Classify task difficulty BEFORE seeing results using objective metrics (category, lines_changed, files_changed)
+   - **Cache poisoning** (fixed in prior session): Empty generation results were cached and served as valid hits
+   - **`--resume` flag**: Carries forward passing (task_id, condition) pairs from prior JSON, only re-runs failures
+   - **Wilson Score confidence intervals**: Already implemented for multi-run data
+   - Prior session's Codex critique identified: single-run stochasticity, post-hoc difficulty classification, and ITT vs per-protocol scoring as key methodological gaps
+
+3. Files and Code Sections:
+
+   - **`eval-harness/lib/cli.py`** (MODIFIED — added ITT to `_recompute_summary`)
+     - This is the resume merge path. `_recompute_summary` works at the JSON dict level (no TaskResult objects). It needed matching ITT fields so resumed runs produce the same summary format as fresh runs.
+     - Added `assigned` counter alongside existing `successes`/`total` per condition
+     - Added `itt_rate()` local function and three `*_itt_rate` fields
+     ```python
+     cond_stats: dict[str, dict] = {
+         "none": {"successes": 0, "total": 0, "assigned": 0},
+         "flat_llm": {"successes": 0, "total": 0, "assigned": 0},
+         "intent_layer": {"successes": 0, "total": 0, "assigned": 0},
+     }
+     # ... in the loop:
+     cond_stats[cond_key]["assigned"] += 1  # always increment
+     # ... new function:
+     def itt_rate(stats):
+         if stats["assigned"] == 0:
+             return 0
+         return round(stats["successes"] / stats["assigned"], 2)
+     # ... in summary dict:
+     "none_itt_rate": itt_rate(cond_stats["none"]),
+     "flat_llm_itt_rate": itt_rate(cond_stats["flat_llm"]),
+     "intent_layer_itt_rate": itt_rate(cond_stats["intent_layer"]),
+     ```
+
+   - **`eval-harness/lib/models.py`** (MODIFIED — added difficulty field)
+     - Task model needed a `difficulty` field for pre-registered classification
+     ```python
+     class Task(BaseModel):
+         id: str
+         category: Literal["simple_fix", "targeted_refactor", "complex_fix"]
+         difficulty: Literal["easy", "medium", "hard"] | None = None
+         pre_fix_commit: str
+         fix_commit: str
+         # ... rest unchanged
+     ```
+
+   - **`eval-harness/lib/reporter.py`** (already had ITT from prior session)
+     - `_compute_summary` already has `itt_rate()` and three `*_itt_rate` fields (lines 274-294)
+     - No changes in this session
+
+   - **`eval-harness/tests/test_resume.py`** (MODIFIED — added ITT assertions)
+     ```python
+     # In test_single_run_summary:
+     # ITT: infra errors count as failures in denominator
+     assert summary["none_itt_rate"] == 1.0
+     assert summary["flat_llm_itt_rate"] == 0  # 0 successes / 1 assigned
+     assert summary["intent_layer_itt_rate"] == 1.0
+     ```
+
+   - **`eval-harness/tests/test_reporter.py`** (MODIFIED — added ITT assertions)
+     - Added to `test_summary_three_success_rates`: ITT rates same as per-protocol when no infra errors
+     - Added to `test_infrastructure_errors_excluded_from_success_rate`: key divergence test
+     ```python
+     # ITT: 1 success out of 2 assigned = 0.5 (infra error counts as failure)
+     assert summary["none_itt_rate"] == 0.5
+     ```
+
+   - **13 YAML files in `eval-harness/tasks/`** (ALL MODIFIED — difficulty field added)
+     - ansible.yaml (10 tasks: 1 easy, 8 medium, 1 hard)
+     - express.yaml (3 tasks: 2 easy, 1 medium)
+     - fastmcp.yaml (8 tasks: 1 easy, 1 medium, 6 hard)
+     - graphiti.yaml (10 tasks: 3 easy, 6 medium, 1 hard)
+     - openai-agents.yaml (10 tasks: 3 easy, 6 medium, 1 hard)
+     - opshin.yaml (10 tasks: 2 easy, 7 medium, 1 hard)
+     - pdm.yaml (10 tasks: 4 easy, 6 medium)
+     - pr-agent.yaml (10 tasks: 2 easy, 3 medium, 5 hard)
+     - ragas.yaml (10 tasks: 1 easy, 7 medium, 2 hard)
+     - smolagents.yaml (10 tasks: 3 easy, 5 medium, 2 hard)
+     - tinygrad.yaml (10 tasks: 4 easy, 5 medium, 1 hard)
+     - transformers.yaml (10 tasks: 4 easy, 4 medium, 2 hard)
+     - wagtail.yaml (10 tasks: 6 medium, 4 hard)
+     - Total: 121 tasks — 29 easy (24%), 63 medium (52%), 29 hard (24%)
+     - Classification algorithm: easy = simple_fix AND ≤2 files AND ≤30 lines; medium = targeted_refactor OR simple_fix exceeding easy thresholds; hard = complex_fix OR 100+ lines across 4+ files
+     - `difficulty:` inserted right after `category:` in each task block
+
+   - **`eval-harness/workspaces/.index-cache/cache-manifest.json`** (verified clean)
+     - Poisoned `smolagents-intent_layer` entry (empty agents_files) was already removed in prior session
+     - Only contains: fastmcp-flat_llm (2 files), fastmcp-intent_layer (4 files), smolagents-flat_llm (2 files)
+
+4. Errors and fixes:
+   - No new errors in this session. All changes from prior session's fixes (prompt_builder.py, index_cache.py, task_runner.py) were already in place and verified working:
+     - Intent layer generation correctly wrote to workspace (not plugin root)
+     - Cache correctly stored 2 files for smolagents-intent_layer
+     - Cache lookups correctly serving the cached files (0.0s per task)
+
+5. Problem Solving:
+   - The ITT vs per-protocol distinction was important: in `_recompute_summary` (cli.py), the existing code only tracked `successes` and `total` (valid non-infra tasks). ITT needed a separate `assigned` counter that includes infra errors in the denominator.
+   - Difficulty classification used a Python script for classification + text injection (rather than yaml.dump which would destroy comments and ordering)
+   - The smolagents resume run confirms all three bug fixes work: warmup generated 2 actual files, cache hits are instant, and intent_layer tasks are actually getting context this time
+
+6. All user messages:
+   - "yes, kick off the smolagents resume run"
+   - "seems like there is very little variation in score between the approaches" (sent during the run)
+   - "/compact" (sent during the run)
+
+7. Pending Tasks:
+   - The smolagents resume run (background task b590e79) is still completing — last task (refactor-deserialization-registry-pattern) was running tests at last check
+   - Read and analyze the final merged results once the run completes
+   - Address user's observation: "seems like there is very little variation in score between the approaches" — this reinforces the need for `--repetitions 3-5` to measure variance and determine if differences are real
+   - Eventually: Run more repos, use `--repetitions 3` on interesting repos
+
+8. Current Work:
+   The smolagents resume run is in its final stages. Background task b590e79 is running:
+   ```
+   python -m lib.cli run --tasks tasks/smolagents.yaml --resume results/2026-02-17-105514.json --condition intent_layer --parallel 2 --verbose --timeout 300
+   ```
+   
+   Results so far (9 of 10 tasks completed):
+   - PASS: fix-final-answer, fix-role-not-converted, fix-none-content, fix-dict-message, add-nested-dictcomp, coerce-tool-calls, fix-safe-serializer, fix-enum-metaclass
+   - FAIL: fix-stop-sequence (test output showed model loading/deprecation warnings)
+   - RUNNING: refactor-deserialization-registry-pattern (183.2s, 29 tool calls, tests started at 15:40:15)
+   
+   The intent_layer warmup generated 2 files (CLAUDE.md + src/smolagents/AGENTS.md) in 468.8s. All subsequent cache hits were instant (0.0s).
+
+9. Optional Next Step:
+   Once background task b590e79 completes:
+   1. Read the final results markdown to see the merged none/flat_llm/intent_layer comparison for smolagents
+   2. Address user's observation: "seems like there is very little variation in score between the approaches" — this is exactly what the Codex critique predicted (single-run stochasticity). The next concrete step would be running with `--repetitions 3` to get variance data and confidence intervals.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
