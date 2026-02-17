@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "401af54bd6a7",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "eval-harness/.gitignore",
+    "eval-harness/lib/claude_runner.py",
+    "eval-harness/lib/cli.py",
+    "eval-harness/lib/index_cache.py",
+    "eval-harness/lib/prompt_builder.py",
+    "eval-harness/lib/task_runner.py",
+    "eval-harness/results/2026-02-16-consolidated.md",
+    "eval-harness/tasks/fastmcp-rerun.yaml",
+    "eval-harness/tasks/fastmcp.yaml",
+    "eval-harness/tests/test_claude_runner.py",
+    "eval-harness/tests/test_task_runner.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/1af54bd6a7/0/metadata.json",
+      "transcript": "/40/1af54bd6a7/0/full.jsonl",
+      "context": "/40/1af54bd6a7/0/context.md",
+      "content_hash": "/40/1af54bd6a7/0/content_hash.txt",
+      "prompt": "/40/1af54bd6a7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 113256,
+    "cache_read_tokens": 2272786,
+    "output_tokens": 574,
+    "api_call_count": 23
+  }
+}
