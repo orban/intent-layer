@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.task_runner import TaskResult, Condition
+from lib.stats import wilson_score_interval, ci_overlap
 
 
 @dataclass
@@ -144,6 +145,12 @@ class Reporter:
         result["successes"] = successes
         result["total_valid_runs"] = len(valid_runs)
 
+        # Wilson Score confidence interval (90%)
+        ci_lower, ci_upper, ci_center = wilson_score_interval(
+            successes, len(valid_runs), confidence=0.90
+        )
+        result["ci_90"] = {"lower": round(ci_lower, 3), "upper": round(ci_upper, 3)}
+
         # Efficiency medians (secondary metrics — from valid runs only)
         if valid_runs:
             result["median"] = {
@@ -268,13 +275,47 @@ class Reporter:
 
         infra_errors = sum(1 for r in results if self._is_infra_error(r))
 
-        return {
+        summary: dict[str, Any] = {
             "total_tasks": len(set(r.task_id for r in results)),
             "infrastructure_errors": infra_errors,
             "none_success_rate": success_rate(none_results),
             "flat_llm_success_rate": success_rate(flat_results),
             "intent_layer_success_rate": success_rate(il_results),
         }
+
+        # Add CIs when we have multi-run data
+        has_multi_run = any(
+            sum(1 for r2 in results if r2.task_id == r.task_id and r2.condition == r.condition) > 1
+            for r in results
+        )
+        if has_multi_run:
+            for label, cond_results in [
+                ("none", none_results),
+                ("flat_llm", flat_results),
+                ("intent_layer", il_results),
+            ]:
+                valid = [r for r in cond_results if not self._is_infra_error(r)]
+                if valid:
+                    successes = sum(1 for r in valid if r.success)
+                    ci_lower, ci_upper, _ = wilson_score_interval(successes, len(valid), 0.90)
+                    summary[f"{label}_ci_90"] = {
+                        "lower": round(ci_lower, 3),
+                        "upper": round(ci_upper, 3),
+                    }
+
+            # Significance: check CI overlap between none and each treatment
+            none_ci = summary.get("none_ci_90")
+            if none_ci:
+                for treatment in ("flat_llm", "intent_layer"):
+                    t_ci = summary.get(f"{treatment}_ci_90")
+                    if t_ci:
+                        overlaps = ci_overlap(
+                            (none_ci["lower"], none_ci["upper"]),
+                            (t_ci["lower"], t_ci["upper"]),
+                        )
+                        summary[f"{treatment}_vs_none_significant"] = not overlaps
+
+        return summary
 
     def write_json(self, results: EvalResults) -> str:
         """Write results to JSON file."""
@@ -283,13 +324,21 @@ class Reporter:
             json.dump(asdict(results), f, indent=2)
         return str(path)
 
+    @staticmethod
+    def _format_ci(ci: dict) -> str:
+        """Format a CI dict as '[lower,upper]' with percentage values."""
+        return f"[{ci['lower']:.0%},{ci['upper']:.0%}]"
+
     def write_markdown(self, results: EvalResults) -> str:
         """Write results to Markdown file.
 
         Handles both single-run (backward-compatible) and multi-run formats.
         Uses _get_fix_metrics() to extract efficiency numbers from any format.
+        When multi-run data includes CIs, they're shown inline with pass rates.
         """
         path = self.output_dir / f"{results.eval_id}.md"
+        summary = results.summary
+        has_cis = "none_ci_90" in summary or "intent_layer_ci_90" in summary
 
         lines = [
             f"# Eval Results: {results.eval_id}",
@@ -298,31 +347,116 @@ class Reporter:
             "",
             "## Summary",
             "",
-            f"- **Total tasks:** {results.summary['total_tasks']}",
-            f"- **Infrastructure errors:** {results.summary['infrastructure_errors']}",
-            f"- **None success rate:** {results.summary['none_success_rate']:.0%}",
-            f"- **Flat LLM success rate:** {results.summary['flat_llm_success_rate']:.0%}",
-            f"- **Intent Layer success rate:** {results.summary['intent_layer_success_rate']:.0%}",
+            f"- **Total tasks:** {summary['total_tasks']}",
+            f"- **Infrastructure errors:** {summary['infrastructure_errors']}",
+        ]
+
+        # Per-condition summary with optional CIs
+        for label, display_name in [
+            ("none", "None"),
+            ("flat_llm", "Flat LLM"),
+            ("intent_layer", "Intent Layer"),
+        ]:
+            rate = summary[f"{label}_success_rate"]
+            ci = summary.get(f"{label}_ci_90")
+            if ci:
+                lines.append(
+                    f"- **{display_name} success rate:** {rate:.0%} "
+                    f"90% CI {self._format_ci(ci)}"
+                )
+            else:
+                lines.append(f"- **{display_name} success rate:** {rate:.0%}")
+
+        # Significance flags
+        if has_cis:
+            lines.append("")
+            for treatment, display_name in [
+                ("flat_llm", "Flat LLM"),
+                ("intent_layer", "Intent Layer"),
+            ]:
+                sig_key = f"{treatment}_vs_none_significant"
+                if sig_key in summary:
+                    if summary[sig_key]:
+                        lines.append(f"- **{display_name} vs None:** significant (non-overlapping CIs)")
+                    else:
+                        lines.append(f"- **{display_name} vs None:** not significant (overlapping CIs)")
+
+            # CI width as variance proxy
+            widths = []
+            for label in ("none", "flat_llm", "intent_layer"):
+                ci = summary.get(f"{label}_ci_90")
+                if ci:
+                    widths.append((label, ci["upper"] - ci["lower"]))
+            if widths:
+                lines.append("")
+                lines.append("**CI widths (variance proxy):** " + ", ".join(
+                    f"{label}: {w:.0%}" for label, w in widths
+                ))
+
+        lines += [
             "",
             "## Results",
             "",
-            "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines | \u0394 Time | \u0394 Tokens |",
-            "|------|-----------|---------|----------|--------|------------|-------|--------|----------|",
         ]
+
+        # Table header — add IL vs none column when multi-run CIs exist
+        if has_cis:
+            lines.append(
+                "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
+                "| \u0394 Time | \u0394 Tokens | IL vs none |"
+            )
+            lines.append(
+                "|------|-----------|---------|----------|--------|------------|-------"
+                "|--------|----------|------------|"
+            )
+        else:
+            lines.append(
+                "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
+                "| \u0394 Time | \u0394 Tokens |"
+            )
+            lines.append(
+                "|------|-----------|---------|----------|--------|------------|-------"
+                "|--------|----------|"
+            )
 
         for r in results.results:
             task_id = r["task_id"]
             deltas = r.get("deltas", {})
+
+            # Pre-compute per-task CI comparison for IL vs none
+            none_data = r.get("none")
+            il_data = r.get("intent_layer")
+            il_vs_none = ""
+            if has_cis and none_data and il_data:
+                none_ci = none_data.get("ci_90")
+                il_ci = il_data.get("ci_90")
+                if none_ci and il_ci:
+                    none_rate = none_data.get("success_rate", 0)
+                    il_rate = il_data.get("success_rate", 0)
+                    diff = il_rate - none_rate
+                    overlaps = ci_overlap(
+                        (none_ci["lower"], none_ci["upper"]),
+                        (il_ci["lower"], il_ci["upper"]),
+                    )
+                    sig_label = "overlap" if overlaps else "sig."
+                    il_vs_none = f"{diff:+.0%} ({sig_label})"
 
             for cond_key in ("none", "flat_llm", "intent_layer"):
                 cond_data = r.get(cond_key)
                 if cond_data is None:
                     continue
 
-                # Success: multi-run shows rate, single-run shows PASS/FAIL
+                # Success: multi-run shows rate + CI, single-run shows PASS/FAIL
                 if "success_rate" in cond_data:
                     rate = cond_data["success_rate"]
-                    success = f"{rate:.0%} ({cond_data['successes']}/{cond_data['total_valid_runs']})"
+                    ci = cond_data.get("ci_90")
+                    if ci:
+                        success = (
+                            f"{cond_data['successes']}/{cond_data['total_valid_runs']} "
+                            f"{rate:.0%} {self._format_ci(ci)}"
+                        )
+                    else:
+                        success = f"{rate:.0%} ({cond_data['successes']}/{cond_data['total_valid_runs']})"
                 else:
                     success = "PASS" if cond_data.get("success") else "FAIL"
 
@@ -344,17 +478,27 @@ class Reporter:
                     d_time = delta.get("time_percent", "N/A")
                     d_tokens = delta.get("tokens_percent", "N/A")
 
-                lines.append(
+                row = (
                     f"| {task_id} | {cond_key} | {success} | {time_s:.1f} | "
                     f"{tokens_fmt} | {tool_calls} | {lines_changed} | "
-                    f"{d_time} | {d_tokens} |"
+                    f"{d_time} | {d_tokens}"
                 )
 
+                if has_cis:
+                    # Show IL vs none comparison on the intent_layer row
+                    comparison = il_vs_none if cond_key == "intent_layer" else ""
+                    row += f" | {comparison} |"
+                else:
+                    row += " |"
+
+                lines.append(row)
+
             # Blank row between tasks
-            lines.append("|  |  |  |  |  |  |  |  |  |")
+            blank = "|  |  |  |  |  |  |  |  |  |" + ("  |" if has_cis else "")
+            lines.append(blank)
 
         # Remove trailing blank row
-        if lines and lines[-1] == "|  |  |  |  |  |  |  |  |  |":
+        if lines and lines[-1].strip().replace("|", "").replace(" ", "") == "":
             lines.pop()
 
         with open(path, "w") as f:

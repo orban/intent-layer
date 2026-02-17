@@ -580,3 +580,173 @@ def test_single_run_delta_uses_success_rate_delta_key():
     assert "success_rate_delta" in delta
     assert "success" not in delta
     assert delta["success_rate_delta"] == "+1"
+
+
+# ── CI integration tests ───────────────────────────────────────
+
+
+def _make_multi_run_results():
+    """Helper: 3 runs per condition across 2 tasks, with varying outcomes."""
+    results = []
+    for task_id in ("task-1", "task-2"):
+        # none: 1/3 pass
+        for i, success in enumerate([True, False, False]):
+            results.append(TaskResult(
+                task_id=task_id, condition=Condition.NONE, success=success,
+                test_output="PASS" if success else "FAIL",
+                wall_clock_seconds=100.0, input_tokens=5000, output_tokens=2000,
+                tool_calls=20, lines_changed=50, files_touched=["a.py"],
+            ))
+        # intent_layer: 3/3 pass
+        for i in range(3):
+            results.append(TaskResult(
+                task_id=task_id, condition=Condition.INTENT_LAYER, success=True,
+                test_output="PASS", wall_clock_seconds=60.0,
+                input_tokens=3000, output_tokens=1000, tool_calls=10,
+                lines_changed=25, files_touched=["a.py"],
+            ))
+    return results
+
+
+def test_multi_run_serialize_condition_has_ci():
+    """Multi-run serialization includes ci_90 field."""
+    reporter = Reporter(output_dir="/tmp")
+
+    runs = [
+        TaskResult(
+            task_id="fix-ci", condition=Condition.NONE, success=True,
+            test_output="PASS", wall_clock_seconds=100.0,
+            input_tokens=5000, output_tokens=2000, tool_calls=20,
+            lines_changed=50, files_touched=["a.py"],
+        ),
+        TaskResult(
+            task_id="fix-ci", condition=Condition.NONE, success=False,
+            test_output="FAIL", wall_clock_seconds=120.0,
+            input_tokens=6000, output_tokens=2500, tool_calls=25,
+            lines_changed=60, files_touched=["a.py"],
+        ),
+        TaskResult(
+            task_id="fix-ci", condition=Condition.NONE, success=True,
+            test_output="PASS", wall_clock_seconds=90.0,
+            input_tokens=4500, output_tokens=1800, tool_calls=18,
+            lines_changed=45, files_touched=["a.py"],
+        ),
+    ]
+
+    result = reporter._serialize_condition(runs)
+
+    assert "ci_90" in result
+    ci = result["ci_90"]
+    assert "lower" in ci
+    assert "upper" in ci
+    assert 0 <= ci["lower"] <= ci["upper"] <= 1
+    # 2/3 successes: lower bound should be > 0, upper < 1
+    assert ci["lower"] > 0
+    assert ci["upper"] < 1
+
+
+def test_single_run_has_no_ci():
+    """Single-run serialization does not add CI (backward-compatible)."""
+    reporter = Reporter(output_dir="/tmp")
+
+    run = TaskResult(
+        task_id="fix-single", condition=Condition.NONE, success=True,
+        test_output="PASS", wall_clock_seconds=100.0,
+        input_tokens=5000, output_tokens=2000, tool_calls=20,
+        lines_changed=50, files_touched=["a.py"],
+    )
+
+    result = reporter._serialize_condition([run])
+    assert "ci_90" not in result
+
+
+def test_summary_has_cis_for_multi_run():
+    """Summary includes per-condition CIs and significance flags for multi-run."""
+    reporter = Reporter(output_dir="/tmp")
+    results = _make_multi_run_results()
+    eval_results = reporter.compile_results(results)
+    summary = eval_results.summary
+
+    # CIs present
+    assert "none_ci_90" in summary
+    assert "intent_layer_ci_90" in summary
+
+    none_ci = summary["none_ci_90"]
+    il_ci = summary["intent_layer_ci_90"]
+
+    # Bounds are valid
+    assert 0 <= none_ci["lower"] <= none_ci["upper"] <= 1
+    assert 0 <= il_ci["lower"] <= il_ci["upper"] <= 1
+
+    # none: 2/6 pass → lower rate; IL: 6/6 → higher rate
+    assert none_ci["upper"] < il_ci["upper"]
+
+    # Significance flag present
+    assert "intent_layer_vs_none_significant" in summary
+
+
+def test_summary_no_cis_for_single_run(three_condition_results):
+    """Summary omits CIs when all results are single-run."""
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(three_condition_results)
+    summary = eval_results.summary
+
+    assert "none_ci_90" not in summary
+    assert "intent_layer_ci_90" not in summary
+    assert "intent_layer_vs_none_significant" not in summary
+
+
+def test_markdown_multi_run_has_ci_columns(tmp_path):
+    """Markdown output includes CI brackets and IL vs none column for multi-run."""
+    reporter = Reporter(output_dir=str(tmp_path))
+    results = _make_multi_run_results()
+    eval_results = reporter.compile_results(results)
+    md_path = reporter.write_markdown(eval_results)
+
+    with open(md_path) as f:
+        content = f.read()
+
+    # CI brackets appear in success column
+    assert "[" in content and "]" in content
+
+    # IL vs none column header present
+    assert "IL vs none" in content
+
+    # Significance labels appear
+    assert "overlap" in content or "sig." in content
+
+    # Summary has CI notation
+    assert "90% CI" in content
+
+
+def test_markdown_single_run_no_ci_column(tmp_path, three_condition_results):
+    """Single-run markdown has no IL vs none column (backward-compatible)."""
+    reporter = Reporter(output_dir=str(tmp_path))
+    eval_results = reporter.compile_results(three_condition_results)
+    md_path = reporter.write_markdown(eval_results)
+
+    with open(md_path) as f:
+        content = f.read()
+
+    assert "IL vs none" not in content
+    assert "90% CI" not in content
+
+
+def test_json_multi_run_has_ci(tmp_path):
+    """JSON output includes ci_90 in multi-run condition data."""
+    reporter = Reporter(output_dir=str(tmp_path))
+    results = _make_multi_run_results()
+    eval_results = reporter.compile_results(results)
+    json_path = reporter.write_json(eval_results)
+
+    import json
+    with open(json_path) as f:
+        data = json.load(f)
+
+    task = data["results"][0]
+    assert "ci_90" in task["none"]
+    assert "ci_90" in task["intent_layer"]
+
+    # Summary has CIs too
+    assert "none_ci_90" in data["summary"]
+    assert "intent_layer_ci_90" in data["summary"]
