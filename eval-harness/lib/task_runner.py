@@ -731,27 +731,25 @@ class TaskRunner:
 
             # NONE: no generation, stripping already happened
 
-            # Intent Layer hooks: inject .claude/settings.local.json so
-            # SessionStart and PreToolUse hooks fire during Claude's run.
-            # This enables the "push" model — AGENTS.md content is
-            # automatically injected into context before edits, rather
-            # than relying on Claude to voluntarily read them.
+            # Intent Layer: AGENTS.md files sit on disk alongside
+            # CLAUDE.md. The preamble directs Claude to read CLAUDE.md's
+            # Downlinks table and then read relevant AGENTS.md files.
+            #
+            # "Push-on-read" hook: injects covering AGENTS.md content when
+            # Claude reads/greps files in covered directories. This turns
+            # the unreliable pull model into a reliable push — Claude gets
+            # subsystem context automatically during exploration, not just
+            # during editing.
             if condition == Condition.INTENT_LAYER:
+                harness_root = str(Path(__file__).resolve().parents[1])
                 plugin_root = str(Path(__file__).resolve().parents[2])
                 hooks_config = {
                     "hooks": {
-                        "SessionStart": [{
-                            "hooks": [{
-                                "type": "command",
-                                "command": f"{plugin_root}/scripts/inject-learnings.sh",
-                                "timeout": 15,
-                            }]
-                        }],
                         "PreToolUse": [{
-                            "matcher": "Edit|Write|NotebookEdit",
+                            "matcher": "Read|Grep|Edit|Write|NotebookEdit",
                             "hooks": [{
                                 "type": "command",
-                                "command": f"{plugin_root}/scripts/pre-edit-check.sh",
+                                "command": f"{harness_root}/scripts/push-on-read-hook.sh",
                                 "timeout": 10,
                             }]
                         }],
@@ -762,7 +760,7 @@ class TaskRunner:
                 (claude_dir / "settings.local.json").write_text(
                     json.dumps(hooks_config, indent=2)
                 )
-                self._progress(task.id, cond_str, "hooks", "injected Intent Layer hooks config")
+                self._progress(task.id, cond_str, "hooks", "injected PreToolUse hook config")
 
             # Baseline commit: snapshot workspace state so diff stats
             # only measure changes made by Claude, not by the harness

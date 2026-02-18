@@ -288,7 +288,7 @@ def test_preamble_routing():
     assert preamble_map[Condition.NONE] is None
     assert "CLAUDE.md" in preamble_map[Condition.FLAT_LLM]
     assert "AGENTS.md" in preamble_map[Condition.INTENT_LAYER]
-    assert "pitfalls" in preamble_map[Condition.INTENT_LAYER]
+    assert "Pitfalls" in preamble_map[Condition.INTENT_LAYER]
 
 
 def test_strip_extra_in_repo_config():
@@ -792,7 +792,7 @@ def test_task_runner_accepts_claude_timeout(sample_repo, tmp_path):
 # --- Intent Layer hooks injection ---
 
 def test_intent_layer_hooks_config_written(tmp_path):
-    """Intent Layer hook injection writes .claude/settings.local.json."""
+    """Intent Layer hook injection writes .claude/settings.local.json with push-on-read hook."""
     import json
     from pathlib import Path
 
@@ -800,21 +800,14 @@ def test_intent_layer_hooks_config_written(tmp_path):
     workspace.mkdir()
 
     # Simulate what task_runner.run() does for intent_layer
-    plugin_root = str(Path(__file__).resolve().parents[2])
+    harness_root = str(Path(__file__).resolve().parents[1])
     hooks_config = {
         "hooks": {
-            "SessionStart": [{
-                "hooks": [{
-                    "type": "command",
-                    "command": f"{plugin_root}/scripts/inject-learnings.sh",
-                    "timeout": 15,
-                }]
-            }],
             "PreToolUse": [{
-                "matcher": "Edit|Write|NotebookEdit",
+                "matcher": "Read|Grep|Edit|Write|NotebookEdit",
                 "hooks": [{
                     "type": "command",
-                    "command": f"{plugin_root}/scripts/pre-edit-check.sh",
+                    "command": f"{harness_root}/scripts/push-on-read-hook.sh",
                     "timeout": 10,
                 }]
             }],
@@ -827,14 +820,19 @@ def test_intent_layer_hooks_config_written(tmp_path):
     # Verify the file was created with correct structure
     settings = json.loads((claude_dir / "settings.local.json").read_text())
     assert "hooks" in settings
-    assert "SessionStart" in settings["hooks"]
     assert "PreToolUse" in settings["hooks"]
 
-    # Verify scripts actually exist at the referenced paths
-    session_cmd = settings["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-    pre_tool_cmd = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    assert Path(session_cmd).exists(), f"inject-learnings.sh not found at {session_cmd}"
-    assert Path(pre_tool_cmd).exists(), f"pre-edit-check.sh not found at {pre_tool_cmd}"
+    # Verify script actually exists at the referenced path
+    hook_cmd = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    assert Path(hook_cmd).exists(), f"push-on-read-hook.sh not found at {hook_cmd}"
 
-    # Verify matcher targets the right tools
-    assert settings["hooks"]["PreToolUse"][0]["matcher"] == "Edit|Write|NotebookEdit"
+    # Verify matcher includes Read/Grep for push-on-read delivery
+    assert settings["hooks"]["PreToolUse"][0]["matcher"] == "Read|Grep|Edit|Write|NotebookEdit"
+
+
+def test_intent_layer_preamble_mentions_downlinks():
+    """Intent Layer preamble directs Claude to read AGENTS.md via Downlinks."""
+    from lib.prompt_builder import INTENT_LAYER_PREAMBLE
+    assert "Downlinks" in INTENT_LAYER_PREAMBLE
+    assert "AGENTS.md" in INTENT_LAYER_PREAMBLE
+    assert "Pitfalls" in INTENT_LAYER_PREAMBLE

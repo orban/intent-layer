@@ -1,0 +1,122 @@
+# Graphiti commit_message tasks: where flat context hurt most in Run 3
+# Run 3 valid results: none 89%, flat 50%, intent 67%
+# Key differentiators:
+#   fix-datetime-comparison: none 3/3, flat 0/3, intent 1/3
+#   fix-entity-extraction: none 3/3, flat 0/3, intent 2/3 (failing_test, control)
+# Previously broken (mcp_server/tests infra error, now fixed):
+#   fix-limited-number-of-edges, sanitize-pipe-slash, escape-group-ids
+
+repo:
+  url: https://github.com/getzep/graphiti
+  default_branch: main
+  docker:
+    image: python:3.10-slim
+    setup:
+    - pip install uv && uv sync --frozen --all-extras
+    test_command: >-
+      DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1
+      uv run pytest -m "not integration"
+      --ignore=tests/test_graphiti_int.py
+      --ignore=tests/test_graphiti_mock.py
+      --ignore=tests/test_node_int.py
+      --ignore=tests/test_edge_int.py
+      --ignore=tests/test_entity_exclusion_int.py
+      --ignore=tests/test_add_triplet.py
+      --ignore=tests/driver/
+      --ignore=tests/llm_client/test_anthropic_client_int.py
+      --ignore=tests/utils/maintenance/test_temporal_operations_int.py
+      --ignore=tests/cross_encoder/test_bge_reranker_client_int.py
+      --ignore=tests/evals/
+      --ignore=mcp_server/tests
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - CLAUDE.md
+  - AGENTS.md
+
+tasks:
+# SIGNAL: none 3/3, flat 0/3, intent 1/3 in Run 3 — strongest differential
+- id: fix-datetime-comparison-normalize-utc
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 27d4f1097bfb3274cc3f67d185f173fcb7d0c0af
+  fix_commit: 73015e980e4b6dcceb7518adbce9f8436a13b27f
+  prompt_source: commit_message
+  _commit_message: Fix datetime comparison errors by normalizing to UTC
+  _lines_changed: 37
+  _files_changed: 2
+  issue_number: 988
+
+# PREVIOUSLY BROKEN: mcp_server/tests infra error in Run 3 (now fixed)
+- id: fix-limited-number-of-edges
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: be224cf1e007431c9d9545936c5860e37ddbd055
+  fix_commit: d5c4fc0bec904c432951878d3ca31cdf2ebb7740
+  prompt_source: commit_message
+  _commit_message: Fix limited number of edges
+  _lines_changed: 18
+  _files_changed: 2
+  issue_number: 1124
+
+# PREVIOUSLY BROKEN: mcp_server/tests infra error in Run 3
+- id: sanitize-pipe-slash-in-falkordb-fulltext
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 930663d7f760986eb9cc20c7deea90f4c811cc1e
+  fix_commit: ec108559c7acc603dd7ec013d06728f0dbe54675
+  prompt_source: commit_message
+  _commit_message: 'fix(falkordb): sanitize pipe and slash chars in fulltext queries'
+  _lines_changed: 7
+  _files_changed: 1
+  issue_number: 1183
+
+# PREVIOUSLY BROKEN: mcp_server/tests infra error in Run 3
+- id: escape-group-ids-in-redisearch-fulltext
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 894b71ff011adedf14864a643009908f40d36ab4
+  fix_commit: 45882dd56dd6209ae76ca7e5241f92b2f5921610
+  prompt_source: commit_message
+  _commit_message: 'fix(falkordb): escape group_ids in RediSearch fulltext queries'
+  _lines_changed: 5
+  _files_changed: 1
+  issue_number: 1175
+
+# Multi-file fix: navigation matters
+- id: filter-falsey-values-before-creating-embeddings
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 5ca8b9565cd4a3f93be679b1018f517c0f719a82
+  fix_commit: bec3f0203625cd2c1ba2f5683b56afe2d129f47d
+  prompt_source: commit_message
+  _commit_message: filter out falsey values before creating embeddings
+  _lines_changed: 24
+  _files_changed: 4
+  issue_number: 966
+
+# Multi-file fix: navigation matters
+- id: validate-nodes-edges-not-falsey
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: a44df4c29079a21f55ea94939b50dccfbdd136e2
+  fix_commit: ff260f010e947486501a3d33076184276b42f268
+  prompt_source: commit_message
+  _commit_message: validate nodes and edges aren't falsey
+  _lines_changed: 15
+  _files_changed: 4
+  issue_number: 973
+
+# CONTROL: failing_test task — traceback-guided, context shouldn't help
+- id: fix-entity-extraction-adaptive-chunking
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: b53338ef763f9a7d9438197571b9102cfb5ab920
+  fix_commit: a4af90b539cef387b183d5279ba522f2d90ca4ce
+  prompt_source: failing_test
+  _commit_message: Fix entity extraction for large episode inputs with adaptive chunking
+  _lines_changed: 2200
+  _files_changed: 6
+  test_file: tests/utils/maintenance/test_entity_extraction.py
+  issue_number: 1129
