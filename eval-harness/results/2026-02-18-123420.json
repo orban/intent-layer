@@ -1,0 +1,227 @@
+{
+  "eval_id": "2026-02-18-123420",
+  "timestamp": "2026-02-18T12:34:20Z",
+  "results": [
+    {
+      "task_id": "fix-expand-env-vars-empty-string-missing",
+      "none": {
+        "success_rate": 0,
+        "success": false,
+        "successes": 0,
+        "total_valid_runs": 0,
+        "ci_90": {
+          "lower": 0.0,
+          "upper": 1.0
+        },
+        "runs": [
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          }
+        ]
+      },
+      "flat_llm": {
+        "success_rate": 0,
+        "success": false,
+        "successes": 0,
+        "total_valid_runs": 0,
+        "ci_90": {
+          "lower": 0.0,
+          "upper": 1.0
+        },
+        "runs": [
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          }
+        ]
+      },
+      "intent_layer": {
+        "success_rate": 0,
+        "success": false,
+        "successes": 0,
+        "total_valid_runs": 0,
+        "ci_90": {
+          "lower": 0.0,
+          "upper": 1.0
+        },
+        "runs": [
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          },
+          {
+            "success": false,
+            "test_output": "",
+            "wall_clock_seconds": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "lines_changed": 0,
+            "files_touched": [],
+            "error": "[infrastructure] Command '['git', 'fetch', '--depth', '1', 'origin', 'aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956']' returned non-zero exit status 128."
+          }
+        ]
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 15,
+    "none_success_rate": 0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0,
+    "none_itt_rate": 0.0,
+    "flat_llm_itt_rate": 0.0,
+    "intent_layer_itt_rate": 0.0,
+    "none_median_tokens": 0,
+    "flat_llm_median_tokens": 0,
+    "intent_layer_median_tokens": 0
+  }
+}

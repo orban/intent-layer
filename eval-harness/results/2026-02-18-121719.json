@@ -1,0 +1,54 @@
+{
+  "eval_id": "2026-02-18-121719",
+  "timestamp": "2026-02-18T12:17:19Z",
+  "results": [
+    {
+      "task_id": "fix-ansiblemodule-human-to-bytes",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [110 kB]\nFetched 9814 kB in 1s (11.4 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "fix_only": {
+          "wall_clock_seconds": 57.175299644470215,
+          "input_tokens": 405870,
+          "output_tokens": 1885,
+          "tool_calls": 11,
+          "lines_changed": 5,
+          "files_touched": [
+            "lib/ansible/module_utils/basic.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.003075122833251953,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 57.17837476730347,
+          "input_tokens": 405870,
+          "output_tokens": 1885
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 1.0,
+    "none_itt_rate": 0,
+    "flat_llm_itt_rate": 0,
+    "intent_layer_itt_rate": 1.0,
+    "none_median_tokens": 0,
+    "flat_llm_median_tokens": 0,
+    "intent_layer_median_tokens": 407755
+  }
+}
