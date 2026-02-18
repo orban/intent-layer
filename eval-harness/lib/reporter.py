@@ -246,16 +246,24 @@ class Reporter:
             "lines_changed_percent": f"{pct(b_lines, t_lines):+.1f}%"
         }
 
+    # Error prefixes indicating harness/infrastructure failures, not experimental outcomes.
+    # Used by both Reporter._is_infra_error and cli._is_infra_error_dict.
+    INFRA_ERROR_PREFIXES = (
+        "[infrastructure]", "[pre-validation]", "[skill-generation]",
+        "[empty-run]", "[worker-crash]",
+    )
+
     @staticmethod
     def _is_infra_error(r: TaskResult) -> bool:
         """Check if result is a non-experimental error (excluded from stats).
 
-        Infrastructure errors, pre-validation failures, and skill generation
-        failures all indicate harness problems, not experimental outcomes.
+        Infrastructure errors, pre-validation failures, skill generation
+        failures, and worker crashes all indicate harness problems, not
+        experimental outcomes.
         """
         if r.error is None:
             return False
-        return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
+        return r.error.startswith(Reporter.INFRA_ERROR_PREFIXES)
 
     def _compute_summary(self, results: list[TaskResult]) -> dict:
         """Compute overall summary statistics.

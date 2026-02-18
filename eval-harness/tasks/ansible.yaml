@@ -1,11 +1,18 @@
-# DRAFT - Review and curate before use
+# Curated eval tasks for ansible
 # Generated from: https://github.com/ansible/ansible
-# Tasks found: 10 (focused on bug fixes with unit tests in test/units/)
+# Tasks: 5 (all failing_test with unit tests in test/units/)
 #
 # NOTE: Ansible requires Python 3.12+. The unit test suite runs via pytest.
 # Many ansible PRs only have integration tests (ansible-playbook based),
 # which can't run in our Docker harness. We prioritize PRs that include
 # changes to test/units/ files.
+#
+# Dropped tasks:
+#   fix-iptables-match-extension-bug — integration tests only, SystemExit
+#   fix-local-connection-become-bytearray — test passes at pre_fix_commit
+#   callback-filter-ansible-prefix-in-debug — integration tests only
+#   action-make-tmp-path-fix-error-message — no unit test changes
+#   config-lookup-fallback-to-existing-constants — integration tests only
 
 repo:
   url: https://github.com/ansible/ansible
@@ -23,7 +30,6 @@ repo:
   - .cursor/
   - .codex/
 tasks:
-# --- PRs with unit tests (pytest) ---
 
 - id: fix-clearlinux-gentoo-os-release-parsing
   category: simple_fix
@@ -34,7 +40,7 @@ tasks:
   _commit_message: 'Fixes Parsing for ClearLinux exposed by Gentoo (#86384)'
   _lines_changed: 55
   _files_changed: 3
-  test_file: test/units/module_utils/facts/system/distribution/
+  test_file: test/units/module_utils/facts/system/distribution/test_parse_distribution_file_ClearLinux.py
   issue_number: 86384
   # Fix: ClearLinux parser returned partial data for non-ClearLinux distros.
   # Added else: return False when NAME regex doesn't match, plus strip both quote types.
@@ -97,71 +103,3 @@ tasks:
   issue_number: 86320
   # Fix: signatures field used type=list with suboptions (invalid), changed to
   # type="list", elements="dict", options=dict(...). 176 lines of new unit tests added.
-
-- id: fix-iptables-match-extension-bug
-  category: simple_fix
-  difficulty: medium
-  pre_fix_commit: 13a7393cfe982fab7cb6dbaf43e12879160afbc2
-  fix_commit: e0f61dfce445241bb3bea7606dd84096ad3c1149
-  prompt_source: commit_message
-  _commit_message: 'Fix iptables match extension bug (#86147)'
-  _lines_changed: 45
-  _files_changed: 3
-  issue_number: 86147
-  # Fix: iptables module duplicated -m extensions when match arg overlapped with
-  # auto-imported extensions (uid_owner, etc.). Added loaded_extensions set tracking.
-  # Tests are integration-only (ansible playbooks), no unit test changes.
-
-- id: fix-local-connection-become-bytearray
-  category: simple_fix
-  difficulty: medium
-  pre_fix_commit: 29086acfa61f32a9e5b087abdaf4336330ab5456
-  fix_commit: 90595736ed35a88e63b6c680d6a1daa38a2ccce1
-  prompt_source: failing_test
-  _commit_message: 'Fix local connection interaction with become plugins (#86473)'
-  _lines_changed: 54
-  _files_changed: 6
-  test_file: test/units/plugins/become/test_su.py
-  issue_number: 86473
-  # Fix: local connection plugin passed bytearray to become plugin methods
-  # that expect bytes. Changed to bytes(). Unit test updated to pass b'' instead of ''.
-
-- id: callback-filter-ansible-prefix-in-debug
-  category: simple_fix
-  difficulty: medium
-  pre_fix_commit: 52cd605887e592a906d316eb11d6507b5100b36c
-  fix_commit: cc9e71f4118b2b55e5f33df22422e99621a60848
-  prompt_source: commit_message
-  _commit_message: 'callback: filter _ansible_ in debug message (#84594)'
-  _lines_changed: 68
-  _files_changed: 13
-  issue_number: 84594
-  # Fix: _clean_results filtered all keys starting with '_', but should only
-  # filter keys starting with '_ansible_'. One-char change in callback __init__.py.
-  # Tests are integration-only (callback output comparison files).
-
-- id: action-make-tmp-path-fix-error-message
-  category: simple_fix
-  difficulty: easy
-  pre_fix_commit: 90595736ed35a88e63b6c680d6a1daa38a2ccce1
-  fix_commit: 2c1fdfe0eba4505251c50a0a7f3596641e966007
-  prompt_source: commit_message
-  _commit_message: 'Action make_tmp_path fix error (#86505)'
-  _lines_changed: 8
-  _files_changed: 2
-  # Fix: error message included dataclass repr instead of just the command string.
-  # Changed cmd to cmd.command in format string. No unit test changes.
-
-- id: config-lookup-fallback-to-existing-constants
-  category: simple_fix
-  difficulty: medium
-  pre_fix_commit: be09a21446e34ccce341b49e69cc674c2d9049ac
-  fix_commit: 8730acbb2db944de118cae0e6bdac053a2f33362
-  prompt_source: commit_message
-  _commit_message: 'config lookup, fallback to existing constants when needed (#86516)'
-  _lines_changed: 25
-  _files_changed: 4
-  issue_number: 86516
-  # Fix: config lookup plugin only used task vars for templating, but some config
-  # values reference other constants (like ANSIBLE_HOME). Added ChainMap fallback.
-  # Tests are integration-only.

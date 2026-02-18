@@ -19,13 +19,6 @@ from lib.git_scanner import GitScanner
 from lib.git_ops import clone_repo
 
 
-# Shared between _is_infra_error_dict and Reporter._is_infra_error
-_INFRA_ERROR_PREFIXES = (
-    "[infrastructure]", "[pre-validation]", "[skill-generation]",
-    "[empty-run]", "[timeout]",
-)
-
-
 # Thread-safe print lock for progress output
 _print_lock = threading.Lock()
 
@@ -73,7 +66,7 @@ def _is_infra_error_dict(cond_data: dict) -> bool:
     error = cond_data.get("error")
     if error is None:
         return False
-    return error.startswith(_INFRA_ERROR_PREFIXES)
+    return error.startswith(Reporter.INFRA_ERROR_PREFIXES)
 
 
 def _merge_results(new_results: 'EvalResults', prior_data: dict, passed_pairs: set[tuple[str, str]]) -> 'EvalResults':
@@ -311,7 +304,7 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--output", "-o", default="results", help="Output directory")
 @click.option("--keep-workspaces", is_flag=True, help="Don't cleanup workspaces")
 @click.option("--dry-run", is_flag=True, help="Show what would run")
-@click.option("--timeout", default=300, help="Per-task timeout in seconds")
+@click.option("--timeout", default=450, help="Per-task timeout in seconds")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed progress for each step")
 @click.option("--clear-cache", is_flag=True, help="Clear index cache before running")
 @click.option("--no-cache", is_flag=True, help="Disable index caching entirely")

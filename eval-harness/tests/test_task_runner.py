@@ -520,6 +520,25 @@ def test_error_tag_classification():
     )
     assert Reporter._is_infra_error(other_error) is False
 
+    # Worker crash (infrastructure failure)
+    worker_crash = TaskResult(
+        task_id="t6", condition=Condition.NONE, success=False,
+        test_output="", wall_clock_seconds=0, input_tokens=0,
+        output_tokens=0, tool_calls=0, lines_changed=0,
+        files_touched=[], error="[worker-crash] OOM killed",
+    )
+    assert Reporter._is_infra_error(worker_crash) is True
+
+    # Timeout (genuine failure — agent worked but ran out of time)
+    timeout = TaskResult(
+        task_id="t7", condition=Condition.FLAT_LLM, success=False,
+        test_output="", wall_clock_seconds=300.0, input_tokens=50000,
+        output_tokens=3000, tool_calls=15, lines_changed=0,
+        files_touched=[], error="[timeout] Claude timed out after 300.0s",
+        is_timeout=True,
+    )
+    assert Reporter._is_infra_error(timeout) is False
+
 
 # --- Workspace naming and warm_cache tests ---
 
@@ -738,8 +757,8 @@ def test_empty_run_tag_format():
     assert Reporter._is_infra_error(result) is True
 
 
-def test_timeout_tag_is_infra_error():
-    """[timeout] errors are excluded from success stats."""
+def test_timeout_tag_is_not_infra_error():
+    """[timeout] errors are genuine failures, not infra errors."""
     from lib.reporter import Reporter
 
     result = TaskResult(
@@ -756,4 +775,4 @@ def test_timeout_tag_is_infra_error():
         error="[timeout] Claude timed out after 300.0s",
         is_timeout=True,
     )
-    assert Reporter._is_infra_error(result) is True
+    assert Reporter._is_infra_error(result) is False

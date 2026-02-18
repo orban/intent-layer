@@ -254,9 +254,9 @@ class TestRecomputeSummary:
 
         assert summary["total_tasks"] == 1
         assert summary["none_success_rate"] == 1.0
-        assert summary["flat_llm_success_rate"] == 0  # timeout is infra error
+        assert summary["flat_llm_success_rate"] == 0.0  # timeout is a genuine failure: 0/1
         assert summary["intent_layer_success_rate"] == 1.0
-        # ITT: infra errors count as failures in denominator
+        # ITT: all conditions counted in denominator
         assert summary["none_itt_rate"] == 1.0
         assert summary["flat_llm_itt_rate"] == 0  # 0 successes / 1 assigned
         assert summary["intent_layer_itt_rate"] == 1.0
@@ -564,9 +564,14 @@ class TestMergeResults:
 class TestIsInfraErrorDict:
     def test_all_infra_prefixes(self):
         for prefix in ("[infrastructure]", "[pre-validation]",
-                       "[skill-generation]", "[empty-run]", "[timeout]"):
+                       "[skill-generation]", "[empty-run]",
+                       "[worker-crash]"):
             cond = {"error": f"{prefix} something went wrong"}
             assert _is_infra_error_dict(cond) is True
+
+    def test_timeout_is_not_infra_error(self):
+        cond = {"error": "[timeout] Claude timed out after 300.0s"}
+        assert _is_infra_error_dict(cond) is False
 
     def test_genuine_failure_not_infra(self):
         assert _is_infra_error_dict(_genuine_failure_condition()) is False

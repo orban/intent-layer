@@ -1,6 +1,10 @@
-# DRAFT - Review and curate before use
+# Curated eval tasks for graphiti
 # Generated from: https://github.com/getzep/graphiti
-# Tasks found: 10
+# Tasks: 9
+#
+# Dropped tasks:
+#   preserve-all-signatures-when-edge-type-reused — test_edge_operations shared
+#     with exclude-duplicate-edges; pre-validation failures in Run 3
 #
 # NOTE: graphiti requires DISABLE_* env vars to skip database driver imports.
 # The unit_tests CI job uses: DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1
@@ -27,6 +31,7 @@ repo:
       --ignore=tests/utils/maintenance/test_temporal_operations_int.py
       --ignore=tests/cross_encoder/test_bge_reranker_client_int.py
       --ignore=tests/evals/
+      --ignore=mcp_server/tests
   strip_extra:
   - .claude/
   - .cursor/
@@ -48,18 +53,6 @@ tasks:
   _files_changed: 2
   test_file: tests/llm_client/test_azure_openai_client.py
   issue_number: 1039
-
-- id: preserve-all-signatures-when-edge-type-reused
-  category: targeted_refactor
-  difficulty: medium
-  pre_fix_commit: 37ec7b43c60e69f0aa554243fcf5e473ba925af9
-  fix_commit: 45a3d920349411e7e303dd2466fe3268128e733d
-  prompt_source: failing_test
-  _commit_message: 'fix(edges): preserve all signatures when edge type is reused across node pairs'
-  _lines_changed: 164
-  _files_changed: 3
-  test_file: tests/utils/maintenance/test_edge_operations.py
-  issue_number: 1197
 
 - id: exclude-duplicate-edges-from-node-summary
   category: targeted_refactor
