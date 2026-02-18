@@ -8,10 +8,11 @@ FLAT_PREAMBLE = """Before making changes, read the CLAUDE.md file at the project
 
 """
 
-INTENT_LAYER_PREAMBLE = """Before making changes, read the AGENTS.md files (starting with CLAUDE.md at the root) to understand:
-- Where relevant code is located
-- What pitfalls to avoid
-- What contracts must be maintained
+INTENT_LAYER_PREAMBLE = """Before making changes:
+1. Read the CLAUDE.md file at the project root for project context, architecture, and a Downlinks table
+2. Check the Downlinks table — it lists AGENTS.md files in subdirectories with focused context for each subsystem
+3. Read the AGENTS.md file(s) most relevant to the area of code you need to fix
+4. Pay attention to Pitfalls and Contracts sections — they document non-obvious gotchas
 
 """
 

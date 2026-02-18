@@ -27,8 +27,8 @@ def test_build_prompt_from_commit_message_with_preamble():
 
     assert "fix: handle null pointer" in prompt
     assert "AGENTS.md" in prompt
-    assert "pitfalls to avoid" in prompt
-    assert "contracts" in prompt
+    assert "Pitfalls" in prompt
+    assert "Downlinks" in prompt
 
 
 def test_build_prompt_from_failing_test():
@@ -48,7 +48,7 @@ def test_build_prompt_from_failing_test_with_preamble():
 
     assert "AssertionError" in prompt
     assert "AGENTS.md" in prompt
-    assert "pitfalls to avoid" in prompt
+    assert "Pitfalls" in prompt
 
 
 def test_flat_preamble_content():
@@ -58,8 +58,9 @@ def test_flat_preamble_content():
 
 def test_intent_layer_preamble_content():
     assert "AGENTS.md" in INTENT_LAYER_PREAMBLE
-    assert "pitfalls" in INTENT_LAYER_PREAMBLE
-    assert "contracts" in INTENT_LAYER_PREAMBLE
+    assert "Pitfalls" in INTENT_LAYER_PREAMBLE
+    assert "Contracts" in INTENT_LAYER_PREAMBLE
+    assert "Downlinks" in INTENT_LAYER_PREAMBLE
 
 
 def test_flat_generation_prompt():

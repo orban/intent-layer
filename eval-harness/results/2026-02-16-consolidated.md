@@ -226,3 +226,79 @@ To reach significance at the aggregate level, we'd need:
 2. Flat dumps of entire codebases can be worse than no context at all
 3. Hierarchical, directory-scoped context helps when the agent needs to navigate
 4. The module isolation boundary in ansible is the perfect example: a single AGENTS.md entry pointing the agent to `module_utils/` enabled 3/3 success on a task where none achieved 0/3
+
+---
+
+## Run 4 experiments (2026-02-18): Delivery mechanism deep-dive
+
+**Goal**: Understand WHY intent_layer tokens ≈ none tokens, and fix the delivery mechanism.
+
+### Key discoveries
+
+#### 1. Claude Code auto-loads CLAUDE.md but NOT AGENTS.md
+
+Confirmed via debug hook and token analysis. AGENTS.md files sit on disk passively.
+Hooks inject ~500 tokens of Pitfalls — negligible at 193k total context.
+
+#### 2. Inlining all AGENTS.md into CLAUDE.md hurts performance
+
+Dumping 6 AGENTS.md files into CLAUDE.md (ansible) increased tokens to 247k but scored 0/5.
+The irrelevant subsystem content (executor, playbook, parsing) drowns out the useful signal.
+Reverted — inlining is worse than the pull model.
+
+#### 3. The "pull" model is unreliable but works when it fires
+
+| Run | Tokens | Result | Agent behavior |
+|-----|--------|--------|----------------|
+| 3-rep (113421) | 383k (+98%) | 2/3 (67%) | Claude read AGENTS.md files |
+| 10-rep (114342) | 196k (+1%) | 0/10 (0%) | Claude skipped AGENTS.md |
+| 5-rep w/ Downlinks preamble | 241k (+25%) | 0/5 (0%) | Claude read CLAUDE.md but not child nodes |
+
+When Claude voluntarily reads AGENTS.md (383k), it passes. When it doesn't (196k), it fails.
+The Downlinks preamble helped token consumption (+25% instead of +1%) but still not enough.
+
+#### 4. For failing_test tasks, context is irrelevant
+
+Log analysis of ansible human-to-bytes shows ALL conditions follow the same pattern:
+Read test → Grep function → Read source → Edit. No condition reads AGENTS.md.
+The traceback provides a direct path; the difference between pass/fail is reasoning quality.
+
+#### 5. Near-ceiling tasks show context as noise
+
+PDM commit_message tasks (Run 2 signal): none 100%, flat 89%, intent 78%.
+These tasks improved since Run 2 — the model solves them without context.
+CI widths: none 23%, flat 35%, intent 42% — **more context = more variance**.
+
+#### 6. Token efficiency is mixed
+
+| Scenario | Context effect on tokens | Pass rate |
+|----------|------------------------|-----------|
+| fastmcp (medium tasks) | -20% to -22% | 100% all conditions |
+| pdm resolution-excludes | +208% to +274% | 67% (worse than none) |
+| pdm pylock-toml | -69% to -82% | 67-100% |
+
+Context sometimes helps navigate faster, sometimes causes over-exploration.
+
+### Coverage gap: module_utils
+
+The ansible Intent Layer has NO AGENTS.md for `lib/ansible/module_utils/` — the directory
+containing the bug. The 6 child nodes cover modules, plugins, executor, playbook, parsing,
+and tests. This is a generation quality issue, not a delivery mechanism issue.
+
+### Updated synthesis
+
+| Finding | Evidence |
+|---------|----------|
+| Inlining all AGENTS.md is worse than selective reading | 0/5 with inline vs 2/3 when agent selectively reads |
+| Preamble can nudge but not force file reads | +25% tokens vs +1%, but still 0/5 pass rate |
+| Context adds variance on near-ceiling tasks | CI widths: none 23%, flat 35%, intent 42% |
+| The "Goldilocks zone" for context: hard enough to need navigation, not so hard it's pure reasoning | failing_test on simple bugs = no benefit; commit_message on hard navigation = benefit |
+| Coverage gaps in generation are critical | Missing module_utils AGENTS.md eliminates the benefit |
+
+### Next steps for meaningful evaluation
+
+1. **Find harder tasks** — current model solves most tasks without context
+2. **Test on medium-complexity repos** where navigation genuinely helps (graphiti showed strongest differential)
+3. **Fix Intent Layer generation** — ensure coverage of high-impact directories like module_utils
+4. **Consider commit_message tasks on complex repos** — this is the sweet spot for context
+5. **Increase to 5+ reps** — 3 reps can't distinguish 67% from 100% with overlapping CIs
