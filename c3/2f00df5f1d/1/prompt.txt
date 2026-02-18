@@ -3138,3 +3138,3463 @@ efa4342 feat: add Wilson Score confidence intervals to eval reporter
 Based on the above changes, create a single git commit.
 
 You have the capability to call multiple tools in a single response. Stage and create the commit using a single message. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+
+---
+
+how's the eval looking?
+
+---
+
+run a loop to continously monitor and troubleshoot the eval run unattended during the evening
+
+---
+
+check on it in the morning, good night
+
+---
+
+would a /ralph-loop:ralph-loop make sense for you to monitor and course correct throughout the run?
+
+---
+
+Where a Ralph Loop would make sense is if the eval needed intelligent mid-run decisions — like "graphiti intent_layer keeps failing, should I regenerate the cache with
+  different parameters?" or "ansible pre-validation is broken, let me read the error and patch the YAML." The bash script can't reason about those.
+That's the idea here. The API credits are already paid for, we need to use our token budget for the evening. you can always check with /usage
+
+---
+
+# Ralph Loop Command
+
+Execute the setup script to initialize the Ralph loop:
+
+🔄 Ralph loop activated in this session!
+
+Iteration: 1
+Max iterations: unlimited
+Completion promise: none (runs forever)
+
+The stop hook is now active. When you try to exit, the SAME PROMPT will be
+fed back to you. You'll see your previous work in files, creating a
+self-referential loop where you iteratively improve on the same task.
+
+To monitor: head -10 .claude/ralph-loop.local.md
+
+⚠️  WARNING: This loop cannot be stopped manually! It will run infinitely
+    unless you set --max-iterations or --completion-promise.
+
+🔄
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+Please work on the task. When you try to exit, the Ralph loop will feed the SAME PROMPT back to you for the next iteration. You'll see your previous work in files and git history, allowing you to iterate and improve.
+
+CRITICAL RULE: If a completion promise is set, you may ONLY output it when the statement is completely and unequivocally TRUE. Do not output false promises to escape the loop, even if you think you're stuck or should exit for other reasons. The loop is designed to continue until genuine completion.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session Start**: This is a continuation session from a previous conversation about the AGENTbench replication project. The previous session launched an overnight eval run combining pdm + graphiti + ansible repos (243 total work items).
+
+2. **Initial Status Check**: I checked on the overnight eval run (PID 32429). Found it was only ~2 minutes old and in the cache warmup phase - generating flat_llm context for graphiti. The `--resume` feature was already implemented.
+
+3. **User: "commit"**: User asked to commit. I used the commit-commands:commit skill. Staged all changes including unstaged consolidated results and untracked result files. Created commit `23e7a71` with message "add AGENTbench replication: multi-repo eval runs, task configs, and results" - 78 files, 10,440 insertions.
+
+4. **User: "how's the eval looking?"**: Checked eval progress. Found it was still in warmup after ~5.5 minutes. Graphiti flat_llm context generation was active (Claude subprocess at 18.5% CPU). Reported 6 warmups needed, 4 remaining.
+
+5. **User: "run a loop to continuously monitor and troubleshoot the eval run unattended during the evening"**: Created `scripts/monitor-eval.sh` - a bash monitoring script that:
+   - Checks process health every 60s
+   - Logs PASS/FAIL/TIMEOUT/INFRA events
+   - Warns if log stalls for >300s
+   - Kills hung Claude subprocesses at 0% CPU for >900s
+   - Prints summary when run completes
+   Launched it as background process (PID 43139), logging to `logs/monitor-20260217-221532.log`.
+
+6. **Discovery of warmup failures**: Found both graphiti and ansible intent_layer warmups failed because the `/intent-layer` skill runs `git checkout HEAD -- .` at the end, reverting generated AGENTS.md files. The skill_gen logs showed only 13-15 turns each, ending with git checkout that undone all work.
+
+7. **User: "check on it in the morning, good night"**: Confirmed monitor was running and gave user the command to check results.
+
+8. **User: "would a /ralph-loop:ralph-loop make sense..."**: User asked about using Ralph Loop for intelligent monitoring. I initially said it was overkill for mechanical monitoring.
+
+9. **User pushed back**: "That's the idea here. The API credits are already paid for, we need to use our token budget for the evening."
+
+10. **Ralph Loop activation**: Invoked ralph-loop:ralph-loop skill. First attempt failed (unbound variable PROMPT_PARTS), second attempt failed (parentheses interpreted by zsh), third attempt worked with cleaned-up args.
+
+11. **Cache injection fix**: The key intervention during Ralph Loop monitoring:
+    - Discovered intent_layer cache empty results are NEVER cached (line 188-189 in index_cache.py: `if not agents_files: return`)
+    - This meant every graphiti/ansible intent_layer task would independently try to generate context and fail
+    - Manually created hierarchical AGENTS.md files for both repos:
+      - **graphiti-intent_layer**: CLAUDE.md + 5 child AGENTS.md (driver, search, llm_client, namespaces, server)
+      - **ansible-intent_layer**: CLAUDE.md + 6 child AGENTS.md (modules, plugins, executor, playbook, parsing, test)
+    - Updated cache-manifest.json with both new entries
+    - Verified cache restore working: "restored from cache 6 file(s) in 0.0s" for graphiti
+
+12. **Monitoring loop**: Ralph Loop kept checking every 5-30 minutes. Key findings:
+    - pdm tasks ran first, all completed
+    - graphiti tasks started, cache injection confirmed working
+    - Found `preserve-all-signatures` is an invalid task (test passes at pre_fix)
+    - Found `fix-limited-number-of-edges` 0/9 due to mcp_server/tests collection error (ModuleNotFoundError: No module named 'tests.conftest')
+    - `fix-entity-extraction-adaptive-chunking`: none 3/3, flat_llm 0/3, intent_layer 2/3 — flat context hurting
+    - Was investigating the graphiti test_command issue when summary was requested
+
+13. **At time of summary**: 112/243 done (69 pass, 43 fail), eval running for ~3 hours, currently on graphiti `fix-datetime-comparison` task.
+
+Key files created/modified:
+- `scripts/monitor-eval.sh` - new monitoring script
+- `workspaces/.index-cache/graphiti-intent_layer/` - 6 manually created AGENTS.md files
+- `workspaces/.index-cache/ansible-intent_layer/` - 7 manually created AGENTS.md files
+- `workspaces/.index-cache/cache-manifest.json` - updated with new cache entries
+- Commit 23e7a71 with 78 files
+
+Results tables I was building:
+- Complete pdm results (7 tasks × 3 conditions × 3 reps)
+- Partial graphiti results (6/10 tasks done)
+- Ansible not yet started
+
+The graphiti.yaml test_command issue I was about to investigate: `fix-limited-number-of-edges` fails because pytest collects `mcp_server/tests` which imports `tests.conftest` and fails. The test_command needs `--ignore=mcp_server/tests` added.
+
+Summary:
+1. Primary Request and Intent:
+   - **Commit changes**: User asked to commit all staged/unstaged eval harness changes (completed as commit `23e7a71`, 78 files, 10,440 insertions)
+   - **Check eval status**: User asked "how's the eval looking?" — wanted progress updates on the overnight eval run (PID 32429, 243 work items across pdm+graphiti+ansible)
+   - **Set up unattended monitoring**: User asked to "run a loop to continuously monitor and troubleshoot the eval run unattended during the evening"
+   - **Use Ralph Loop for intelligent monitoring**: After initially suggesting a bash monitor was sufficient, user pushed back: "That's the idea here. The API credits are already paid for, we need to use our token budget for the evening. you can always check with /usage" — wanting active Claude-powered monitoring that could diagnose and course-correct issues
+   - **Ongoing overnight monitoring**: The Ralph Loop is actively monitoring the eval run, checking progress every 5-30 minutes, diagnosing failures, and taking corrective action (like populating the intent_layer cache)
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: Evaluating whether context files (flat CLAUDE.md vs hierarchical Intent Layer) help AI agents fix bugs, across 3 repos (pdm, graphiti, ansible), 27 tasks × 3 conditions × 3 reps = 243 total
+   - **Cache warmup**: Before task runs, the harness generates context files (flat_llm CLAUDE.md or intent_layer AGENTS.md hierarchy) and caches them. Cache key format: `<repo>-<condition>` for repo-level entries
+   - **Intent Layer warmup failure**: The `/intent-layer` skill runs `git checkout HEAD -- .` at the end of its workflow, reverting all generated AGENTS.md files. This causes intent_layer warmup to produce 0 files for graphiti and ansible
+   - **Cache poisoning prevention**: `index_cache.py` line 188-189 — `if not agents_files: return` — empty results are NEVER cached, meaning each task independently retries and fails
+   - **Mid-run cache injection**: Manually creating AGENTS.md files and updating cache-manifest.json while the eval process is running. The eval reads the manifest per-task, so injected entries are picked up by subsequent tasks
+   - **Ralph Loop**: A Claude Code skill that keeps the session alive in a loop, re-feeding the same prompt after each turn. Used here for intelligent overnight monitoring
+   - **prompt_source hypothesis**: commit_message tasks (agent navigates codebase) benefit from context; failing_test tasks (agent follows traceback) don't
+
+3. Files and Code Sections:
+   - **`/Users/ryo/dev/intent-layer/eval-harness/scripts/monitor-eval.sh`** (CREATED)
+     - Bash monitoring script for the eval run, runs as background process
+     - Checks process health every 60s, logs events, warns on stalls >300s, kills hung children at 0% CPU >900s
+     - Running as PID 43139, logging to `logs/monitor-20260217-221532.log`
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/workspaces/.index-cache/cache-manifest.json`** (MODIFIED)
+     - Added `graphiti-intent_layer` and `ansible-intent_layer` entries to fix warmup failures
+     - Critical: repo URLs must match what `_extract_repo_name()` produces from the task YAML URLs
+     - Graphiti entry: 6 files (CLAUDE.md + 5 AGENTS.md); Ansible entry: 7 files (CLAUDE.md + 6 AGENTS.md)
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/workspaces/.index-cache/graphiti-intent_layer/`** (CREATED - 6 files)
+     - `CLAUDE.md` — root context with overview, dev commands, architecture, contracts, pitfalls, downlinks
+     - `graphiti_core/driver/AGENTS.md` — GraphDriver ABC, 4 backends, transaction semantics
+     - `graphiti_core/search/AGENTS.md` — hybrid search pipeline, 3 methods, 5 rerankers, 4 layers
+     - `graphiti_core/llm_client/AGENTS.md` — LLMClient ABC, caching, retry, structured output
+     - `graphiti_core/namespaces/AGENTS.md` — typed accessor objects wrapping driver ops
+     - `server/AGENTS.md` — FastAPI REST service
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/workspaces/.index-cache/ansible-intent_layer/`** (CREATED - 7 files)
+     - `CLAUDE.md` — root context emphasizing module isolation boundary, ansible-test usage, code layout
+     - `lib/ansible/modules/AGENTS.md` — module isolation boundary, required structure (DOCUMENTATION/EXAMPLES/RETURN/main)
+     - `lib/ansible/plugins/AGENTS.md` — plugin types (action, connection, callback, filter, lookup, strategy, become, cache, inventory)
+     - `lib/ansible/executor/AGENTS.md` — execution engine flow: PlaybookExecutor → StrategyPlugin → TaskQueueManager → TaskExecutor
+     - `lib/ansible/playbook/AGENTS.md` — data structures (Playbook, Play, Block, Task, Role)
+     - `lib/ansible/parsing/AGENTS.md` — YAML loading, vault, mod_args
+     - `test/AGENTS.md` — ansible-test infrastructure, container selection
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/index_cache.py`** (READ)
+     - Key finding: line 188-189 `if not agents_files: return` prevents caching empty results
+     - `lookup_repo()` uses `get_repo_cache_key()` which extracts repo name from URL
+     - `restore()` copies cached files to target workspace
+     - Auto-repair logic (lines 45-76) discovers orphaned cache directories
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/task_runner.py`** (READ)
+     - Lines 428-459: `_generate_skill_context()` — cache miss triggers Claude to generate Intent Layer
+     - Lines 446-448: After generation, finds AGENTS.md files and saves to cache
+     - Lines 692-708: Per-task intent_layer flow checks cache, falls back to generation
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/lib/prompt_builder.py`** (READ)
+     - Lines 80-134: `build_skill_generation_prompt()` — the prompt used for intent_layer generation
+     - Instructs Claude to run detect_state.sh, estimate_all_candidates.sh, mine_git_history.sh, then create CLAUDE.md + child AGENTS.md
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tasks/graphiti.yaml`** (READ)
+     - Test command: `DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1 uv run pytest -m "not integration" --ignore=tests/test_graphiti_int.py --ignore=tests/test_graphiti_mock.py`
+     - Missing: `--ignore=mcp_server/tests` which causes collection errors
+
+4. Errors and Fixes:
+   - **Intent Layer warmup failure (graphiti + ansible)**:
+     - Both warmups failed: "intent_layer generation produced no files (took 67s/100s)"
+     - Root cause: `/intent-layer` skill runs `git checkout HEAD -- .` at end, reverting generated files
+     - Fix: Manually created AGENTS.md files and injected into cache-manifest.json mid-run
+     - Verified working: "restored from cache 6 file(s) in 0.0s" for graphiti tasks
+   
+   - **Ralph Loop setup script bash error**:
+     - First attempt: `PROMPT_PARTS[*]: unbound variable` — script uses `set -u` and PROMPT_PARTS array not initialized when no args
+     - Fix: Pass prompt as arguments to the skill
+   
+   - **Ralph Loop zsh glob error**:
+     - Second attempt: `bad pattern: (PID 32429, log at logs/overnight-2026-02-17.log)` — parentheses interpreted as glob
+     - Fix: Removed parentheses from the prompt text
+   
+   - **`fix-limited-number-of-edges` test infrastructure failure** (DISCOVERED, NOT YET FIXED):
+     - All 9 reps fail with `ModuleNotFoundError: No module named 'tests.conftest'`
+     - Cause: pytest collects `mcp_server/tests` directory which imports `tests.conftest`
+     - Needed fix: Add `--ignore=mcp_server/tests` to graphiti.yaml test_command
+     - Cannot fix mid-run without restarting eval
+   
+   - **`preserve-all-signatures-when-edge-type-reused` invalid task** (DISCOVERED):
+     - All 9 reps fail with "[pre-validation] Test already passes at pre_fix_commit"
+     - This task should be dropped from graphiti.yaml
+   
+   - **User feedback on Ralph Loop**: User pushed back on my suggestion that the bash monitor was sufficient. Said "The API credits are already paid for, we need to use our token budget for the evening." This led to activating the Ralph Loop for intelligent monitoring.
+
+5. Problem Solving:
+   - **Solved: Intent Layer cache empty for graphiti/ansible** — Manually generated hierarchical AGENTS.md files from the flat_llm CLAUDE.md content and repo structure, injected into cache mid-run
+   - **Ongoing: graphiti test_command missing `--ignore=mcp_server/tests`** — Cannot fix mid-run, will affect `fix-limited-number-of-edges` task (0/9 across all conditions)
+   - **Ongoing: `preserve-all-signatures` invalid task** — Test passes at pre_fix_commit, needs to be dropped from graphiti.yaml
+   - **Monitoring: eval run progress** — 112/243 done (69 pass, 43 fail) at ~3 hours runtime, currently on graphiti tasks
+
+6. All user messages:
+   - "commit"
+   - "how's the eval looking?"
+   - "run a loop to continuously monitor and troubleshoot the eval run unattended during the evening"
+   - "check on it in the morning, good night"
+   - "would a /ralph-loop:ralph-loop make sense for you to monitor and course correct throughout the run?"
+   - "That's the idea here. The API credits are already paid for, we need to use our token budget for the evening. you can always check with /usage"
+
+7. Pending Tasks:
+   - **Continue Ralph Loop monitoring** of overnight eval run until completion
+   - **When eval completes**: Summarize results and update `results/2026-02-16-consolidated.md` with new data from all three repos
+   - **Fix graphiti.yaml** for next run: add `--ignore=mcp_server/tests` to test_command, drop `preserve-all-signatures` task
+   - **Investigate `fix-entity-extraction-adaptive-chunking`** result: none 3/3, flat_llm 0/3, intent_layer 2/3 — flat context appears to hurt performance on this task
+
+8. Current Work:
+   Running Ralph Loop monitoring of the overnight eval. Last check at ~175 minutes showed 112/243 done (69 pass, 43 fail). Was in the middle of investigating why `fix-limited-number-of-edges` fails 0/9 — found it's a graphiti.yaml test_command issue (missing `--ignore=mcp_server/tests`). Cannot fix mid-run.
+
+   Current eval progress by repo:
+   - **pdm**: COMPLETE (7 tasks × 3 conditions × 3 reps = 63 items done)
+   - **graphiti**: ~6/10 tasks done, ansible not yet started
+   - Currently running: `fix-datetime-comparison-normalize-utc` (graphiti)
+
+   Latest pdm results table:
+   | Task | Type | none | flat_llm | intent_layer |
+   |------|------|------|----------|-------------|
+   | fix-ignore-python-req | failing_test | 2/3 | 0/3 | 0/3 |
+   | fix-expand-env-vars | failing_test | 3/3 | 3/3 | 3/3 |
+   | fix-resolution-excludes | commit_msg | 1/3 | 2/3 | 1/3 |
+   | fix-pylock-toml | commit_msg | 3/3 | 2/3 | 1/3 |
+   | fix-publish-skip-existing | commit_msg | 3/3 | 3/3 | 3/3 |
+   | fix-pdm-toml | commit_msg | 2/3 | 1/3 | 1/3 |
+   | fix-http-cache-clear | commit_msg | 3/3 | 3/3 | 3/3 |
+
+   Latest graphiti results (partial):
+   | Task | Type | none | flat_llm | intent_layer |
+   |------|------|------|----------|-------------|
+   | fix-azure-structured | commit_msg | 3/3 | 3/3 | 3/3 |
+   | preserve-all-signatures | failing_test | 0/3* | 0/3* | 0/3* |
+   | exclude-duplicate-edges | commit_msg | 3/3 | 3/3 | 3/3 |
+   | fix-entity-extraction | commit_msg | 3/3 | 0/3 | 2/3 |
+   | fix-limited-number-of-edges | commit_msg | 0/3 | 0/3 | 0/3 |
+   | fix-datetime-comparison | failing_test | 3/3 | running | — |
+
+9. Optional Next Step:
+   Continue Ralph Loop monitoring cycle: wait ~30 minutes, then check progress with `grep -c ": PASS"` and `tail` of the overnight log. The eval should be finishing graphiti tasks and starting ansible tasks soon. When the run completes, the monitor script will log "DONE: Main process 32429 has exited" and I should update the consolidated results file as specified in the Ralph Loop prompt: "When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start / Context Recovery**: This is a continuation session from a previous conversation. The previous conversation involved:
+   - Setting up and monitoring an overnight eval run (PID 32429) combining pdm + graphiti + ansible repos (243 total work items)
+   - Creating a monitoring script and Ralph Loop for intelligent monitoring
+   - Discovering and fixing intent_layer cache warmup failures by manually creating AGENTS.md files for graphiti and ansible repos
+   - The previous session ended around 112/243 items done
+
+2. **This session's primary task**: Continue Ralph Loop monitoring of the overnight eval run until completion, then summarize results and update consolidated results file.
+
+3. **Monitoring progression**:
+   - First check: PID 32429 still running, fix-datetime-comparison in progress
+   - Counted 114/243 done (69 pass, 45 fail) using precise `[rep X/3]` pattern matching
+   - Built results tables showing PDM complete, graphiti partially done, ansible not started
+   - Cleaned up 4 orphaned test processes (parent=1, 0% CPU)
+   - Monitored every 5-15 minutes as items completed
+
+4. **Key findings during monitoring**:
+   - fix-datetime-comparison: none 3/3, flat_llm 0/3 (all timeout), intent_layer 1/3
+   - filter-falsey-values: none 1/3, flat_llm 2/3, intent_layer 2/3 — context helps
+   - validate-nodes: none 3/3, flat_llm 1/3, intent_layer 1/3
+   - fix-ansiblemodule-human-to-bytes: none 0/3, flat_llm 1/3, intent_layer 3/3 — SIGNIFICANT
+   - fix-clearlinux: 0/9 all (IsADirectoryError infrastructure bug)
+   - fix-local-connection: 0/9 all (invalid task — test passes at pre_fix)
+   - fix-iptables, callback-filter, action-make-tmp-path, config-lookup: all 0/9 (SystemExit — no unit tests)
+
+5. **Eval completion**: 243/243 at 4:10 AM, results written to results/2026-02-18-041001.json and .md
+
+6. **Final results**:
+   - none: 63% [53%,73%]
+   - flat_llm: 57% [46%,68%]
+   - intent_layer: 66% [55%,76%]
+   - 73 infrastructure errors (30%)
+   - One significant individual result: fix-ansiblemodule-human-to-bytes (+100% sig.)
+
+7. **Consolidated results update**: Updated results/2026-02-16-consolidated.md with Run 3 data, per-repo analysis, data quality issues, cache injection notes, and cross-repo synthesis.
+
+8. **No explicit user messages in this session** — the conversation is entirely the Ralph Loop continuation from the previous session's monitoring task.
+
+Files examined/modified:
+- Overnight log: logs/overnight-2026-02-17.log (monitored throughout)
+- Monitor log: logs/monitor-20260217-221532.log
+- Cache manifest: workspaces/.index-cache/cache-manifest.json (read)
+- Various fix logs (graphiti intent_layer fix logs)
+- tasks/graphiti.yaml (read to understand test_command issues)
+- tasks/ansible.yaml (read to understand task configurations)
+- results/2026-02-18-041001.md (read — final results)
+- results/2026-02-16-consolidated.md (read and updated with Run 3 data)
+- MEMORY.md (read, not yet updated)
+
+Errors/issues found:
+- Orphaned test processes (killed 4)
+- mcp_server/tests collection error affecting graphiti tasks
+- Invalid tasks (pre-validation passes)
+- IsADirectoryError for fix-clearlinux
+- SystemExit for ansible commit_message tasks with no unit tests
+- Various grep count inaccuracies (initial "PASS|FAIL" grep counted 195 but precise "[rep X/3]" pattern counted 114)
+
+The user's original Ralph Loop instruction was: "Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues... When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data."
+
+I completed the monitoring and updated the consolidated results. The MEMORY.md still needs updating with the new results.
+
+Summary:
+1. Primary Request and Intent:
+   The user activated a Ralph Loop to monitor an overnight eval run (PID 32429) across 3 repos (pdm + graphiti + ansible, 243 total items). The specific instruction was: "Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data."
+
+   This session is a continuation from a previous conversation where:
+   - The overnight eval was launched combining pdm (7 tasks) + graphiti (10 tasks) + ansible (10 tasks) = 27 tasks × 3 conditions × 3 reps = 243 items
+   - A bash monitor script was created at `scripts/monitor-eval.sh`
+   - Intent_layer cache was manually injected for graphiti (6 files) and ansible (7 files) after discovering the `/intent-layer` skill reverts generated AGENTS.md files
+   - The run was at ~112/243 when the previous session ended
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: Testing whether context files (flat vs hierarchical) help AI agents fix bugs, based on arxiv 2602.11988v1
+   - **Three conditions**: `none` (no context), `flat_llm` (single flat CLAUDE.md), `intent_layer` (hierarchical AGENTS.md files)
+   - **Wilson Score confidence intervals**: Used for per-task and aggregate success rate analysis
+   - **Infrastructure errors**: Counted separately from capability failures; 73/243 (30%) in this run
+   - **Pre-validation**: Checks that tests fail at pre_fix_commit before running the eval
+   - **Cache injection**: Manually creating context files and updating cache-manifest.json mid-run
+   - **Ralph Loop**: Claude Code skill that keeps the session alive in a loop, re-feeding the same prompt for iterative monitoring
+   - **Orphaned processes**: Test runner shell processes with parent=1, indicating they were left behind by timed-out Claude subprocesses
+
+3. Files and Code Sections:
+   - **`/Users/ryo/dev/intent-layer/eval-harness/logs/overnight-2026-02-17.log`**
+     - Primary monitoring target — contains all PASS/FAIL results, timestamps, and task progression
+     - Key grep pattern used: `grep -E "\[rep [0-9]+/[0-9]+\]: (PASS|FAIL)"` (precise count)
+     - Initial broad `grep -c "PASS|FAIL"` gave inflated counts (195 vs actual 114) because it matched "tests PASSED" log lines too
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/results/2026-02-18-041001.md`**
+     - Final eval results — 27 tasks, 73 infrastructure errors
+     - Overall: none 63% [53%,73%], flat_llm 57% [46%,68%], intent_layer 66% [55%,76%]
+     - One significant result: `fix-ansiblemodule-human-to-bytes` intent_layer +100% (sig.) — none 0/3, flat 1/3, intent 3/3
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/results/2026-02-16-consolidated.md`** (UPDATED)
+     - Added "Run 3: Multi-repo" section with complete results, per-repo breakdown, star result analysis
+     - Added data quality issues section documenting all infrastructure failures
+     - Added cache injection documentation
+     - Rewrote cross-repo synthesis with findings from all 3 runs
+     - Key new content includes per-repo results table, graphiti adjusted results (excluding broken tasks), and the ansible human-to-bytes analysis
+
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tasks/graphiti.yaml`** (READ)
+     - test_command missing `--ignore=mcp_server/tests`, causing collection errors on commits where mcp_server/ exists
+     - 10 tasks total; 4 broken (preserve-all-signatures invalid, fix-limited/sanitize/escape hit mcp_server error)
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tasks/ansible.yaml`** (READ)
+     - test_command `pytest --tb=short -q` too broad — runs ALL tests, not scoped to specific files
+     - 4 commit_message tasks with no unit tests all fail with SystemExit
+     - fix-clearlinux has test_file as directory path causing IsADirectoryError
+     - fix-local-connection test passes at pre_fix_commit (invalid task)
+   
+   - **Various fix logs** (READ for debugging)
+     - `graphiti-27d4f109-*-intent_layer-r0-fix.log`: 13 tool calls, no edits, timed out
+     - `graphiti-27d4f109-*-intent_layer-r1-fix.log`: 33 tool calls, successful edits to edge_operations.py and datetime_utils.py, PASSED
+     - `graphiti-27d4f109-*-intent_layer-r2-fix.log`: 17 tool calls, 4 edits, timed out
+     - `graphiti-930663d7-*-none-r0-test.log`: Shows mcp_server/tests collection error (ModuleNotFoundError: No module named 'tests.conftest')
+
+4. Errors and Fixes:
+   - **Orphaned test processes (4 PIDs with parent=1, 0% CPU)**:
+     - Killed PIDs 86715, 22987, 22911, 18026 with `kill $pid`
+     - These were shell wrappers from timed-out Claude subprocesses that weren't cleaned up
+   
+   - **Grep count inaccuracy**:
+     - `grep -c "PASS|FAIL"` returned 195 (inflated by matching "tests PASSED" in log output)
+     - Fixed by using precise pattern: `grep -E "\[rep [0-9]+/[0-9]+\]: (PASS|FAIL)"` which correctly returned 114
+   
+   - **Python one-liner failures in Bash**:
+     - Multiple `python3 -c` commands failed with exit code 1 when trying to read the results JSON
+     - Workaround: used the Read tool directly to access the file content
+     - Root cause unclear — possibly shell quoting issues with the Bash tool
+   
+   - **macOS awk syntax error**:
+     - Initial attempt to build results table with awk using `match(line, /pattern/, arr)` failed (GNU awk syntax, macOS has BSD awk)
+     - Fixed by switching to Python for all data processing
+   
+   - **macOS grep -P not supported**:
+     - `grep -P` (Perl regex) not available on macOS
+     - Used alternative patterns without -P flag
+
+5. Problem Solving:
+   - **Monitoring cadence**: Checked every 5-15 minutes throughout the run, adjusting based on how quickly items were completing
+   - **Infrastructure error diagnosis**: Identified 5 categories of infrastructure failures affecting 73/243 items
+   - **Per-repo analysis**: Built results tables by repo to understand where context helps vs hurts
+   - **Data quality assessment**: Documented that 30% infrastructure error rate severely reduces statistical power
+   - **Graphiti mcp_server issue**: Identified that `--ignore=mcp_server/tests` is needed in graphiti.yaml test_command (cannot fix mid-run)
+   - **Ansible test_command issue**: Identified that `pytest --tb=short -q` is too broad for commit_message tasks with no unit tests
+
+6. All User Messages:
+   - No explicit user messages in this session — the entire conversation is the Ralph Loop continuation from the previous session's monitoring task. The Ralph Loop prompt was: "Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data."
+
+7. Pending Tasks:
+   - **Update MEMORY.md**: The memory file still shows old "Status: Two repos complete" and needs updating with the Run 3 results (intent_layer 66%, flat_llm 57%, none 63%, one significant result, 73 infrastructure errors)
+   - **Fix graphiti.yaml for next run**: Add `--ignore=mcp_server/tests` to test_command, drop `preserve-all-signatures` task
+   - **Fix ansible.yaml for next run**: Drop `fix-local-connection-become-bytearray` (invalid), fix `fix-clearlinux` test_file path, scope test_command or drop commit_message tasks with no unit tests
+   - **Fix eval harness IsADirectoryError**: Handle case where test_file is a directory path
+
+8. Current Work:
+   The eval run completed at 4:10 AM (243/243). I read the final results markdown and updated `results/2026-02-16-consolidated.md` with comprehensive Run 3 data including:
+   - Overall results table (none 63%, flat_llm 57%, intent_layer 66%)
+   - Per-repo breakdown (pdm, graphiti, ansible)
+   - Graphiti adjusted results excluding broken tasks
+   - Star result analysis (fix-ansiblemodule-human-to-bytes)
+   - Data quality issues table
+   - Cache injection documentation
+   - Updated cross-repo synthesis
+
+   I was about to update MEMORY.md with the new results when the summary was requested.
+
+9. Optional Next Step:
+   Update `/Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/memory/MEMORY.md` with the completed Run 3 results. The current MEMORY.md still says "Status: Two repos complete" and shows old fastmcp-only results. It should be updated with:
+   - Run 3 complete: 27 tasks × 3 conditions × 3 reps = 243 items
+   - Results: intent_layer 66%, flat_llm 57%, none 63%
+   - One significant result: fix-ansiblemodule-human-to-bytes (0% → 100%)
+   - 73 infrastructure errors (30%) — data quality fixes needed
+   - Key insight: flat context can hurt (graphiti -23pp), hierarchical mitigates
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+do a thorough post-mortem analysis
+
+---
+
+do a thorough post-mortem analysis
+
+---
+
+[Request interrupted by user]
+
+---
+
+do a thorough post-mortem analysis
+
+---
+
+[Request interrupted by user]
+
+---
+
+do a thorough post-mortem analysis
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+Stop hook feedback:
+
+Monitor the overnight eval run, PID 32429, log at logs/overnight-2026-02-17.log. Check progress every 5 minutes. Course-correct any issues -- kill hung Claude subprocesses, diagnose infrastructure errors in the log, check if graphiti intent_layer context generation is failing repeatedly. When the run completes, summarize results and update results/2026-02-16-consolidated.md with the new data.
+
+---
+
+[Request interrupted by user]
+
+---
+
+# Cancel Ralph
+
+To cancel the Ralph loop:
+
+1. Check if `.claude/ralph-loop.local.md` exists using Bash: `test -f .claude/ralph-loop.local.md && echo "EXISTS" || echo "NOT_FOUND"`
+
+2. **If NOT_FOUND**: Say "No active Ralph loop found."
+
+3. **If EXISTS**:
+   - Read `.claude/ralph-loop.local.md` to get the current iteration number from the `iteration:` field
+   - Remove the file using Bash: `rm .claude/ralph-loop.local.md`
+   - Report: "Cancelled Ralph loop (was at iteration N)" where N is the iteration value
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation session from a previous conversation about monitoring an overnight AGENTbench eval run. The session summary indicates the overnight run (PID 32429) completed at 4:10 AM with 243/243 items done, and results were written to results/2026-02-18-041001.json and .md. The consolidated results file was already updated.
+
+2. **MEMORY.md Update**: The first action was updating MEMORY.md with Run 3 results - changing status from "Two repos complete" to the full Run 3 data including overall rates, key findings, data quality fixes needed, and new eval harness gotchas.
+
+3. **User Request - Post-Mortem Analysis**: The user requested "do a thorough post-mortem analysis". This was interrupted twice before succeeding on the third attempt.
+
+4. **Data Gathering Phase**: I read multiple files:
+   - results/2026-02-18-041001.json (too large, had to read in chunks)
+   - results/2026-02-16-consolidated.md (full read)
+   - Overnight log line count (4532 lines)
+   - All PASS/FAIL results extracted from log
+   - Task YAML configs (graphiti.yaml, ansible.yaml, pdm.yaml)
+
+5. **Analysis Phase**: Multiple Python analysis scripts were run to:
+   - Count PASS vs FAIL (106 pass, 137 fail out of 243)
+   - Categorize failure reasons (45 timeouts, 34 SystemExit, 18 pre-validation, etc.)
+   - Extract genuine capability failures
+   - Analyze failure modes per condition (none: 40 pass/9 timeout/23 wrong-fix, flat: 31/9/23, intent: 35/16/18)
+   - Classify each task (12 ceiling, 6 floor, 3 infra broken, 6 informative)
+   - Check infra error distribution by condition (non-uniform: none 18, flat 27, intent 28)
+   - **CRITICAL DISCOVERY**: Found that flat_llm had 0 valid runs on entity-extraction and datetime-comparison, but the runs actually had 300s wall clock and tool_calls > 0 — these were timeouts misclassified as infra errors
+   - Found 46 runs with actual activity misclassified as infra errors
+   - Recomputed corrected results: none 55.6%, flat 43.1%, intent 48.6% (vs reported 63/57/66)
+   - Per-repo corrected: PDM none 81% > flat 67% > intent 57%; Graphiti none 59% > intent 44% > flat 33%; Ansible (solvable) intent 92% > flat 67% > none 58%
+   - Wilson CI analysis on corrected data
+   - Timeout analysis by repo
+   - Token efficiency analysis on passing runs
+
+6. **Post-Mortem Written**: Comprehensive 8-section post-mortem covering:
+   - Executive summary with corrected vs reported numbers
+   - The measurement bug (timeouts as infra errors)
+   - Corrected per-repo data
+   - Task classification (only 6 of 27 tasks are informative)
+   - Infrastructure failure decomposition
+   - Cache injection problem
+   - What can/can't be claimed
+   - Fixes for next run
+
+7. **Ralph Loop Stuck**: After the post-mortem, the stop hook kept firing with the stale Ralph Loop prompt ~20+ times. I acknowledged it repeatedly and suggested `/cancel-ralph`.
+
+8. **Ralph Loop Cancelled**: User ran `/cancel-ralph`, I found the file at `eval-harness/.claude/ralph-loop.local.md` (iteration 26, started 2026-02-18T06:20:07Z), removed it.
+
+Key technical finding: The eval harness has a measurement bug where timeouts with actual agent activity (tool_calls > 0, wall_clock > 10s) are classified as "infrastructure errors" and excluded from the denominator, systematically inflating success rates. The corrected numbers tell a fundamentally different story from what was reported.
+
+No pending tasks were explicitly requested by the user. The post-mortem is complete. The Ralph Loop is cancelled.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested a "thorough post-mortem analysis" of the AGENTbench replication study, specifically the overnight Run 3 eval (PID 32429) that ran pdm + graphiti + ansible repos (27 tasks × 3 conditions × 3 reps = 243 items). This was preceded by updating MEMORY.md with Run 3 results (carried over from a previous session's monitoring task). After the post-mortem was delivered, the user cancelled a stuck Ralph Loop that kept firing stale stop-hook prompts.
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: Testing whether context files (flat vs hierarchical) help AI agents fix bugs, based on arxiv 2602.11988v1
+   - **Three conditions**: `none` (no context), `flat_llm` (single flat CLAUDE.md), `intent_layer` (hierarchical AGENTS.md files)
+   - **Wilson Score confidence intervals**: Used for per-task and aggregate success rate analysis with small samples
+   - **CRITICAL MEASUREMENT BUG DISCOVERED**: The eval harness misclassifies timeouts (runs with tool_calls > 0 and wall_clock > 10s) as "infrastructure errors," excluding them from denominators. 46 of 73 reported "infra errors" were actually valid failures.
+   - **Corrected vs Reported results**: Reported: none 63%, flat 57%, intent 66%. Corrected: none 55.6%, flat 43.1%, intent 48.6%. The corrected data shows intent_layer does NOT beat none overall.
+   - **Repo-complexity interaction**: Simple repos (pdm) — context hurts. Medium repos (graphiti) — flat hurts most, hierarchical hurts less. Complex repos (ansible solvable tasks) — hierarchical genuinely helps (92% vs 58%).
+   - **Task informativeness**: Only 6 of 27 tasks produced differential signal. 12 at ceiling (100% all conditions), 6 at floor (0% all conditions), 3 infra broken.
+   - **Cache injection problem**: `/intent-layer` skill's `git checkout HEAD -- .` reverted generated AGENTS.md files, causing early intent_layer runs to have no context
+   - **Ralph Loop**: A persistent monitoring loop that kept firing after completion; cancelled at iteration 26
+
+3. Files and Code Sections:
+   - **`/Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/memory/MEMORY.md`**
+     - Updated with Run 3 complete results, replacing old "Status: Two repos complete"
+     - Added Run 3 section (overall rates, key findings), data quality fixes, new eval harness gotchas (macOS awk, grep count inflation)
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/results/2026-02-18-041001.json`** (READ, 358KB)
+     - Raw eval results JSON. Read in chunks due to size limit.
+     - Contains per-task, per-condition, per-run data including wall_clock_seconds, input_tokens, tool_calls, success, files_touched
+     - Key data point: tasks with `total_valid_runs: 0` that still have runs with `wall_clock_seconds: 300` and `tool_calls > 0` — proving the timeout-as-infra-error bug
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/results/2026-02-16-consolidated.md`** (READ)
+     - Full consolidated results across all 3 runs
+     - Contains the originally reported (now known to be inflated) Run 3 numbers
+     - Needs correction based on post-mortem findings
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/results/2026-02-18-041001.md`** (referenced but not read this session — read in previous session)
+     - Formatted results markdown with the reported (inflated) numbers
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tasks/graphiti.yaml`** (READ)
+     - 10 tasks, `test_command` missing `--ignore=mcp_server/tests`
+     - `preserve-all-signatures` invalid (pre-validation fails)
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tasks/ansible.yaml`** (READ)
+     - 10 tasks, `test_command: pytest --tb=short -q` too broad
+     - 4 commit_message tasks with no unit tests → SystemExit failures
+     - `fix-clearlinux` has directory path as test_file → IsADirectoryError
+     - `fix-local-connection` test passes at pre_fix_commit (invalid)
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/tasks/pdm.yaml`** (READ)
+     - 7 tasks, infrastructure fixes for packaging<26 and hishel<1.0.0
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/logs/overnight-2026-02-17.log`** (4532 lines, grep-analyzed)
+     - 243 total [rep X/3] lines: 106 PASS, 137 FAIL
+     - Failure reasons: 45 timeouts, 34 SystemExit, 18 pre-validation, 9 IsADirectory, 8 wrong-fix (pip warning), etc.
+   
+   - **`/Users/ryo/dev/intent-layer/eval-harness/.claude/ralph-loop.local.md`** (READ then DELETED)
+     - Active Ralph Loop at iteration 26, started 2026-02-18T06:20:07Z
+     - Contained the stale monitoring prompt causing repeated stop-hook firing
+
+4. Errors and fixes:
+   - **JSON file too large to read**: `results/2026-02-18-041001.json` (358KB) exceeded 256KB Read limit.
+     - Fixed by using `offset` and `limit` parameters to read in chunks, and using `python3 -c` via Bash for JSON analysis
+   - **Sibling tool call errors**: When the JSON read failed, parallel Read/Bash calls also errored with "Sibling tool call errored"
+     - Fixed by retrying the calls in a new batch
+   - **Ralph Loop file path**: First tried `/Users/ryo/dev/intent-layer/.claude/ralph-loop.local.md` (file not found because cwd was eval-harness)
+     - Fixed by using the correct path: `/Users/ryo/dev/intent-layer/eval-harness/.claude/ralph-loop.local.md`
+   - **Stale Ralph Loop stop hook**: The stop hook fired 20+ times with the old monitoring prompt after the post-mortem was complete
+     - Resolved by user running `/cancel-ralph` and removing the ralph-loop.local.md file
+
+5. Problem Solving:
+   - **Major discovery — measurement bug**: Through systematic analysis of the raw JSON data, discovered that the eval harness misclassifies timeouts as infrastructure errors. Runs where the agent actively worked (tool_calls > 0, wall_clock > 10s) but timed out were excluded from denominators. This inflated all reported success rates by 8-12pp and disproportionately affected flat_llm and intent_layer conditions (which had more timeouts).
+   - **Corrected aggregate**: none 55.6% [46%,65%], flat 43.1% [34%,53%], intent 48.6% [39%,58%]. Intent layer does NOT beat none overall.
+   - **Found the real story**: The repo-complexity interaction. On ansible's 4 solvable tasks, intent_layer achieves 92% [70%,98%] vs none 58% [36%,78%] — the CIs barely overlap. This is the strongest result.
+   - **Identified timeout pattern**: Intent layer has more timeouts (16 vs 9 for none) but fewer wrong fixes (18 vs 23). It's spending more time reading context but producing more correct fixes when it finishes. A longer timeout could flip results.
+   - **Task informativeness**: Only 6 of 27 tasks differentiate conditions. 18/27 are at ceiling or floor. The effective sample is tiny.
+
+6. All user messages:
+   - "do a thorough post-mortem analysis" (first attempt, interrupted)
+   - "do a thorough post-mortem analysis" (second attempt, interrupted)
+   - "do a thorough post-mortem analysis" (third attempt, completed)
+   - ~20 instances of stop hook feedback with the stale Ralph Loop monitoring prompt (system-generated, not user-typed)
+   - `/cancel-ralph` command invocation
+
+7. Pending Tasks:
+   - **Update consolidated results file** with corrected numbers from post-mortem (the file currently contains the inflated/incorrect numbers). This was NOT explicitly requested but is implied by the findings.
+   - **Fix the eval harness measurement bug** (timeout classification) before any next run
+   - **Fix task YAML configs** (graphiti.yaml, ansible.yaml) per post-mortem recommendations
+
+8. Current Work:
+   The post-mortem analysis is complete and was delivered as a comprehensive 8-section document. The Ralph Loop was just cancelled (iteration 26). No active work is in progress.
+
+9. Optional Next Step:
+   No explicit next step was requested. The post-mortem was the user's request and it's complete. The most natural follow-ups would be updating the consolidated results file with the corrected numbers or fixing the eval harness timeout classification bug, but neither was explicitly asked for. Wait for user direction.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+
+---
+
+review last night's eval run and determine fixes needed for the next run. use a swarm.
+
+---
+
+<teammate-message teammate_id="code-reviewer" color="yellow" summary="Timeout bug analysis complete with 2-location fix">
+## Task #3 Complete: Timeout Classification Bug Analysis
+
+### The Bug
+`reporter.py:258` — `_is_infra_error()` treats `[timeout]` as an infrastructure error, excluding timeout runs from the success rate denominator. This inflates success rates via survivorship bias.
+
+The same bug is duplicated in `cli.py:23-26` (`_INFRA_ERROR_PREFIXES`), used by the `--resume` merge logic.
+
+### Why it matters
+If a condition has 10 runs: 5 pass, 3 fail, 2 timeout → current rate is 5/8=62.5% instead of correct 5/10=50%. Timeout runs have real metrics (`tool_calls > 0`, meaningful token usage) — they represent genuine attempts that couldn't finish, not harness failures.
+
+### Proposed fix (2 locations)
+
+**1. `lib/reporter.py:258`** — Remove `"[timeout]"` from the tuple:
+```python
+# Before:
+return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
+# After:
+return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]"))
+```
+
+**2. `lib/cli.py:23-26`** — Same removal:
+```python
+# Before:
+_INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]",
+    "[empty-run]", "[timeout]",
+)
+# After:
+_INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]",
+    "[empty-run]",
+)
+```
+
+### Other findings
+- **`[empty-run]`**: correctly excluded — means CLI didn't start (tool_calls=0, tokens=0)
+- **`[pre-validation]`**: correctly excluded — Docker can't run tests at all
+- **`[skill-generation]`**: correctly excluded — context file generation failed
+- **Pre-validation timeout**: 180s (raised from 120s), configurable via `PRE_VALIDATION_TIMEOUT` constant at line 41
+- **Cache injection flow**: strip → inject test → cache check → generate/restore → baseline commit → prompt → Claude run. Context files are in the baseline commit so diff stats are clean.
+
+### Impact on Run 3 data
+The 73 "infrastructure errors" from Run 3 likely include timeout runs. After fix, success rates will decrease (larger denominator), CIs narrow (larger n), and the comparison between conditions becomes fairer.
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="code-reviewer" color="yellow">
+{"type":"idle_notification","from":"code-reviewer","timestamp":"2026-02-18T18:28:20.474Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="code-reviewer" color="yellow">
+{"type":"idle_notification","from":"code-reviewer","timestamp":"2026-02-18T18:28:24.626Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="config-reviewer" color="green" summary="Complete YAML config review with all fixes">
+## Task YAML Config Review — Complete
+
+I analyzed all three YAML configs against the full overnight log (4532 lines, 243 items). Here's every issue found, organized by repo.
+
+---
+
+## ansible.yaml — 6 issues (DROP 5 tasks, FIX 1)
+
+### DROP: `fix-local-connection-become-bytearray`
+**Reason**: Test passes at pre_fix_commit (9/9 reps: `[pre-validation] Test already passes at pre_fix_commit 29086acf`)
+**Action**: Remove from tasks list
+
+### DROP: `fix-iptables-match-extension-bug`
+**Reason**: No unit tests (integration-only). All 9 reps fail with `mainloop: caught unexpected SystemExit!` because ansible has a custom `pytest` wrapper that rejects `--tb=short -q` flags. The error: `usage: pytest [-h] [--profile PROFILE] [args]` / `pytest: error: unrecognized arguments: --tb=short -q`
+**Action**: Remove from tasks list
+
+### DROP: `callback-filter-ansible-prefix-in-debug`
+**Reason**: Same as iptables — integration tests only, all 9 reps SystemExit from ansible's custom pytest wrapper
+**Action**: Remove from tasks list
+
+### DROP: `action-make-tmp-path-fix-error-message`
+**Reason**: Same — no unit test changes, all 9 reps SystemExit
+**Action**: Remove from tasks list
+
+### DROP: `config-lookup-fallback-to-existing-constants`
+**Reason**: Same — integration tests only, 7/9 reps SystemExit, 2/9 timeout
+**Action**: Remove from tasks list
+
+### FIX: `fix-clearlinux-gentoo-os-release-parsing`
+**Reason**: `test_file` points to a DIRECTORY (`test/units/module_utils/facts/system/distribution/`), not a file. Harness tries to `open()` it for test injection → `IsADirectoryError: [Errno 21]`. All 9 reps fail as infrastructure error.
+**Root cause**: The fix commit adds a JSON fixture (`gentoo.json`) to the `distribution/` directory. The actual pytest file that parametrically loads these fixtures is `test/units/module_utils/facts/system/test_distribution.py`.
+
+```yaml
+# BEFORE
+  test_file: test/units/module_utils/facts/system/distribution/
+
+# AFTER
+  test_file: test/units/module_utils/facts/system/test_distribution.py
+```
+
+**Note**: Verify this path exists in the ansible repo at commit 28927a70. The standard ansible test structure uses `test_distribution.py` to load JSON fixtures from `distribution/`.
+
+### Ansible summary after fixes
+- **Before**: 10 tasks, only 5 produced valid data (50% waste)
+- **After**: 5 tasks, all should produce valid data
+- Surviving tasks: fix-clearlinux, fix-get-url-regex, fix-ansiblemodule-human-to-bytes, inventory-add-warning, fix-v1-source-info-schema-validation
+
+### Repo-level config note
+The `test_command: pytest --tb=short -q` works when combined with a specific `test_file` (harness appends it: `pytest --tb=short -q test/units/foo.py`). But bare `pytest --tb=short -q` hits ansible's custom wrapper. This is only a problem for tasks without `test_file`, which we're dropping. No repo-level change needed.
+
+---
+
+## graphiti.yaml — 2 issues (DROP 1 task, FIX test_command)
+
+### DROP: `preserve-all-signatures-when-edge-type-reused`
+**Reason**: Test passes at pre_fix_commit (9/9 reps: `[pre-validation] Test already passes at pre_fix_commit 37ec7b43`)
+**Action**: Remove from tasks list
+
+### FIX: Add `--ignore=mcp_server/tests` to test_command
+**Reason**: Log line 1999 shows `ERROR mcp_server/tests - ModuleNotFoundError: No module named 'tests.conftest'`. This collection error causes pytest to report failure even when actual tests pass. Affects all commit_message tasks that run the full suite (no test_file).
+
+Three tasks got 0/9 passes and are likely affected by this:
+- `fix-limited-number-of-edges` (0/9)
+- `sanitize-pipe-slash-in-falkordb-fulltext` (0/9)
+- `escape-group-ids-in-redisearch-fulltext` (0/9)
+
+Three other commit_message tasks DID get partial passes, suggesting pytest can sometimes continue past the collection error:
+- `fix-datetime-comparison-normalize-utc` (4/9)
+- `filter-falsey-values-before-creating-embeddings` (5/9)
+- `validate-nodes-edges-not-falsey` (5/9)
+
+```yaml
+# BEFORE
+    test_command: >-
+      DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1
+      uv run pytest -m "not integration"
+      --ignore=tests/test_graphiti_int.py
+      ...
+      --ignore=tests/evals/
+
+# AFTER (add one line before the closing)
+    test_command: >-
+      DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1
+      uv run pytest -m "not integration"
+      --ignore=tests/test_graphiti_int.py
+      ...
+      --ignore=tests/evals/
+      --ignore=mcp_server/tests
+```
+
+### Caveat on 0/9 graphiti tasks
+The 3 tasks that got 0/9 might also have a `uv sync --frozen --all-extras` issue at older commits. The non-timeout failures show pip install output as the last 10 lines of test output (e.g., `+ zstandard==0.23.0`), meaning pytest may not have produced output. Pre-validation passed though, so setup works at pre_fix_commit — the issue could be that Claude modifies `pyproject.toml` or `uv.lock`, breaking `--frozen`. Worth monitoring after the `--ignore` fix.
+
+### Graphiti summary after fixes
+- **Before**: 10 tasks, 1 invalid (pre-validation), 3 at 0/9 (likely mcp_server/tests)
+- **After**: 9 tasks, test_command should be cleaner
+
+---
+
+## pdm.yaml — 0 issues (clean)
+
+All 7 tasks produced valid data. Failures were genuine (timeouts or Claude not finding the fix), not infrastructure issues.
+
+Quick summary of pdm results:
+- `fix-expand-env-vars`: 9/9 pass (too easy, ceiling effect)
+- `fix-publish-skip-existing`: 9/9 pass (same)
+- `fix-http-cache-clear-directory-crash`: 9/9 pass (same)
+- `fix-pylock-toml-git-dependency`: 6/9 pass (timeouts)
+- `fix-resolution-excludes`: 4/9 pass (timeouts)
+- `fix-pdm-toml-not-considered`: 3/9 pass (timeouts)
+- `fix-ignore-python-requirement`: 2/9 pass (mixed)
+
+Consider dropping the 3 tasks at 100% ceiling (no signal) and replacing with harder tasks. But this is an optimization, not a fix.
+
+---
+
+## Summary of all changes
+
+| Repo | Action | Tasks affected | Items recovered |
+|------|--------|---------------|----------------|
+| ansible | DROP 5 tasks | fix-local-connection, fix-iptables, callback-filter, action-make-tmp-path, config-lookup | 45 items no longer wasted |
+| ansible | FIX test_file | fix-clearlinux | 9 items recovered |
+| graphiti | DROP 1 task | preserve-all-signatures | 9 items no longer wasted |
+| graphiti | FIX test_command | All commit_message tasks | Up to 27 items improved |
+
+**Net effect**: 27 → 21 tasks. 73 infrastructure errors → ~0 estimated. Statistical power goes way up.
+
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="config-reviewer" color="green">
+{"type":"idle_notification","from":"config-reviewer","timestamp":"2026-02-18T18:31:02.741Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="config-reviewer" color="green">
+{"type":"idle_notification","from":"config-reviewer","timestamp":"2026-02-18T18:31:11.561Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="failure-analyst" color="blue" summary="Complete failure mode analysis of 243 eval runs">
+## Task #1 Complete: Failure Mode Analysis
+
+### 1. Per-repo × per-condition breakdown (243 runs)
+
+```
+Repo         Condition         Pass   Fail  Timeout  Infra  Total
+─────────────────────────────────────────────────────────────────
+pdm          none                17      1        3      0     21
+pdm          flat_llm            14      3        4      0     21
+pdm          intent_layer        12      3        6      0     21
+
+graphiti     none                16      7        4      3     30
+graphiti     flat_llm             9      5       13      3     30
+graphiti     intent_layer        12      3       12      3     30
+
+ansible      none                 7     15        2      6     30
+ansible      flat_llm             8     15        1      6     30
+ansible      intent_layer        11     12        1      6     30
+
+TOTAL        none                40     23        9      9     81
+             flat_llm            31     23       18      9     81
+             intent_layer        35     18       19      9     81
+```
+
+Summary: 106 pass, 50 fail, 46 timeout, 41 infra errors.
+
+### 2. Task classification (27 tasks)
+
+**Ceiling (7 tasks)** — 100% all conditions, no discriminative power:
+- pdm: fix-expand-env-vars, fix-publish-skip, fix-http-cache
+- graphiti: fix-azure-structured, exclude-duplicate-edges
+- ansible: fix-get-url-regex, inventory-add-warning
+
+**Floor (7 tasks)** — 0% all conditions, too hard or broken tests:
+- graphiti: fix-limited-number-of-edges, sanitize-pipe-slash, escape-group-ids
+- ansible: fix-iptables, callback-filter, action-make-tmp-path, config-lookup-fallback
+
+**Infra-broken (3 tasks)** — never ran Claude:
+- `preserve-all-signatures-when-edge-type-reused` → [pre-validation] test already passes
+- `fix-clearlinux-gentoo-os-release-parsing` → [infrastructure] IsADirectory error in test_file path
+- `fix-local-connection-become-bytearray` → [pre-validation] test already passes
+
+**INFORMATIVE (10 tasks)** — these are the ones that matter:
+```
+Task                                           none  flat  intent
+fix-ignore-python-requirement-during-lock       67%    0%     0%
+fix-resolution-excludes-lock-file-candidates    33%   67%    33%
+fix-pylock-toml-git-dependency-lock-failure    100%   67%    33%
+fix-pdm-toml-not-considered-pre-build-hook      67%   33%    33%
+fix-entity-extraction-adaptive-chunking        100%    0%    67%
+fix-datetime-comparison-normalize-utc          100%    0%    33%
+filter-falsey-values-before-creating-embeddings 33%   67%    67%
+validate-nodes-edges-not-falsey                100%   33%    33%
+fix-ansiblemodule-human-to-bytes                 0%   33%   100%  ← star result
+fix-v1-source-info-schema-validation            33%   33%    67%
+```
+
+### 3. Timeout-as-infra-error bug
+
+4 condition-level instances where ALL 3 reps timed out → total_valid_runs=0 → excluded from rate calculation:
+
+| Task | Condition | Timeout Runs | Tool Calls |
+|------|-----------|-------------|------------|
+| fix-entity-extraction-adaptive-chunking | flat_llm | 3/3 | 22-30 |
+| fix-datetime-comparison-normalize-utc | flat_llm | 3/3 | 2-10 |
+| escape-group-ids-in-redisearch-fulltext | flat_llm | 3/3 | 13-27 |
+| escape-group-ids-in-redisearch-fulltext | intent_layer | 3/3 | 20-21 |
+
+All 4 are graphiti tasks, and 3/4 affect flat_llm. Claude was actively working (many tool calls) but ran out of the 300s budget.
+
+### 4. Corrected success rates
+
+**Original rates** (timeouts excluded from denominator as infra):
+- none: 63.5% (40/63)
+- flat_llm: 57.4% (31/54)  
+- intent_layer: 66.0% (35/53)
+
+**Corrected rates** (timeouts reclassified as failures):
+- none: **55.6%** (40/72)
+- flat_llm: **43.1%** (31/72)
+- intent_layer: **48.6%** (35/72)
+
+**Informative tasks only** (10 tasks, corrected):
+- none: **63.3%** (19/30)
+- flat_llm: **33.3%** (10/30)
+- intent_layer: **46.7%** (14/30)
+
+### Key findings
+
+1. **Context doubles timeout rates**: none=11%, flat/intent=22-23%. Context makes Claude explore more, hitting the 300s budget. This is a major confound — flat_llm's poor showing is partly because it times out more.
+
+2. **Flat context hurts on graphiti**: flat_llm 33% vs none 59% (corrected). Two graphiti tasks (entity-extraction, datetime-comparison) go from 100% none → 0% flat because flat makes Claude timeout on all 3 reps.
+
+3. **Intent layer partially recovers**: On those same graphiti tasks, intent_layer recovers to 33-67% (vs flat's 0%).
+
+4. **The star result holds**: fix-ansiblemodule-human-to-bytes: none 0/3, flat 1/3, intent 3/3 — no timeouts, all genuine results.
+
+5. **Data quality**: 41 genuine infra errors (17%) + 46 timeouts (19%) = 36% of runs aren't informative. With only 3 reps, this severely limits statistical power.
+
+6. **Missing metrics**: 54/81 flat_llm and 53/81 intent_layer runs have wall_clock=None (metrics not captured). The test results are valid but we can't compare timing across conditions.
+
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="failure-analyst" color="blue">
+{"type":"idle_notification","from":"failure-analyst","timestamp":"2026-02-18T18:32:05.872Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"config-reviewer has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"code-reviewer has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="config-reviewer" color="green">
+{"type":"shutdown_approved","requestId":"shutdown-1771439524027@config-reviewer","from":"config-reviewer","timestamp":"2026-02-18T18:32:08.316Z","paneId":"%2","backendType":"tmux"}
+</teammate-message>
+
+<teammate-message teammate_id="code-reviewer" color="yellow">
+{"type":"shutdown_approved","requestId":"shutdown-1771439524685@code-reviewer","from":"code-reviewer","timestamp":"2026-02-18T18:32:08.887Z","paneId":"%3","backendType":"tmux"}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"failure-analyst has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="failure-analyst" color="blue">
+{"type":"shutdown_approved","requestId":"shutdown-1771439523489@failure-analyst","from":"failure-analyst","timestamp":"2026-02-18T18:32:10.564Z","paneId":"%1","backendType":"tmux"}
+</teammate-message>
+
+---
+
+# Create a plan for a new feature or bug fix
+
+## Introduction
+
+**Note: The current year is 2026.** Use this when dating plans and searching for recent documentation.
+
+Transform feature descriptions, bug reports, or improvement ideas into well-structured markdown files issues that follow project conventions and best practices. This command provides flexible detail levels to match your needs.
+
+## Feature Description
+
+<feature_description> # </feature_description>
+
+**If the feature description above is empty, ask the user:** "What would you like to plan? Please describe the feature, bug fix, or improvement you have in mind."
+
+Do not proceed until you have a clear feature description from the user.
+
+### 0. Idea Refinement
+
+**Check for brainstorm output first:**
+
+Before asking questions, look for recent brainstorm documents in `docs/brainstorms/` that match this feature:
+
+```bash
+ls -la docs/brainstorms/*.md 2>/dev/null | head -10
+```
+
+**Relevance criteria:** A brainstorm is relevant if:
+- The topic (from filename or YAML frontmatter) semantically matches the feature description
+- Created within the last 14 days
+- If multiple candidates match, use the most recent one
+
+**If a relevant brainstorm exists:**
+1. Read the brainstorm document
+2. Announce: "Found brainstorm from [date]: [topic]. Using as context for planning."
+3. Extract key decisions, chosen approach, and open questions
+4. **Skip the idea refinement questions below** - the brainstorm already answered WHAT to build
+5. Use brainstorm decisions as input to the research phase
+
+**If multiple brainstorms could match:**
+Use **AskUserQuestion tool** to ask which brainstorm to use, or whether to proceed without one.
+
+**If no brainstorm found (or not relevant), run idea refinement:**
+
+Refine the idea through collaborative dialogue using the **AskUserQuestion tool**:
+
+- Ask questions one at a time to understand the idea fully
+- Prefer multiple choice questions when natural options exist
+- Focus on understanding: purpose, constraints and success criteria
+- Continue until the idea is clear OR user says "proceed"
+
+**Gather signals for research decision.** During refinement, note:
+
+- **User's familiarity**: Do they know the codebase patterns? Are they pointing to examples?
+- **User's intent**: Speed vs thoroughness? Exploration vs execution?
+- **Topic risk**: Security, payments, external APIs warrant more caution
+- **Uncertainty level**: Is the approach clear or open-ended?
+
+**Skip option:** If the feature description is already detailed, offer:
+"Your description is clear. Should I proceed with research, or would you like to refine it further?"
+
+## Main Tasks
+
+### 1. Local Research (Always Runs - Parallel)
+
+<thinking>
+First, I need to understand the project's conventions, existing patterns, and any documented learnings. This is fast and local - it informs whether external research is needed.
+</thinking>
+
+Run these agents **in parallel** to gather local context:
+
+- Task repo-research-analyst(feature_description)
+- Task learnings-researcher(feature_description)
+
+**What to look for:**
+- **Repo research:** existing patterns, CLAUDE.md guidance, technology familiarity, pattern consistency
+- **Learnings:** documented solutions in `docs/solutions/` that might apply (gotchas, patterns, lessons learned)
+
+These findings inform the next step.
+
+### 1.5. Research Decision
+
+Based on signals from Step 0 and findings from Step 1, decide on external research.
+
+**High-risk topics → always research.** Security, payments, external APIs, data privacy. The cost of missing something is too high. This takes precedence over speed signals.
+
+**Strong local context → skip external research.** Codebase has good patterns, CLAUDE.md has guidance, user knows what they want. External research adds little value.
+
+**Uncertainty or unfamiliar territory → research.** User is exploring, codebase has no examples, new technology. External perspective is valuable.
+
+**Announce the decision and proceed.** Brief explanation, then continue. User can redirect if needed.
+
+Examples:
+- "Your codebase has solid patterns for this. Proceeding without external research."
+- "This involves payment processing, so I'll research current best practices first."
+
+### 1.5b. External Research (Conditional)
+
+**Only run if Step 1.5 indicates external research is valuable.**
+
+Run these agents in parallel:
+
+- Task best-practices-researcher(feature_description)
+- Task framework-docs-researcher(feature_description)
+
+### 1.6. Consolidate Research
+
+After all research steps complete, consolidate findings:
+
+- Document relevant file paths from repo research (e.g., `app/services/example_service.rb:42`)
+- **Include relevant institutional learnings** from `docs/solutions/` (key insights, gotchas to avoid)
+- Note external documentation URLs and best practices (if external research was done)
+- List related issues or PRs discovered
+- Capture CLAUDE.md conventions
+
+**Optional validation:** Briefly summarize findings and ask if anything looks off or missing before proceeding to planning.
+
+### 2. Issue Planning & Structure
+
+<thinking>
+Think like a product manager - what would make this issue clear and actionable? Consider multiple perspectives
+</thinking>
+
+**Title & Categorization:**
+
+- [ ] Draft clear, searchable issue title using conventional format (e.g., `feat: Add user authentication`, `fix: Cart total calculation`)
+- [ ] Determine issue type: enhancement, bug, refactor
+- [ ] Convert title to filename: add today's date prefix, strip prefix colon, kebab-case, add `-plan` suffix
+  - Example: `feat: Add User Authentication` → `2026-01-21-feat-add-user-authentication-plan.md`
+  - Keep it descriptive (3-5 words after prefix) so plans are findable by context
+
+**Stakeholder Analysis:**
+
+- [ ] Identify who will be affected by this issue (end users, developers, operations)
+- [ ] Consider implementation complexity and required expertise
+
+**Content Planning:**
+
+- [ ] Choose appropriate detail level based on issue complexity and audience
+- [ ] List all necessary sections for the chosen template
+- [ ] Gather supporting materials (error logs, screenshots, design mockups)
+- [ ] Prepare code examples or reproduction steps if applicable, name the mock filenames in the lists
+
+### 3. SpecFlow Analysis
+
+After planning the issue structure, run SpecFlow Analyzer to validate and refine the feature specification:
+
+- Task spec-flow-analyzer(feature_description, research_findings)
+
+**SpecFlow Analyzer Output:**
+
+- [ ] Review SpecFlow analysis results
+- [ ] Incorporate any identified gaps or edge cases into the issue
+- [ ] Update acceptance criteria based on SpecFlow findings
+
+### 4. Choose Implementation Detail Level
+
+Select how comprehensive you want the issue to be, simpler is mostly better.
+
+#### 📄 MINIMAL (Quick Issue)
+
+**Best for:** Simple bugs, small improvements, clear features
+
+**Includes:**
+
+- Problem statement or feature description
+- Basic acceptance criteria
+- Essential context only
+
+**Structure:**
+
+````markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+[Brief problem/feature description]
+
+## Acceptance Criteria
+
+- [ ] Core requirement 1
+- [ ] Core requirement 2
+
+## Context
+
+[Any critical information]
+
+## MVP
+
+### test.rb
+
+```ruby
+class Test
+  def initialize
+    @name = "test"
+  end
+end
+```
+
+## References
+
+- Related issue: #[issue_number]
+- Documentation: [relevant_docs_url]
+````
+
+#### 📋 MORE (Standard Issue)
+
+**Best for:** Most features, complex bugs, team collaboration
+
+**Includes everything from MINIMAL plus:**
+
+- Detailed background and motivation
+- Technical considerations
+- Success metrics
+- Dependencies and risks
+- Basic implementation suggestions
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Comprehensive description]
+
+## Problem Statement / Motivation
+
+[Why this matters]
+
+## Proposed Solution
+
+[High-level approach]
+
+## Technical Considerations
+
+- Architecture impacts
+- Performance implications
+- Security considerations
+
+## Acceptance Criteria
+
+- [ ] Detailed requirement 1
+- [ ] Detailed requirement 2
+- [ ] Testing requirements
+
+## Success Metrics
+
+[How we measure success]
+
+## Dependencies & Risks
+
+[What could block or complicate this]
+
+## References & Research
+
+- Similar implementations: [file_path:line_number]
+- Best practices: [documentation_url]
+- Related PRs: #[pr_number]
+```
+
+#### 📚 A LOT (Comprehensive Issue)
+
+**Best for:** Major features, architectural changes, complex integrations
+
+**Includes everything from MORE plus:**
+
+- Detailed implementation plan with phases
+- Alternative approaches considered
+- Extensive technical specifications
+- Resource requirements and timeline
+- Future considerations and extensibility
+- Risk mitigation strategies
+- Documentation requirements
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Executive summary]
+
+## Problem Statement
+
+[Detailed problem analysis]
+
+## Proposed Solution
+
+[Comprehensive solution design]
+
+## Technical Approach
+
+### Architecture
+
+[Detailed technical design]
+
+### Implementation Phases
+
+#### Phase 1: [Foundation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 2: [Core Implementation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 3: [Polish & Optimization]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+## Alternative Approaches Considered
+
+[Other solutions evaluated and why rejected]
+
+## Acceptance Criteria
+
+### Functional Requirements
+
+- [ ] Detailed functional criteria
+
+### Non-Functional Requirements
+
+- [ ] Performance targets
+- [ ] Security requirements
+- [ ] Accessibility standards
+
+### Quality Gates
+
+- [ ] Test coverage requirements
+- [ ] Documentation completeness
+- [ ] Code review approval
+
+## Success Metrics
+
+[Detailed KPIs and measurement methods]
+
+## Dependencies & Prerequisites
+
+[Detailed dependency analysis]
+
+## Risk Analysis & Mitigation
+
+[Comprehensive risk assessment]
+
+## Resource Requirements
+
+[Team, time, infrastructure needs]
+
+## Future Considerations
+
+[Extensibility and long-term vision]
+
+## Documentation Plan
+
+[What docs need updating]
+
+## References & Research
+
+### Internal References
+
+- Architecture decisions: [file_path:line_number]
+- Similar features: [file_path:line_number]
+- Configuration: [file_path:line_number]
+
+### External References
+
+- Framework documentation: [url]
+- Best practices guide: [url]
+- Industry standards: [url]
+
+### Related Work
+
+- Previous PRs: #[pr_numbers]
+- Related issues: #[issue_numbers]
+- Design documents: [links]
+```
+
+### 5. Issue Creation & Formatting
+
+<thinking>
+Apply best practices for clarity and actionability, making the issue easy to scan and understand
+</thinking>
+
+**Content Formatting:**
+
+- [ ] Use clear, descriptive headings with proper hierarchy (##, ###)
+- [ ] Include code examples in triple backticks with language syntax highlighting
+- [ ] Add screenshots/mockups if UI-related (drag & drop or use image hosting)
+- [ ] Use task lists (- [ ]) for trackable items that can be checked off
+- [ ] Add collapsible sections for lengthy logs or optional details using `<details>` tags
+- [ ] Apply appropriate emoji for visual scanning (🐛 bug, ✨ feature, 📚 docs, ♻️ refactor)
+
+**Cross-Referencing:**
+
+- [ ] Link to related issues/PRs using #number format
+- [ ] Reference specific commits with SHA hashes when relevant
+- [ ] Link to code using GitHub's permalink feature (press 'y' for permanent link)
+- [ ] Mention relevant team members with @username if needed
+- [ ] Add links to external resources with descriptive text
+
+**Code & Examples:**
+
+````markdown
+# Good example with syntax highlighting and line references
+
+
+```ruby
+# app/services/user_service.rb:42
+def process_user(user)
+
+# Implementation here
+
+end
+```
+
+# Collapsible error logs
+
+<details>
+<summary>Full error stacktrace</summary>
+
+`Error details here...`
+
+</details>
+````
+
+**AI-Era Considerations:**
+
+- [ ] Account for accelerated development with AI pair programming
+- [ ] Include prompts or instructions that worked well during research
+- [ ] Note which AI tools were used for initial exploration (Claude, Copilot, etc.)
+- [ ] Emphasize comprehensive testing given rapid implementation
+- [ ] Document any AI-generated code that needs human review
+
+### 6. Final Review & Submission
+
+**Pre-submission Checklist:**
+
+- [ ] Title is searchable and descriptive
+- [ ] Labels accurately categorize the issue
+- [ ] All template sections are complete
+- [ ] Links and references are working
+- [ ] Acceptance criteria are measurable
+- [ ] Add names of files in pseudo code examples and todo lists
+- [ ] Add an ERD mermaid diagram if applicable for new model changes
+
+## Output Format
+
+**Filename:** Use the date and kebab-case filename from Step 2 Title & Categorization.
+
+```
+docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md
+```
+
+Examples:
+- ✅ `docs/plans/2026-01-15-feat-user-authentication-flow-plan.md`
+- ✅ `docs/plans/2026-02-03-fix-checkout-race-condition-plan.md`
+- ✅ `docs/plans/2026-03-10-refactor-api-client-extraction-plan.md`
+- ❌ `docs/plans/2026-01-15-feat-thing-plan.md` (not descriptive - what "thing"?)
+- ❌ `docs/plans/2026-01-15-feat-new-feature-plan.md` (too vague - what feature?)
+- ❌ `docs/plans/2026-01-15-feat: user auth-plan.md` (invalid characters - colon and space)
+- ❌ `docs/plans/feat-user-auth-plan.md` (missing date prefix)
+
+## Post-Generation Options
+
+After writing the plan file, use the **AskUserQuestion tool** to present these options:
+
+**Question:** "Plan ready at `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`. What would you like to do next?"
+
+**Options:**
+1. **Open plan in editor** - Open the plan file for review
+2. **Run `/deepen-plan`** - Enhance each section with parallel research agents (best practices, performance, UI)
+3. **Run `/plan_review`** - Get feedback from reviewers (DHH, Kieran, Simplicity)
+4. **Start `/workflows:work`** - Begin implementing this plan locally
+5. **Start `/workflows:work` on remote** - Begin implementing in Claude Code on the web (use `&` to run in background)
+6. **Create Issue** - Create issue in project tracker (GitHub/Linear)
+7. **Simplify** - Reduce detail level
+
+Based on selection:
+- **Open plan in editor** → Run `open docs/plans/<plan_filename>.md` to open the file in the user's default editor
+- **`/deepen-plan`** → Call the /deepen-plan command with the plan file path to enhance with research
+- **`/plan_review`** → Call the /plan_review command with the plan file path
+- **`/workflows:work`** → Call the /workflows:work command with the plan file path
+- **`/workflows:work` on remote** → Run `/workflows:work docs/plans/<plan_filename>.md &` to start work in background for Claude Code web
+- **Create Issue** → See "Issue Creation" section below
+- **Simplify** → Ask "What should I simplify?" then regenerate simpler version
+- **Other** (automatically provided) → Accept free text for rework or specific changes
+
+**Note:** If running `/workflows:plan` with ultrathink enabled, automatically run `/deepen-plan` after plan creation for maximum depth and grounding.
+
+Loop back to options after Simplify or Other changes until user selects `/workflows:work` or `/plan_review`.
+
+## Issue Creation
+
+When user selects "Create Issue", detect their project tracker from CLAUDE.md:
+
+1. **Check for tracker preference** in user's CLAUDE.md (global or project):
+   - Look for `project_tracker: github` or `project_tracker: linear`
+   - Or look for mentions of "GitHub Issues" or "Linear" in their workflow section
+
+2. **If GitHub:**
+
+   Use the title and type from Step 2 (already in context - no need to re-read the file):
+
+   ```bash
+   gh issue create --title "<type>: <title>" --body-file <plan_path>
+   ```
+
+3. **If Linear:**
+
+   ```bash
+   linear issue create --title "<title>" --description "$(cat <plan_path>)"
+   ```
+
+4. **If no tracker configured:**
+   Ask user: "Which project tracker do you use? (GitHub/Linear/Other)"
+   - Suggest adding `project_tracker: github` or `project_tracker: linear` to their CLAUDE.md
+
+5. **After creation:**
+   - Display the issue URL
+   - Ask if they want to proceed to `/workflows:work` or `/plan_review`
+
+NEVER CODE! Just research and write the plan.
+
+---
+
+# Work Plan Execution Command
+
+Execute a work plan efficiently while maintaining quality and finishing features.
+
+## Introduction
+
+This command takes a work document (plan, specification, or todo file) and executes it systematically. The focus is on **shipping complete features** by understanding requirements quickly, following existing patterns, and maintaining quality throughout.
+
+## Input Document
+
+<input_document> #docs/plans/2026-02-18-fix-eval-harness-run4-prep-plan.md </input_document>
+
+## Execution Workflow
+
+### Phase 1: Quick Start
+
+1. **Read Plan and Clarify**
+
+   - Read the work document completely
+   - Review any references or links provided in the plan
+   - If anything is unclear or ambiguous, ask clarifying questions now
+   - Get user approval to proceed
+   - **Do not skip this** - better to ask questions now than build the wrong thing
+
+2. **Setup Environment**
+
+   First, check the current branch:
+
+   ```bash
+   current_branch=$(git branch --show-current)
+   default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+
+   # Fallback if remote HEAD isn't set
+   if [ -z "$default_branch" ]; then
+     default_branch=$(git rev-parse --verify origin/main >/dev/null 2>&1 && echo "main" || echo "master")
+   fi
+   ```
+
+   **If already on a feature branch** (not the default branch):
+   - Ask: "Continue working on `[current_branch]`, or create a new branch?"
+   - If continuing, proceed to step 3
+   - If creating new, follow Option A or B below
+
+   **If on the default branch**, choose how to proceed:
+
+   **Option A: Create a new branch**
+   ```bash
+   git pull origin [default_branch]
+   git checkout -b feature-branch-name
+   ```
+   Use a meaningful name based on the work (e.g., `feat/user-authentication`, `fix/email-validation`).
+
+   **Option B: Use a worktree (recommended for parallel development)**
+   ```bash
+   skill: git-worktree
+   # The skill will create a new branch from the default branch in an isolated worktree
+   ```
+
+   **Option C: Continue on the default branch**
+   - Requires explicit user confirmation
+   - Only proceed after user explicitly says "yes, commit to [default_branch]"
+   - Never commit directly to the default branch without explicit permission
+
+   **Recommendation**: Use worktree if:
+   - You want to work on multiple features simultaneously
+   - You want to keep the default branch clean while experimenting
+   - You plan to switch between branches frequently
+
+3. **Create Todo List**
+   - Use TodoWrite to break plan into actionable tasks
+   - Include dependencies between tasks
+   - Prioritize based on what needs to be done first
+   - Include testing and quality check tasks
+   - Keep tasks specific and completable
+
+### Phase 2: Execute
+
+1. **Task Execution Loop**
+
+   For each task in priority order:
+
+   ```
+   while (tasks remain):
+     - Mark task as in_progress in TodoWrite
+     - Read any referenced files from the plan
+     - Look for similar patterns in codebase
+     - Implement following existing conventions
+     - Write tests for new functionality
+     - Run tests after changes
+     - Mark task as completed in TodoWrite
+     - Mark off the corresponding checkbox in the plan file ([ ] → [x])
+     - Evaluate for incremental commit (see below)
+   ```
+
+   **IMPORTANT**: Always update the original plan document by checking off completed items. Use the Edit tool to change `- [ ]` to `- [x]` for each task you finish. This keeps the plan as a living document showing progress and ensures no checkboxes are left unchecked.
+
+2. **Incremental Commits**
+
+   After completing each task, evaluate whether to create an incremental commit:
+
+   | Commit when... | Don't commit when... |
+   |----------------|---------------------|
+   | Logical unit complete (model, service, component) | Small part of a larger unit |
+   | Tests pass + meaningful progress | Tests failing |
+   | About to switch contexts (backend → frontend) | Purely scaffolding with no behavior |
+   | About to attempt risky/uncertain changes | Would need a "WIP" commit message |
+
+   **Heuristic:** "Can I write a commit message that describes a complete, valuable change? If yes, commit. If the message would be 'WIP' or 'partial X', wait."
+
+   **Commit workflow:**
+   ```bash
+   # 1. Verify tests pass (use project's test command)
+   # Examples: bin/rails test, npm test, pytest, go test, etc.
+
+   # 2. Stage only files related to this logical unit (not `git add .`)
+   git add <files related to this logical unit>
+
+   # 3. Commit with conventional message
+   git commit -m "feat(scope): description of this unit"
+   ```
+
+   **Handling merge conflicts:** If conflicts arise during rebasing or merging, resolve them immediately. Incremental commits make conflict resolution easier since each commit is small and focused.
+
+   **Note:** Incremental commits use clean conventional messages without attribution footers. The final Phase 4 commit/PR includes the full attribution.
+
+3. **Follow Existing Patterns**
+
+   - The plan should reference similar code - read those files first
+   - Match naming conventions exactly
+   - Reuse existing components where possible
+   - Follow project coding standards (see CLAUDE.md)
+   - When in doubt, grep for similar implementations
+
+4. **Test Continuously**
+
+   - Run relevant tests after each significant change
+   - Don't wait until the end to test
+   - Fix failures immediately
+   - Add new tests for new functionality
+
+5. **Figma Design Sync** (if applicable)
+
+   For UI work with Figma designs:
+
+   - Implement components following design specs
+   - Use figma-design-sync agent iteratively to compare
+   - Fix visual differences identified
+   - Repeat until implementation matches design
+
+6. **Track Progress**
+   - Keep TodoWrite updated as you complete tasks
+   - Note any blockers or unexpected discoveries
+   - Create new tasks if scope expands
+   - Keep user informed of major milestones
+
+### Phase 3: Quality Check
+
+1. **Run Core Quality Checks**
+
+   Always run before submitting:
+
+   ```bash
+   # Run full test suite (use project's test command)
+   # Examples: bin/rails test, npm test, pytest, go test, etc.
+
+   # Run linting (per CLAUDE.md)
+   # Use linting-agent before pushing to origin
+   ```
+
+2. **Consider Reviewer Agents** (Optional)
+
+   Use for complex, risky, or large changes:
+
+   - **code-simplicity-reviewer**: Check for unnecessary complexity
+   - **kieran-rails-reviewer**: Verify Rails conventions (Rails projects)
+   - **performance-oracle**: Check for performance issues
+   - **security-sentinel**: Scan for security vulnerabilities
+   - **cora-test-reviewer**: Review test quality (Rails projects with comprehensive test coverage)
+
+   Run reviewers in parallel with Task tool:
+
+   ```
+   Task(code-simplicity-reviewer): "Review changes for simplicity"
+   Task(kieran-rails-reviewer): "Check Rails conventions"
+   ```
+
+   Present findings to user and address critical issues.
+
+3. **Final Validation**
+   - All TodoWrite tasks marked completed
+   - All tests pass
+   - Linting passes
+   - Code follows existing patterns
+   - Figma designs match (if applicable)
+   - No console errors or warnings
+
+### Phase 4: Ship It
+
+1. **Create Commit**
+
+   ```bash
+   git add .
+   git status  # Review what's being committed
+   git diff --staged  # Check the changes
+
+   # Commit with conventional format
+   git commit -m "$(cat <<'EOF'
+   feat(scope): description of what and why
+
+   Brief explanation if needed.
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+2. **Capture and Upload Screenshots for UI Changes** (REQUIRED for any UI work)
+
+   For **any** design changes, new views, or UI modifications, you MUST capture and upload screenshots:
+
+   **Step 1: Start dev server** (if not running)
+   ```bash
+   bin/dev  # Run in background
+   ```
+
+   **Step 2: Capture screenshots with agent-browser CLI**
+   ```bash
+   agent-browser open http://localhost:3000/[route]
+   agent-browser snapshot -i
+   agent-browser screenshot output.png
+   ```
+   See the `agent-browser` skill for detailed usage.
+
+   **Step 3: Upload using imgup skill**
+   ```bash
+   skill: imgup
+   # Then upload each screenshot:
+   imgup -h pixhost screenshot.png  # pixhost works without API key
+   # Alternative hosts: catbox, imagebin, beeimg
+   ```
+
+   **What to capture:**
+   - **New screens**: Screenshot of the new UI
+   - **Modified screens**: Before AND after screenshots
+   - **Design implementation**: Screenshot showing Figma design match
+
+   **IMPORTANT**: Always include uploaded image URLs in PR description. This provides visual context for reviewers and documents the change.
+
+3. **Create Pull Request**
+
+   ```bash
+   git push -u origin feature-branch-name
+
+   gh pr create --title "Feature: [Description]" --body "$(cat <<'EOF'
+   ## Summary
+   - What was built
+   - Why it was needed
+   - Key decisions made
+
+   ## Testing
+   - Tests added/modified
+   - Manual testing performed
+
+   ## Before / After Screenshots
+   | Before | After |
+   |--------|-------|
+   | ![before](URL) | ![after](URL) |
+
+   ## Figma Design
+   [Link if applicable]
+
+   ---
+
+   [![Compound Engineered](https://img.shields.io/badge/Compound-Engineered-6366f1)](https://github.com/EveryInc/compound-engineering-plugin) 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   EOF
+   )"
+   ```
+
+4. **Notify User**
+   - Summarize what was completed
+   - Link to PR
+   - Note any follow-up work needed
+   - Suggest next steps if applicable
+
+---
+
+## Swarm Mode (Optional)
+
+For complex plans with multiple independent workstreams, enable swarm mode for parallel execution with coordinated agents.
+
+### When to Use Swarm Mode
+
+| Use Swarm Mode when... | Use Standard Mode when... |
+|------------------------|---------------------------|
+| Plan has 5+ independent tasks | Plan is linear/sequential |
+| Multiple specialists needed (review + test + implement) | Single-focus work |
+| Want maximum parallelism | Simpler mental model preferred |
+| Large feature with clear phases | Small feature or bug fix |
+
+### Enabling Swarm Mode
+
+To trigger swarm execution, say:
+
+> "Make a Task list and launch an army of agent swarm subagents to build the plan"
+
+Or explicitly request: "Use swarm mode for this work"
+
+### Swarm Workflow
+
+When swarm mode is enabled, the workflow changes:
+
+1. **Create Team**
+   ```
+   Teammate({ operation: "spawnTeam", team_name: "work-{timestamp}" })
+   ```
+
+2. **Create Task List with Dependencies**
+   - Parse plan into TaskCreate items
+   - Set up blockedBy relationships for sequential dependencies
+   - Independent tasks have no blockers (can run in parallel)
+
+3. **Spawn Specialized Teammates**
+   ```
+   Task({
+     team_name: "work-{timestamp}",
+     name: "implementer",
+     subagent_type: "general-purpose",
+     prompt: "Claim implementation tasks, execute, mark complete",
+     run_in_background: true
+   })
+
+   Task({
+     team_name: "work-{timestamp}",
+     name: "tester",
+     subagent_type: "general-purpose",
+     prompt: "Claim testing tasks, run tests, mark complete",
+     run_in_background: true
+   })
+   ```
+
+4. **Coordinate and Monitor**
+   - Team lead monitors task completion
+   - Spawn additional workers as phases unblock
+   - Handle plan approval if required
+
+5. **Cleanup**
+   ```
+   Teammate({ operation: "requestShutdown", target_agent_id: "implementer" })
+   Teammate({ operation: "requestShutdown", target_agent_id: "tester" })
+   Teammate({ operation: "cleanup" })
+   ```
+
+See the `orchestrating-swarms` skill for detailed swarm patterns and best practices.
+
+---
+
+## Key Principles
+
+### Start Fast, Execute Faster
+
+- Get clarification once at the start, then execute
+- Don't wait for perfect understanding - ask questions and move
+- The goal is to **finish the feature**, not create perfect process
+
+### The Plan is Your Guide
+
+- Work documents should reference similar code and patterns
+- Load those references and follow them
+- Don't reinvent - match what exists
+
+### Test As You Go
+
+- Run tests after each change, not at the end
+- Fix failures immediately
+- Continuous testing prevents big surprises
+
+### Quality is Built In
+
+- Follow existing patterns
+- Write tests for new code
+- Run linting before pushing
+- Use reviewer agents for complex/risky changes only
+
+### Ship Complete Features
+
+- Mark all tasks completed before moving on
+- Don't leave features 80% done
+- A finished feature that ships beats a perfect feature that doesn't
+
+## Quality Checklist
+
+Before creating PR, verify:
+
+- [ ] All clarifying questions asked and answered
+- [ ] All TodoWrite tasks marked completed
+- [ ] Tests pass (run project's test command)
+- [ ] Linting passes (use linting-agent)
+- [ ] Code follows existing patterns
+- [ ] Figma designs match implementation (if applicable)
+- [ ] Before/after screenshots captured and uploaded (for UI changes)
+- [ ] Commit messages follow conventional format
+- [ ] PR description includes summary, testing notes, and screenshots
+- [ ] PR description includes Compound Engineered badge
+
+## When to Use Reviewer Agents
+
+**Don't use by default.** Use reviewer agents only when:
+
+- Large refactor affecting many files (10+)
+- Security-sensitive changes (authentication, permissions, data access)
+- Performance-critical code paths
+- Complex algorithms or business logic
+- User explicitly requests thorough review
+
+For most features: tests + linting + following patterns is sufficient.
+
+## Common Pitfalls to Avoid
+
+- **Analysis paralysis** - Don't overthink, read the plan and execute
+- **Skipping clarifying questions** - Ask now, not after building wrong thing
+- **Ignoring plan references** - The plan has links for a reason
+- **Testing at the end** - Test continuously or suffer later
+- **Forgetting TodoWrite** - Track progress or lose track of what's done
+- **80% done syndrome** - Finish the feature, don't move on early
+- **Over-reviewing simple changes** - Save reviewer agents for complex work
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session start**: This is a continuation from a previous conversation about the AGENTbench eval harness. The previous session completed a post-mortem analysis of Run 3 (overnight 2026-02-17), which found a measurement bug and task config issues.
+
+2. **User request**: "review last night's eval run and determine fixes needed for the next run. use a swarm."
+
+3. **Swarm setup**: I created a team "eval-review" with 3 agents:
+   - failure-analyst: Analyzed the 358KB results JSON
+   - config-reviewer: Reviewed task YAML configs + overnight log
+   - code-reviewer: Reviewed eval harness code for timeout classification bug
+
+4. **Agent results received**:
+   - code-reviewer: Found the 2-line fix — remove `"[timeout]"` from `reporter.py:258` and `cli.py:23-26`
+   - config-reviewer: Found 5 ansible tasks to drop, 1 clearlinux test_file fix, 1 graphiti task to drop, graphiti --ignore fix
+   - failure-analyst: 106 pass, 50 fail, 46 timeout, 41 infra. Corrected rates: none 55.6%, flat 43.1%, intent 48.6%
+
+5. **Consolidated findings** presented to user with 5 recommended changes.
+
+6. **User invoked `/compound-engineering:workflows:plan`** to create a formal plan.
+
+7. **Plan creation**: I asked user for scope (all 5 fixes), did local research (read code files), wrote plan to `docs/plans/2026-02-18-fix-eval-harness-run4-prep-plan.md`.
+
+8. **SpecFlow analysis** ran — found several edge cases including the critical finding that the clearlinux test_file path `test_distribution.py` doesn't exist.
+
+9. **Clearlinux path verification**: I cloned ansible repo, confirmed NO `test_distribution.py` exists. Found the correct file: `test/units/module_utils/facts/system/distribution/test_parse_distribution_file_ClearLinux.py`. Updated the plan.
+
+10. **User chose "Start implementation"** and invoked `/workflows:work`.
+
+11. **Implementation started**:
+    - Created branch `fix/eval-harness-run4-prep`
+    - Created 5 tasks in task list
+    - Task 1 (COMPLETED): Fixed `reporter.py` and `cli.py` — removed `[timeout]` from infra error tuples, changed timeout default 300→450
+    - Task 2 (COMPLETED): Updated tests in `test_task_runner.py` (renamed test, flipped assertion, added timeout case) and `test_resume.py` (removed `[timeout]` from prefix loop, added separate test, fixed comment)
+    - Task 3 (IN PROGRESS): Wrote new `ansible.yaml` with 5 tasks (dropped 5), fixed clearlinux test_file path
+    - Task 4 (IN PROGRESS): Started editing `graphiti.yaml` — updated header comment from 10→9 tasks
+
+12. **Where it stopped**: graphiti.yaml still needs the `preserve-all-signatures` task removed and `--ignore=mcp_server/tests` added to test_command. Task 5 (run tests) is pending.
+
+Key errors:
+- cli.py Edit failed because file hadn't been read yet — fixed by reading it first
+- clearlinux test_file path was wrong in initial plan (`test_distribution.py` doesn't exist) — caught by SpecFlow, verified against actual repo, corrected to `test_parse_distribution_file_ClearLinux.py`
+
+Summary:
+1. Primary Request and Intent:
+   The user asked to "review last night's eval run and determine fixes needed for the next run. use a swarm." This evolved into: (a) running a 3-agent swarm to analyze Run 3 results, (b) creating a formal plan via `/workflows:plan`, (c) implementing all fixes via `/workflows:work`. The goal is to fix the eval harness measurement bug, drop broken task configs, and tune parameters before Run 4.
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: Testing whether context files (flat vs hierarchical) help AI agents fix bugs
+   - **Three conditions**: `none`, `flat_llm`, `intent_layer`
+   - **Measurement bug**: `[timeout]` errors classified as infrastructure errors, excluded from success rate denominators, inflating reported rates by 8-12pp
+   - **Corrected Run 3 rates**: none 55.6%, flat 43.1%, intent 48.6% (was reported as 63/57/66%)
+   - **Task informativeness**: Only 10/27 tasks produced differential signal; 7 ceiling, 7 floor, 3 infra-broken
+   - **Wilson Score confidence intervals** for small-sample analysis
+   - **Timeout confound**: Context-heavy conditions timeout more (22-23% vs 11% for none) — can't distinguish "context hurts" from "budget too tight"
+
+3. Files and Code Sections:
+
+   - **`lib/reporter.py:258`** — Core of the measurement bug. EDITED: removed `"[timeout]"` from `_is_infra_error` tuple.
+     ```python
+     # BEFORE
+     return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
+     # AFTER
+     return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]"))
+     ```
+
+   - **`lib/cli.py:23-26`** — Duplicate infra error definition used by `--resume`. EDITED: removed `"[timeout]"` from `_INFRA_ERROR_PREFIXES`.
+     ```python
+     # BEFORE
+     _INFRA_ERROR_PREFIXES = (
+         "[infrastructure]", "[pre-validation]", "[skill-generation]",
+         "[empty-run]", "[timeout]",
+     )
+     # AFTER
+     _INFRA_ERROR_PREFIXES = (
+         "[infrastructure]", "[pre-validation]", "[skill-generation]",
+         "[empty-run]",
+     )
+     ```
+
+   - **`lib/cli.py:314`** — Timeout default. EDITED: 300→450.
+     ```python
+     @click.option("--timeout", default=450, help="Per-task timeout in seconds")
+     ```
+
+   - **`lib/cli.py:163-209`** — `_recompute_summary` function. READ to verify timeout reclassification flows correctly through single-run path (lines 192-199). After change, timeouts go through the `else` branch (not infra), incrementing `total` and checking `success`.
+
+   - **`tests/test_task_runner.py:741-759`** — EDITED: Renamed `test_timeout_tag_is_infra_error` → `test_timeout_tag_is_not_infra_error`, flipped assertion from `is True` to `is False`.
+
+   - **`tests/test_task_runner.py:514-521`** — EDITED: Added timeout case to `test_error_tag_classification` asserting `Reporter._is_infra_error(timeout) is False`.
+
+   - **`tests/test_resume.py:565-569`** — EDITED: Removed `"[timeout]"` from `test_all_infra_prefixes` loop, added separate `test_timeout_is_not_infra_error` test.
+
+   - **`tests/test_resume.py:255-262`** — EDITED: Updated comment from "timeout is infra error" to "timeout is a genuine failure: 0/1", changed assertion from `== 0` to `== 0.0`.
+
+   - **`tests/test_reporter.py:520-544`** — READ: `test_serialize_includes_exit_code_and_timeout` only tests JSON serialization, NOT classification. No changes needed.
+
+   - **`tasks/ansible.yaml`** — REWRITTEN: Dropped 5 tasks (fix-local-connection, fix-iptables, callback-filter, action-make-tmp-path, config-lookup). Fixed clearlinux test_file path from `distribution/` to `distribution/test_parse_distribution_file_ClearLinux.py`. Now has 5 tasks. Header updated with dropped task documentation.
+
+   - **`tasks/graphiti.yaml`** — PARTIALLY EDITED: Updated header from "Tasks found: 10" to "Tasks: 9". Still needs: remove `preserve-all-signatures` task block, add `--ignore=mcp_server/tests` to test_command.
+
+   - **`tasks/pdm.yaml`** — READ: No changes needed. All 7 tasks produced valid data.
+
+   - **`docs/plans/2026-02-18-fix-eval-harness-run4-prep-plan.md`** — CREATED and UPDATED: Comprehensive plan with 5 changes, acceptance criteria, risks/edge cases section added after SpecFlow analysis. Clearlinux path corrected from `test_distribution.py` to `test_parse_distribution_file_ClearLinux.py`.
+
+   - **`lib/task_runner.py`** — READ: Timeout handling at lines 777-795 (creates `[timeout]` tag), pre-validation timeout at line 41 (180s), test injection at lines 370-382 (uses `git show fix_commit:test_file`).
+
+4. Errors and fixes:
+   - **cli.py Edit failed**: "File has not been read yet" error when trying to edit cli.py without reading it first. Fixed by reading the file first, then editing.
+   - **Clearlinux test_file path wrong in plan**: Initially proposed `test_distribution.py` which doesn't exist in the ansible repo. SpecFlow flagged this as a risk. Verified by cloning ansible repo — found the correct file is `test/units/module_utils/facts/system/distribution/test_parse_distribution_file_ClearLinux.py`. Confirmed it exists at both pre_fix and fix commits. Updated plan and ansible.yaml with correct path.
+   - **Sibling tool call errors**: When cli.py edit failed, parallel edit also errored with "Sibling tool call errored". Fixed by retrying in separate calls after reading the file.
+
+5. Problem Solving:
+   - Swarm successfully parallelized three independent analyses (JSON data, YAML configs, Python code) completing in ~3 minutes
+   - SpecFlow analysis caught the clearlinux path error before implementation, preventing a repeat of the Run 3 infrastructure failure
+   - Verified the `_recompute_summary` code path to confirm that after removing `[timeout]` from infra errors, the timeout condition correctly flows through the denominator (total += 1) but not successes
+   - Confirmed `test_reporter.py` has no timeout-classification-dependent tests (only serialization tests)
+
+6. All user messages:
+   - "review last night's eval run and determine fixes needed for the next run. use a swarm."
+   - (Selected "All 5 fixes above (Recommended)" when asked about plan scope)
+   - (Selected "Start implementation (Recommended)" when asked about next step)
+   - `/compound-engineering:workflows:plan` skill invocation
+   - `/compact` command
+
+7. Pending Tasks:
+   - **Task 4 (in_progress)**: graphiti.yaml — need to remove `preserve-all-signatures-when-edge-type-reused` task block AND add `--ignore=mcp_server/tests` to test_command
+   - **Task 5 (pending, blocked by 1-4)**: Run pytest, verify 21 tasks across configs, check acceptance criteria
+   - **After tests pass**: Commit all changes, possibly create PR
+   - **Check off acceptance criteria** in plan file
+
+8. Current Work:
+   Implementing the plan from `docs/plans/2026-02-18-fix-eval-harness-run4-prep-plan.md` on branch `fix/eval-harness-run4-prep`. Tasks 1-3 are complete. Task 4 is in progress — the graphiti.yaml header was updated but still needs two more edits: (1) remove the `preserve-all-signatures-when-edge-type-reused` task block (lines 52-62), and (2) add `--ignore=mcp_server/tests` to the test_command (after the `--ignore=tests/evals/` line).
+
+9. Optional Next Step:
+   Complete Task 4 by editing graphiti.yaml to remove the `preserve-all-signatures` task and add `--ignore=mcp_server/tests` to the test_command. Then run pytest (Task 5) and verify all acceptance criteria. The graphiti.yaml file has been read and the header updated — the remaining edits are:
+   - Remove lines 52-62 (the `preserve-all-signatures-when-edge-type-reused` task block)
+   - Add `      --ignore=mcp_server/tests` after line 29 (`--ignore=tests/evals/`)
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+# Review Command
+
+<command_purpose> Perform exhaustive code reviews using multi-agent analysis, ultra-thinking, and Git worktrees for deep local inspection. </command_purpose>
+
+## Introduction
+
+<role>Senior Code Review Architect with expertise in security, performance, architecture, and quality assurance</role>
+
+## Prerequisites
+
+<requirements>
+- Git repository with GitHub CLI (`gh`) installed and authenticated
+- Clean main/master branch
+- Proper permissions to create worktrees and access the repository
+- For document reviews: Path to a markdown file or document
+</requirements>
+
+## Main Tasks
+
+### 1. Determine Review Target & Setup (ALWAYS FIRST)
+
+<review_target> # </review_target>
+
+<thinking>
+First, I need to determine the review target type and set up the code for analysis.
+</thinking>
+
+#### Immediate Actions:
+
+<task_list>
+
+- [ ] Determine review type: PR number (numeric), GitHub URL, file path (.md), or empty (current branch)
+- [ ] Check current git branch
+- [ ] If ALREADY on the target branch (PR branch, requested branch name, or the branch already checked out for review) → proceed with analysis on current branch
+- [ ] If DIFFERENT branch than the review target → offer to use worktree: "Use git-worktree skill for isolated Call `skill: git-worktree` with branch name
+- [ ] Fetch PR metadata using `gh pr view --json` for title, body, files, linked issues
+- [ ] Set up language-specific analysis tools
+- [ ] Prepare security scanning environment
+- [ ] Make sure we are on the branch we are reviewing. Use gh pr checkout to switch to the branch or manually checkout the branch.
+
+Ensure that the code is ready for analysis (either in worktree or on current branch). ONLY then proceed to the next step.
+
+</task_list>
+
+#### Protected Artifacts
+
+<protected_artifacts>
+The following paths are compound-engineering pipeline artifacts and must never be flagged for deletion, removal, or gitignore by any review agent:
+
+- `docs/plans/*.md` — Plan files created by `/workflows:plan`. These are living documents that track implementation progress (checkboxes are checked off by `/workflows:work`).
+- `docs/solutions/*.md` — Solution documents created during the pipeline.
+
+If a review agent flags any file in these directories for cleanup or removal, discard that finding during synthesis. Do not create a todo for it.
+</protected_artifacts>
+
+#### Parallel Agents to review the PR:
+
+<parallel_tasks>
+
+Run ALL or most of these agents at the same time:
+
+1. Task kieran-rails-reviewer(PR content)
+2. Task dhh-rails-reviewer(PR title)
+3. If turbo is used: Task rails-turbo-expert(PR content)
+4. Task git-history-analyzer(PR content)
+5. Task dependency-detective(PR content)
+6. Task pattern-recognition-specialist(PR content)
+7. Task architecture-strategist(PR content)
+8. Task code-philosopher(PR content)
+9. Task security-sentinel(PR content)
+10. Task performance-oracle(PR content)
+11. Task devops-harmony-analyst(PR content)
+12. Task data-integrity-guardian(PR content)
+13. Task agent-native-reviewer(PR content) - Verify new features are agent-accessible
+
+</parallel_tasks>
+
+#### Conditional Agents (Run if applicable):
+
+<conditional_agents>
+
+These agents are run ONLY when the PR matches specific criteria. Check the PR files list to determine if they apply:
+
+**If PR contains database migrations (db/migrate/*.rb files) or data backfills:**
+
+14. Task data-migration-expert(PR content) - Validates ID mappings match production, checks for swapped values, verifies rollback safety
+15. Task deployment-verification-agent(PR content) - Creates Go/No-Go deployment checklist with SQL verification queries
+
+**When to run migration agents:**
+- PR includes files matching `db/migrate/*.rb`
+- PR modifies columns that store IDs, enums, or mappings
+- PR includes data backfill scripts or rake tasks
+- PR changes how data is read/written (e.g., changing from FK to string column)
+- PR title/body mentions: migration, backfill, data transformation, ID mapping
+
+**What these agents check:**
+- `data-migration-expert`: Verifies hard-coded mappings match production reality (prevents swapped IDs), checks for orphaned associations, validates dual-write patterns
+- `deployment-verification-agent`: Produces executable pre/post-deploy checklists with SQL queries, rollback procedures, and monitoring plans
+
+</conditional_agents>
+
+### 4. Ultra-Thinking Deep Dive Phases
+
+<ultrathink_instruction> For each phase below, spend maximum cognitive effort. Think step by step. Consider all angles. Question assumptions. And bring all reviews in a synthesis to the user.</ultrathink_instruction>
+
+<deliverable>
+Complete system context map with component interactions
+</deliverable>
+
+#### Phase 3: Stakeholder Perspective Analysis
+
+<thinking_prompt> ULTRA-THINK: Put yourself in each stakeholder's shoes. What matters to them? What are their pain points? </thinking_prompt>
+
+<stakeholder_perspectives>
+
+1. **Developer Perspective** <questions>
+
+   - How easy is this to understand and modify?
+   - Are the APIs intuitive?
+   - Is debugging straightforward?
+   - Can I test this easily? </questions>
+
+2. **Operations Perspective** <questions>
+
+   - How do I deploy this safely?
+   - What metrics and logs are available?
+   - How do I troubleshoot issues?
+   - What are the resource requirements? </questions>
+
+3. **End User Perspective** <questions>
+
+   - Is the feature intuitive?
+   - Are error messages helpful?
+   - Is performance acceptable?
+   - Does it solve my problem? </questions>
+
+4. **Security Team Perspective** <questions>
+
+   - What's the attack surface?
+   - Are there compliance requirements?
+   - How is data protected?
+   - What are the audit capabilities? </questions>
+
+5. **Business Perspective** <questions>
+   - What's the ROI?
+   - Are there legal/compliance risks?
+   - How does this affect time-to-market?
+   - What's the total cost of ownership? </questions> </stakeholder_perspectives>
+
+#### Phase 4: Scenario Exploration
+
+<thinking_prompt> ULTRA-THINK: Explore edge cases and failure scenarios. What could go wrong? How does the system behave under stress? </thinking_prompt>
+
+<scenario_checklist>
+
+- [ ] **Happy Path**: Normal operation with valid inputs
+- [ ] **Invalid Inputs**: Null, empty, malformed data
+- [ ] **Boundary Conditions**: Min/max values, empty collections
+- [ ] **Concurrent Access**: Race conditions, deadlocks
+- [ ] **Scale Testing**: 10x, 100x, 1000x normal load
+- [ ] **Network Issues**: Timeouts, partial failures
+- [ ] **Resource Exhaustion**: Memory, disk, connections
+- [ ] **Security Attacks**: Injection, overflow, DoS
+- [ ] **Data Corruption**: Partial writes, inconsistency
+- [ ] **Cascading Failures**: Downstream service issues </scenario_checklist>
+
+### 6. Multi-Angle Review Perspectives
+
+#### Technical Excellence Angle
+
+- Code craftsmanship evaluation
+- Engineering best practices
+- Technical documentation quality
+- Tooling and automation assessment
+
+#### Business Value Angle
+
+- Feature completeness validation
+- Performance impact on users
+- Cost-benefit analysis
+- Time-to-market considerations
+
+#### Risk Management Angle
+
+- Security risk assessment
+- Operational risk evaluation
+- Compliance risk verification
+- Technical debt accumulation
+
+#### Team Dynamics Angle
+
+- Code review etiquette
+- Knowledge sharing effectiveness
+- Collaboration patterns
+- Mentoring opportunities
+
+### 4. Simplification and Minimalism Review
+
+Run the Task code-simplicity-reviewer() to see if we can simplify the code.
+
+### 5. Findings Synthesis and Todo Creation Using file-todos Skill
+
+<critical_requirement> ALL findings MUST be stored in the todos/ directory using the file-todos skill. Create todo files immediately after synthesis - do NOT present findings for user approval first. Use the skill for structured todo management. </critical_requirement>
+
+#### Step 1: Synthesize All Findings
+
+<thinking>
+Consolidate all agent reports into a categorized list of findings.
+Remove duplicates, prioritize by severity and impact.
+</thinking>
+
+<synthesis_tasks>
+
+- [ ] Collect findings from all parallel agents
+- [ ] Discard any findings that recommend deleting or gitignoring files in `docs/plans/` or `docs/solutions/` (see Protected Artifacts above)
+- [ ] Categorize by type: security, performance, architecture, quality, etc.
+- [ ] Assign severity levels: 🔴 CRITICAL (P1), 🟡 IMPORTANT (P2), 🔵 NICE-TO-HAVE (P3)
+- [ ] Remove duplicate or overlapping findings
+- [ ] Estimate effort for each finding (Small/Medium/Large)
+
+</synthesis_tasks>
+
+#### Step 2: Create Todo Files Using file-todos Skill
+
+<critical_instruction> Use the file-todos skill to create todo files for ALL findings immediately. Do NOT present findings one-by-one asking for user approval. Create all todo files in parallel using the skill, then summarize results to user. </critical_instruction>
+
+**Implementation Options:**
+
+**Option A: Direct File Creation (Fast)**
+
+- Create todo files directly using Write tool
+- All findings in parallel for speed
+- Use standard template from `.claude/skills/file-todos/assets/todo-template.md`
+- Follow naming convention: `{issue_id}-pending-{priority}-{description}.md`
+
+**Option B: Sub-Agents in Parallel (Recommended for Scale)** For large PRs with 15+ findings, use sub-agents to create finding files in parallel:
+
+```bash
+# Launch multiple finding-creator agents in parallel
+Task() - Create todos for first finding
+Task() - Create todos for second finding
+Task() - Create todos for third finding
+etc. for each finding.
+```
+
+Sub-agents can:
+
+- Process multiple findings simultaneously
+- Write detailed todo files with all sections filled
+- Organize findings by severity
+- Create comprehensive Proposed Solutions
+- Add acceptance criteria and work logs
+- Complete much faster than sequential processing
+
+**Execution Strategy:**
+
+1. Synthesize all findings into categories (P1/P2/P3)
+2. Group findings by severity
+3. Launch 3 parallel sub-agents (one per severity level)
+4. Each sub-agent creates its batch of todos using the file-todos skill
+5. Consolidate results and present summary
+
+**Process (Using file-todos Skill):**
+
+1. For each finding:
+
+   - Determine severity (P1/P2/P3)
+   - Write detailed Problem Statement and Findings
+   - Create 2-3 Proposed Solutions with pros/cons/effort/risk
+   - Estimate effort (Small/Medium/Large)
+   - Add acceptance criteria and work log
+
+2. Use file-todos skill for structured todo management:
+
+   ```bash
+   skill: file-todos
+   ```
+
+   The skill provides:
+
+   - Template location: `.claude/skills/file-todos/assets/todo-template.md`
+   - Naming convention: `{issue_id}-{status}-{priority}-{description}.md`
+   - YAML frontmatter structure: status, priority, issue_id, tags, dependencies
+   - All required sections: Problem Statement, Findings, Solutions, etc.
+
+3. Create todo files in parallel:
+
+   ```bash
+   {next_id}-pending-{priority}-{description}.md
+   ```
+
+4. Examples:
+
+   ```
+   001-pending-p1-path-traversal-vulnerability.md
+   002-pending-p1-api-response-validation.md
+   003-pending-p2-concurrency-limit.md
+   004-pending-p3-unused-parameter.md
+   ```
+
+5. Follow template structure from file-todos skill: `.claude/skills/file-todos/assets/todo-template.md`
+
+**Todo File Structure (from template):**
+
+Each todo must include:
+
+- **YAML frontmatter**: status, priority, issue_id, tags, dependencies
+- **Problem Statement**: What's broken/missing, why it matters
+- **Findings**: Discoveries from agents with evidence/location
+- **Proposed Solutions**: 2-3 options, each with pros/cons/effort/risk
+- **Recommended Action**: (Filled during triage, leave blank initially)
+- **Technical Details**: Affected files, components, database changes
+- **Acceptance Criteria**: Testable checklist items
+- **Work Log**: Dated record with actions and learnings
+- **Resources**: Links to PR, issues, documentation, similar patterns
+
+**File naming convention:**
+
+```
+{issue_id}-{status}-{priority}-{description}.md
+
+Examples:
+- 001-pending-p1-security-vulnerability.md
+- 002-pending-p2-performance-optimization.md
+- 003-pending-p3-code-cleanup.md
+```
+
+**Status values:**
+
+- `pending` - New findings, needs triage/decision
+- `ready` - Approved by manager, ready to work
+- `complete` - Work finished
+
+**Priority values:**
+
+- `p1` - Critical (blocks merge, security/data issues)
+- `p2` - Important (should fix, architectural/performance)
+- `p3` - Nice-to-have (enhancements, cleanup)
+
+**Tagging:** Always add `code-review` tag, plus: `security`, `performance`, `architecture`, `rails`, `quality`, etc.
+
+#### Step 3: Summary Report
+
+After creating all todo files, present comprehensive summary:
+
+````markdown
+## ✅ Code Review Complete
+
+**Review Target:** PR #XXXX - [PR Title] **Branch:** [branch-name]
+
+### Findings Summary:
+
+- **Total Findings:** [X]
+- **🔴 CRITICAL (P1):** [count] - BLOCKS MERGE
+- **🟡 IMPORTANT (P2):** [count] - Should Fix
+- **🔵 NICE-TO-HAVE (P3):** [count] - Enhancements
+
+### Created Todo Files:
+
+**P1 - Critical (BLOCKS MERGE):**
+
+- `001-pending-p1-{finding}.md` - {description}
+- `002-pending-p1-{finding}.md` - {description}
+
+**P2 - Important:**
+
+- `003-pending-p2-{finding}.md` - {description}
+- `004-pending-p2-{finding}.md` - {description}
+
+**P3 - Nice-to-Have:**
+
+- `005-pending-p3-{finding}.md` - {description}
+
+### Review Agents Used:
+
+- kieran-rails-reviewer
+- security-sentinel
+- performance-oracle
+- architecture-strategist
+- agent-native-reviewer
+- [other agents]
+
+### Next Steps:
+
+1. **Address P1 Findings**: CRITICAL - must be fixed before merge
+
+   - Review each P1 todo in detail
+   - Implement fixes or request exemption
+   - Verify fixes before merging PR
+
+2. **Triage All Todos**:
+   ```bash
+   ls todos/*-pending-*.md  # View all pending todos
+   /triage                  # Use slash command for interactive triage
+   ```
+````
+
+3. **Work on Approved Todos**:
+
+   ```bash
+   /resolve_todo_parallel  # Fix all approved items efficiently
+   ```
+
+4. **Track Progress**:
+   - Rename file when status changes: pending → ready → complete
+   - Update Work Log as you work
+   - Commit todos: `git add todos/ && git commit -m "refactor: add code review findings"`
+
+### Severity Breakdown:
+
+**🔴 P1 (Critical - Blocks Merge):**
+
+- Security vulnerabilities
+- Data corruption risks
+- Breaking changes
+- Critical architectural issues
+
+**🟡 P2 (Important - Should Fix):**
+
+- Performance issues
+- Significant architectural concerns
+- Major code quality problems
+- Reliability issues
+
+**🔵 P3 (Nice-to-Have):**
+
+- Minor improvements
+- Code cleanup
+- Optimization opportunities
+- Documentation updates
+
+```
+
+### 7. End-to-End Testing (Optional)
+
+<detect_project_type>
+
+**First, detect the project type from PR files:**
+
+| Indicator | Project Type |
+|-----------|--------------|
+| `*.xcodeproj`, `*.xcworkspace`, `Package.swift` (iOS) | iOS/macOS |
+| `Gemfile`, `package.json`, `app/views/*`, `*.html.*` | Web |
+| Both iOS files AND web files | Hybrid (test both) |
+
+</detect_project_type>
+
+<offer_testing>
+
+After presenting the Summary Report, offer appropriate testing based on project type:
+
+**For Web Projects:**
+```markdown
+**"Want to run browser tests on the affected pages?"**
+1. Yes - run `/test-browser`
+2. No - skip
+```
+
+**For iOS Projects:**
+```markdown
+**"Want to run Xcode simulator tests on the app?"**
+1. Yes - run `/xcode-test`
+2. No - skip
+```
+
+**For Hybrid Projects (e.g., Rails + Hotwire Native):**
+```markdown
+**"Want to run end-to-end tests?"**
+1. Web only - run `/test-browser`
+2. iOS only - run `/xcode-test`
+3. Both - run both commands
+4. No - skip
+```
+
+</offer_testing>
+
+#### If User Accepts Web Testing:
+
+Spawn a subagent to run browser tests (preserves main context):
+
+```
+Task general-purpose("Run /test-browser for PR #[number]. Test all affected pages, check for console errors, handle failures by creating todos and fixing.")
+```
+
+The subagent will:
+1. Identify pages affected by the PR
+2. Navigate to each page and capture snapshots (using Playwright MCP or agent-browser CLI)
+3. Check for console errors
+4. Test critical interactions
+5. Pause for human verification on OAuth/email/payment flows
+6. Create P1 todos for any failures
+7. Fix and retry until all tests pass
+
+**Standalone:** `/test-browser [PR number]`
+
+#### If User Accepts iOS Testing:
+
+Spawn a subagent to run Xcode tests (preserves main context):
+
+```
+Task general-purpose("Run /xcode-test for scheme [name]. Build for simulator, install, launch, take screenshots, check for crashes.")
+```
+
+The subagent will:
+1. Verify XcodeBuildMCP is installed
+2. Discover project and schemes
+3. Build for iOS Simulator
+4. Install and launch app
+5. Take screenshots of key screens
+6. Capture console logs for errors
+7. Pause for human verification (Sign in with Apple, push, IAP)
+8. Create P1 todos for any failures
+9. Fix and retry until all tests pass
+
+**Standalone:** `/xcode-test [scheme]`
+
+### Important: P1 Findings Block Merge
+
+Any **🔴 P1 (CRITICAL)** findings must be addressed before merging the PR. Present these prominently and ensure they're resolved before accepting the PR.
+```
+
+---
+
+<task-notification>
+<task-id>af244cf</task-id>
+<status>completed</status>
+<summary>Agent "Pattern recognition review" completed</summary>
+<result>I have a thorough understanding of the changes. Here's my review.
+
+---
+
+## Code Review: `fix/eval-harness-run4-prep`
+
+### 1. Infra-error sync between reporter.py and cli.py
+
+**The core change is correct and consistently applied.** The `[timeout]` prefix was removed from both:
+
+- `Reporter._is_infra_error()` at `/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py:258` (inline tuple)
+- `_INFRA_ERROR_PREFIXES` at `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:23-25` (module-level constant)
+
+Both now recognize exactly four infra prefixes: `[infrastructure]`, `[pre-validation]`, `[skill-generation]`, `[empty-run]`.
+
+**However, there's a structural problem worth flagging: the two implementations are duplicated and can silently drift.** The comment on line 22 of cli.py says they're "shared," but they aren't -- they're manually kept in sync. `Reporter._is_infra_error` takes a `TaskResult` object and checks `r.error.startswith(...)` with a hardcoded tuple. `_is_infra_error_dict` takes a raw dict and checks `error.startswith(_INFRA_ERROR_PREFIXES)`. The prefix lists are defined independently.
+
+This exact pattern is what caused the bug in the first place: someone could update one and forget the other. The fix works today, but the design is fragile.
+
+**Recommendation**: Have `Reporter._is_infra_error` reference `_INFRA_ERROR_PREFIXES` from cli.py (or better, extract it into a shared location like a constants module or `lib/models.py`). Something like:
+
+```python
+# reporter.py
+from lib.cli import _INFRA_ERROR_PREFIXES  # or from lib.constants
+
+@staticmethod
+def _is_infra_error(r: TaskResult) -> bool:
+    if r.error is None:
+        return False
+    return r.error.startswith(_INFRA_ERROR_PREFIXES)
+```
+
+That would make it structurally impossible for them to diverge. The current code works, but it's a maintenance trap.
+
+**One more thing about `[worker-crash]`**: This error tag is produced at `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:486` but isn't included in `_INFRA_ERROR_PREFIXES`. Worker crashes (OOM, race conditions) sound like infrastructure problems, not experimental outcomes. If a worker OOMs, that tells you nothing about whether context files help. Consider whether `[worker-crash]` should be in the infra list. This isn't new to this PR, but the timeout reclassification is a good moment to audit the full tag set.
+
+---
+
+### 2. YAML config cleanup
+
+The changes look solid. Broken tasks dropped, reasons documented in header comments, specific file paths fixed.
+
+**Good practices I see:**
+
+- Each dropped task has a reason in the header comment block (e.g., "integration tests only," "test passes at pre_fix_commit")
+- `test_file` for `fix-clearlinux-gentoo-os-release-parsing` was corrected from a directory path to a specific file (`test_parse_distribution_file_ClearLinux.py`), which matters because the harness appends `test_file` to `test_command`
+- The `--ignore=mcp_server/tests` addition in graphiti.yaml prevents test discovery from pulling in unrelated test files
+
+**Structural consistency across YAML files:**
+
+There's a minor inconsistency between curated and uncurated files. The ansible.yaml and graphiti.yaml headers now say `# Curated eval tasks for ...` while fastmcp.yaml still says `# DRAFT - Review and curate before use`. That's fine -- it accurately reflects their status. But within the curated files themselves, I notice ansible.yaml removed the `# --- PRs with unit tests (pytest) ---` section divider while graphiti.yaml kept its `# --- Tasks with new/modified tests ...` and `# --- Tasks without new test functions ...` dividers. Neither is wrong, but if you want consistency, pick one style.
+
+**Field usage patterns:**
+
+The YAML task fields aren't fully consistent. Some tasks have `issue_number`, some don't. Some have `test_file`, some don't (commit_message tasks in graphiti). Some have the `_` prefix convention for metadata fields (`_commit_message`, `_lines_changed`, `_files_changed`) but `test_file`, `issue_number`, and `prompt_source` are unprefixed despite being metadata. The underscore prefix seems to mean "informational, not consumed by the harness," which is a reasonable convention, but it's not documented or enforced.
+
+No action needed on any of this -- just worth noting for when you add more task files.
+
+---
+
+### 3. Test changes
+
+**test_resume.py:**
+
+The assertion at line 257 changed from `== 0` to `== 0.0`. Both are equal in Python, but the change is semantically correct: `_recompute_summary` returns `round(... / ..., 2)` which produces a float. The comment update from "timeout is infra error" to "timeout is a genuine failure: 0/1" accurately documents the new semantics.
+
+The new `test_timeout_is_not_infra_error` test at line 571 directly tests the reclassification. It's placed in `TestIsInfraErrorDict`, which tests `_is_infra_error_dict` (the cli.py version). Good.
+
+**test_task_runner.py:**
+
+The renamed test `test_timeout_tag_is_not_infra_error` (was `test_timeout_tag_is_infra_error`) at line 751 tests `Reporter._is_infra_error` (the reporter.py version) with the assertion flipped from `is True` to `is False`. The new test case added to `test_error_tag_classification` at line 523 also tests `Reporter._is_infra_error` for the timeout case, which means there are now two tests covering the same behavior in the same file. That's fine -- one is in the comprehensive classification test, the other is a dedicated test. Belt and suspenders.
+
+**One observation**: The test coverage for the reclassification is thorough. Both implementations (`Reporter._is_infra_error` on `TaskResult` objects and `_is_infra_error_dict` on raw dicts) are tested for the timeout case. The `_recompute_summary` test verifies the downstream effect on success rates. Good coverage of the change's impact chain.
+
+---
+
+### 4. Timeout default (300 to 450)
+
+The change at `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:314` bumps the default timeout from 300s to 450s. This is the Click option default, so it only affects runs where `--timeout` isn't explicitly passed.
+
+No tests exercise this default directly (timeout testing would require integration tests), but the value is reasonable given the MEMORY.md note that "Pre-validation timeout (120s) too short for repos with slow test setup."
+
+---
+
+### 5. Summary of findings
+
+**What's done well:**
+- The core change (timeout reclassification) is correct and applied in both places
+- Tests are thorough -- both implementations tested, downstream effects verified, assertion comments updated
+- YAML cleanup is careful, with drop reasons documented
+- The `--ignore=mcp_server/tests` addition fixes a real test discovery problem
+
+**Issues to consider:**
+
+| Severity | Location | Issue |
+|----------|----------|-------|
+| Medium | `reporter.py:258` vs `cli.py:23-25` | Infra error prefix lists are duplicated. Should reference a single source of truth to prevent future drift. |
+| Low | `cli.py:486` | `[worker-crash]` is not classified as infra or non-infra -- it falls through to "genuine failure." Likely should be infra. |
+| Low | YAML files | Minor inconsistency in section divider style between ansible.yaml and graphiti.yaml |
+
+The medium-severity item is the only one I'd want addressed before merging. The single-source-of-truth fix is small (one import, delete the inline tuple) and eliminates the class of bug this PR is fixing.</result>
+<usage>total_tokens: 88405
+tool_uses: 26
+duration_ms: 119195</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/af244cf.output
+
+---
+
+<task-notification>
+<task-id>aa14460</task-id>
+<status>completed</status>
+<summary>Agent "Simplicity review of changes" completed</summary>
+<result>All 69 tests pass. Now I have the complete picture. Here's my analysis:
+
+---
+
+## Simplification Analysis
+
+### Core Purpose
+
+These changes do three things:
+1. Reclassify `[timeout]` from infrastructure error to genuine failure (measurement bug fix)
+2. Drop 6 broken YAML task configs (ansible: 5, graphiti: 1)
+3. Bump default timeout from 300s to 450s
+
+### 1. Dual infra-error implementation -- the main simplification opportunity
+
+This is real duplication. Two separate implementations classify errors using the same prefix list:
+
+**`/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py:250-258`** -- `Reporter._is_infra_error(r: TaskResult)` with a hardcoded tuple:
+```python
+return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]"))
+```
+
+**`/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:22-26`** -- `_INFRA_ERROR_PREFIXES` module constant + `_is_infra_error_dict(cond_data: dict)`:
+```python
+_INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]",
+    "[empty-run]",
+)
+```
+
+The comment on cli.py line 22 says "Shared between `_is_infra_error_dict` and `Reporter._is_infra_error`" but they don't actually share anything. The constant exists in cli.py and Reporter has its own inline tuple. This means every time someone changes the prefix list (like this diff does), they must remember to update both places. The comment makes it worse because it implies sharing that doesn't exist.
+
+**Proposed fix**: Move `_INFRA_ERROR_PREFIXES` to a shared location and have both functions use it. The simplest option is to put it on Reporter (since reporter.py is already imported by cli.py) and have `_is_infra_error_dict` reference it:
+
+```python
+# In reporter.py, line ~250:
+INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]",
+)
+
+@staticmethod
+def _is_infra_error(r: TaskResult) -> bool:
+    if r.error is None:
+        return False
+    return r.error.startswith(Reporter.INFRA_ERROR_PREFIXES)
+```
+
+```python
+# In cli.py, replace lines 22-26 and update _is_infra_error_dict:
+from lib.reporter import Reporter
+
+def _is_infra_error_dict(cond_data: dict) -> bool:
+    error = cond_data.get("error")
+    if error is None:
+        return False
+    return error.startswith(Reporter.INFRA_ERROR_PREFIXES)
+```
+
+This eliminates the duplicated tuple, removes the misleading "shared" comment, and makes it impossible for the two implementations to drift. Net change: ~3 lines removed, one source of truth.
+
+**Impact**: Small LOC change but high correctness value. The current diff itself is proof this goes wrong -- it required edits to two separate tuples in two files. Future prefix changes would only need one edit.
+
+### 2. Test changes -- minimal and focused
+
+The test changes are clean. Specifically:
+
+- **`/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py`**: Adds a timeout case to `test_error_tag_classification` (lines 523-531) asserting `_is_infra_error(timeout) is False`. Also renames `test_timeout_tag_is_infra_error` to `test_timeout_tag_is_not_infra_error` and flips the assertion. Both are necessary.
+
+- **`/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py`**: Adds `test_timeout_is_not_infra_error` (line 572-573), updates the prefix iteration list (line 565), and fixes a comment plus assertion value on line 257.
+
+One minor redundancy: the timeout case is now tested in **three** places:
+1. `test_error_tag_classification` (lines 523-531 in test_task_runner.py) -- tests `Reporter._is_infra_error`
+2. `test_timeout_tag_is_not_infra_error` (lines 751-769 in test_task_runner.py) -- tests `Reporter._is_infra_error`
+3. `test_timeout_is_not_infra_error` (lines 572-573 in test_resume.py) -- tests `_is_infra_error_dict`
+
+Test #1 and #2 test the same function (`Reporter._is_infra_error`) with the same input and same assertion. The only difference is #2 constructs a more detailed `TaskResult` with realistic field values. I'd argue #1 (inside the comprehensive classification test) is sufficient and #2 is now redundant, since #2 was the original test that asserted `is True` and was flipped. But keeping both is defensible: #1 lives in a "classification overview" test, #2 is a focused regression test. It's a judgment call. If it were my code I'd drop #2 and keep #1, saving 20 lines. But it's not a big deal either way.
+
+### 3. YAML config changes -- clean, well-documented
+
+The YAML changes are good:
+
+- **`/Users/ryo/dev/intent-layer/eval-harness/tasks/ansible.yaml`**: Drops 5 tasks that lacked unit tests or had broken pre_fix_commit. Each dropped task is listed in a header comment with the reason. The `test_file` path fix (directory to specific `.py` file) on line 43 is a genuine bug fix. The header changes from "DRAFT" to "Curated" and the task count is updated. All clean.
+
+- **`/Users/ryo/dev/intent-layer/eval-harness/tasks/graphiti.yaml`**: Drops 1 task (`preserve-all-signatures-when-edge-type-reused`) that shared a test file with another task and caused pre-validation failures. Adds `--ignore=mcp_server/tests` to the test_command. Both are necessary. The "Dropped tasks" comment block documents the reason.
+
+No unnecessary complexity. The YAML comments explaining why each task was dropped are useful for future curation.
+
+### Unnecessary Complexity Found
+
+- **`/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py:258`** and **`/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:23-26`**: Duplicated infra-error prefix tuples maintained separately. The cli.py comment on line 22 is actively misleading.
+
+- **`/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py:751-769`**: `test_timeout_tag_is_not_infra_error` is now redundant with the timeout case added to `test_error_tag_classification` at lines 523-531 in the same file. Both test `Reporter._is_infra_error` with a `[timeout]` error string and assert `False`.
+
+### Code to Remove
+
+| Location | Reason | LOC |
+|----------|--------|-----|
+| `cli.py:22-26` (the `_INFRA_ERROR_PREFIXES` constant + comment) | Replace with import from Reporter | -4 |
+| `reporter.py:258` (inline tuple) | Replace with class constant | 0 (net neutral, moves tuple to class attribute) |
+| `test_task_runner.py:751-769` (optional) | Redundant with lines 523-531 | -19 |
+
+Estimated LOC reduction: 4-23 lines depending on whether you drop the redundant test.
+
+### YAGNI Violations
+
+None. The changes are all about fixing broken things and removing broken configs. No speculative features added.
+
+### Final Assessment
+
+**Total potential LOC reduction**: ~4 lines from deduplication (the important one), up to 23 if the redundant test is also removed.
+
+**Complexity score**: Low. The diff is well-scoped and focused.
+
+**Recommended action**: The only change I'd make before merging is consolidating the infra-error prefix tuple into a single source of truth. It's a small edit (move `_INFRA_ERROR_PREFIXES` to `Reporter.INFRA_ERROR_PREFIXES`, import it in cli.py, delete the duplicate). The bug this diff fixes -- needing to update two identical tuples in two files -- will recur the next time someone changes the prefix list. The misleading "Shared" comment on cli.py line 22 makes it worse because a future developer will read that comment, see the constant right there, and assume Reporter uses it too. They won't.</result>
+<usage>total_tokens: 53716
+tool_uses: 20
+duration_ms: 104585</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/aa14460.output
+
+---
+
+<task-notification>
+<task-id>adcf22a</task-id>
+<status>completed</status>
+<summary>Agent "Security review of changes" completed</summary>
+<result>Good, all tests pass. Now I have a complete picture. Here's my security review.
+
+---
+
+## Security Review: `fix/eval-harness-run4-prep` Branch
+
+### Executive summary
+
+This is a low-risk changeset for an internal eval harness. The branch makes two functional changes (reclassifying `[timeout]` from infra error to genuine failure, increasing default timeout from 300s to 450s), cleans up YAML task configs, and updates results documentation. I found no critical or high-severity security vulnerabilities. There are a few pre-existing medium and low concerns worth noting, and one analytical concern about the timeout reclassification logic itself.
+
+---
+
+### 1. YAML task config security (ansible.yaml, graphiti.yaml)
+
+**Commit SHAs**: All commit SHAs in both files are valid 40-character hex strings. I verified the format of all 10 ansible SHAs and 18 graphiti SHAs. No embedded shell metacharacters, no truncated hashes being used as branch names (which could be ambiguous).
+
+**Repo URLs**: Both point to well-known public GitHub repos (`github.com/ansible/ansible`, `github.com/getzep/graphiti`). These are consumed by `clone_repo()` which passes them directly to `git clone` via `subprocess.run(cmd, ...)` with a list (not a shell string), so shell injection via the URL field isn't possible.
+
+**test_file paths**: The ansible.yaml fix changes `test_file` from a directory path to a specific file:
+
+```yaml
+# Before (broken):
+test_file: test/units/module_utils/facts/system/distribution/
+# After (fixed):
+test_file: test/units/module_utils/facts/system/distribution/test_parse_distribution_file_ClearLinux.py
+```
+
+This is a correctness fix. The directory path was causing `IsADirectoryError` in the harness. The new path is a plausible test file path.
+
+**Pre-existing concern (not introduced by this branch)**: `test_file` and `test_pattern` values from YAML are interpolated directly into shell commands via string concatenation at `/Users/ryo/dev/intent-layer/eval-harness/lib/task_runner.py` lines 799-802:
+
+```python
+test_cmd = self.repo.docker.test_command
+if task.test_file:
+    test_cmd = f"{test_cmd} {task.test_file}"
+if task.test_pattern:
+    test_cmd = f"{test_cmd} -k '{task.test_pattern}'"
+```
+
+This is then passed to `run_in_docker()` which executes it as `sh -c <command>`. A malicious YAML file with a `test_file` value like `; rm -rf /` would execute arbitrary commands inside the Docker container. However: (a) YAML files are authored by the repo owner, not external users, (b) execution happens inside a sandboxed Docker container with memory/CPU limits, and (c) `--network host` is used, which does expand the blast radius somewhat. The `test_pattern` path is slightly safer because it's wrapped in single quotes, but a value containing `'` would break out. **Severity: Medium (pre-existing, not changed by this PR).**
+
+**The `--ignore=mcp_server/tests` addition** in graphiti.yaml is clean. It's a pytest argument that excludes a test directory.
+
+**Dropped tasks documentation**: The ansible.yaml header now explains why each of the 5 dropped tasks was removed, with concrete reasons (integration tests only, test passes at pre_fix_commit, no unit test changes). This is good practice for audit traceability.
+
+---
+
+### 2. Timeout reclassification analysis
+
+This is the most important functional change. Previously, `[timeout]` was treated as an infra error (excluded from the success rate denominator). Now it's treated as a genuine failure (counts in the denominator as a failed attempt).
+
+**Where the change lives**:
+- `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py` line 24: removed `"[timeout]"` from `_INFRA_ERROR_PREFIXES`
+- `/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py` line 258: removed `"[timeout]"` from `_is_infra_error` check
+
+**The logic is sound.** Looking at how timeouts are generated (`/Users/ryo/dev/intent-layer/eval-harness/lib/task_runner.py` lines 777-795), a timeout result includes real metrics: `input_tokens`, `output_tokens`, `tool_calls` are all populated from `claude_result`. This means the agent actually worked, consumed tokens, and made tool calls, but ran out of time. That's clearly an experimental outcome, not an infrastructure failure. Infrastructure errors (Docker won't start, pre-validation breaks) produce 0 tokens/0 tool calls.
+
+**Could this mask real infrastructure failures?** No. The timeout detection is separate from all other error paths. It fires when `claude_result.timed_out` is True, which comes from `subprocess.TimeoutExpired` in the Claude runner. Docker-level timeouts during pre-validation still raise `PreValidationError` (which produces `[pre-validation]` tags), and those remain classified as infra errors. The two timeout paths are distinct:
+
+| Scenario | Error tag | Still infra error? |
+|---|---|---|
+| Docker setup timeout during pre-validation | `[pre-validation]` | Yes |
+| Claude CLI timeout during fix attempt | `[timeout]` | No (changed) |
+| Docker test timeout after fix | `[pre-validation]` | Yes |
+
+**Statistical impact**: With the old classification, a condition that always times out would show N/A (excluded from denominator). Now it shows 0% (0 successes / N total). The test in `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py` line 257 confirms this: `flat_llm_success_rate` is now `0.0` instead of being excluded. The ITT rate doesn't change (it already counted timeouts as failures).
+
+**One subtlety worth noting**: the `_recompute_summary` function in cli.py (used for `--resume`) and the `_compute_summary` in reporter.py (used for fresh runs) have been updated consistently. Both now exclude `[timeout]` from infra error classification. Good.
+
+**However**, the `[worker-crash]` tag (cli.py line 486) is NOT in the infra error prefixes list. This means worker crashes (OOM, race conditions) are also counted as genuine failures, which feels wrong. This is a pre-existing issue, not introduced by this PR, but worth flagging since you're touching the classification logic.
+
+---
+
+### 3. Timeout increase (300s to 450s)
+
+The default timeout at `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py` line 314 changed from 300 to 450 seconds. This is a 50% increase. Given the results documentation mentions that several tasks were frequently timing out at 300s (`fix-pdm-toml`, `fix-ignore-python-req`), and timeouts now count as genuine failures rather than being excluded, increasing the timeout reduces false negatives.
+
+No security concern here. The timeout is per-task, applied to a subprocess.
+
+---
+
+### 4. Test coverage of the change
+
+The test changes are consistent and thorough:
+
+- `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py`: `TestIsInfraErrorDict.test_all_infra_prefixes` updated to exclude `[timeout]`. New `test_timeout_is_not_infra_error` test added. `TestRecomputeSummary.test_single_run_summary` updated assertions with comments explaining the new behavior.
+
+- `/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py`: `test_timeout_tag_is_infra_error` renamed to `test_timeout_tag_is_not_infra_error` with flipped assertion. New `test_error_tag_classification` case added for timeout.
+
+Both locations test `_is_infra_error` (the static method on Reporter) and `_is_infra_error_dict` (the dict-based version in cli.py). Good coverage.
+
+---
+
+### 5. Pre-existing security notes (not changed by this PR)
+
+**`--network host` in Docker**: `/Users/ryo/dev/intent-layer/eval-harness/lib/docker_runner.py` line 49 passes `--network host` to all Docker containers. This means code running inside the container (including whatever Claude writes and executes) has full access to the host's network stack. If running on a machine with access to internal services, cloud metadata endpoints (169.254.169.254), or local databases, code in the container could reach them. This is intentional for the eval harness (needs network for git clone, pip install), but worth being aware of.
+
+**No input validation on Pydantic model for shell-unsafe characters**: The `Task` model in `/Users/ryo/dev/intent-layer/eval-harness/lib/models.py` validates `category` and `prompt_source` as Literal types (good), but `test_file`, `test_pattern`, `pre_fix_commit`, and `fix_commit` are plain strings with no regex validation. Since these are interpolated into shell commands (via `sh -c`) inside Docker, a crafted YAML could inject shell commands. This is acceptable for an internally-authored eval harness but would be a problem if YAML files were accepted from untrusted sources.
+
+**Temp file cleanup in test_resume.py**: The `_write_json` function at `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py` line 16 uses `tempfile.NamedTemporaryFile(delete=False)` but never cleans up the files. This is a minor resource leak in tests, not a security issue.
+
+---
+
+### Risk matrix
+
+| Finding | Severity | Status |
+|---|---|---|
+| Timeout reclassification consistency | Info | New change, correctly implemented |
+| `[worker-crash]` not in infra error list | Low | Pre-existing |
+| `test_file`/`test_pattern` shell injection in Docker | Medium | Pre-existing |
+| `--network host` on Docker containers | Low | Pre-existing, by design |
+| No regex validation on commit SHA fields | Low | Pre-existing |
+| Temp file leak in tests | Info | Pre-existing |
+
+### Verdict
+
+The changes on this branch are clean and well-tested. The timeout reclassification is logically correct, the YAML task configs contain only standard values (hex SHAs, public repo URLs, filesystem paths), and the test updates are consistent with the functional change. No new security issues introduced.
+
+The one thing I'd suggest considering: add `[worker-crash]` to `_INFRA_ERROR_PREFIXES`. Worker crashes (OOM, race conditions) are infrastructure failures, not experimental outcomes, and should be excluded from the success rate denominator just like `[infrastructure]` and `[pre-validation]` errors are.</result>
+<usage>total_tokens: 96093
+tool_uses: 32
+duration_ms: 135505</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/adcf22a.output
+
+---
+
+<task-notification>
+<task-id>af732fc</task-id>
+<status>completed</status>
+<summary>Agent "Architecture review of changes" completed</summary>
+<result>Now I have all the information I need. Let me put together the full analysis.
+
+---
+
+## Architecture Review: `_is_infra_error` Dual-Path and Timeout Reclassification
+
+### 1. Architecture overview
+
+The eval harness has two execution paths that compute success rates from result data:
+
+**Path A (fresh run):** `TaskRunner.run()` produces `TaskResult` objects. `Reporter.compile_results()` calls `Reporter._is_infra_error(r: TaskResult)` to filter out harness failures from success rate denominators. This operates on live Python dataclass instances.
+
+**Path B (resume merge):** `_load_prior_results()` reads a prior JSON file. `_recompute_summary()` calls `_is_infra_error_dict(cond_data: dict)` to make the same classification, but operating on deserialized JSON dicts rather than `TaskResult` objects.
+
+The two functions exist because they operate on different types (`TaskResult` vs `dict`), but they must agree on which error prefixes constitute infrastructure errors. A third code path exists for multi-run data in `_recompute_summary` (lines 183-191), which uses `total_valid_runs` from the already-compiled result rather than re-checking individual runs.
+
+### 2. Change assessment
+
+The changes remove `"[timeout]"` from both prefix lists, update the CLI timeout default from 300s to 450s, and update all affected test assertions. The specific modifications:
+
+| File | Change |
+|------|--------|
+| `/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py:258` | Remove `"[timeout]"` from `_is_infra_error` tuple |
+| `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:24` | Remove `"[timeout]"` from `_INFRA_ERROR_PREFIXES` |
+| `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py:314` | Default timeout 300 to 450 |
+| `/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py:523-531` | Add timeout case to `test_error_tag_classification` asserting `is False` |
+| `/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py:751-769` | Rename test, flip assertion to `is False` |
+| `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py:257` | Fix assertion and comment for timeout-as-genuine-failure |
+| `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py:567` | Remove `"[timeout]"` from infra prefix loop |
+| `/Users/ryo/dev/intent-layer/eval-harness/tests/test_resume.py:571-573` | Add explicit `test_timeout_is_not_infra_error` |
+
+All 91 tests pass.
+
+### 3. Compliance check
+
+**Question 1: Is the dual-path architecture a design smell worth addressing now?**
+
+Yes, it's a genuine design smell, but the plan correctly identifies it as acceptable tech debt. Here's the analysis:
+
+The duplication exists because `Reporter._is_infra_error` takes a `TaskResult` (Python dataclass) and `_is_infra_error_dict` takes a plain `dict` (deserialized JSON). These are fundamentally different types, so you can't trivially share one function. The two options for consolidation are:
+
+**(a) Extract a shared `_INFRA_ERROR_PREFIXES` constant into a common module** and have both functions reference it. This is the right fix: about 5 lines of code, zero risk. Move the tuple to a new `lib/constants.py` or even `lib/reporter.py` and import it in `cli.py`. The comment on line 22 of `cli.py` already acknowledges the relationship -- the comment says "Shared between" but the implementation isn't actually shared.
+
+**(b) Convert `_is_infra_error_dict` to operate on `TaskResult`** by deserializing dicts back into `TaskResult`. This is over-engineered for the current use case.
+
+My recommendation: option (a) should be done in this same change. It's a 3-minute fix that eliminates the class of bug you just fixed (forgetting to update one of the two locations). The plan document explicitly calls this out in "Risks & edge cases" item 2, which tells me the author knows it's fragile. But knowing it's fragile and shipping it fragile anyway -- when the fix is trivial -- is a questionable tradeoff.
+
+**Question 2: Does the timeout reclassification properly propagate through all code paths?**
+
+Almost. There are three distinct code paths, and the change covers two of them correctly but has a known gap in the third:
+
+**Path A (fresh `Reporter.compile_results`):** Covered. `_is_infra_error` on line 258 of `reporter.py` no longer matches `[timeout]`. Timeouts now flow through as valid runs, counted in denominators at lines 132, 213-214, 269, 284, and 308. Correct.
+
+**Path B (single-run `_recompute_summary`):** Covered. `_is_infra_error_dict` on line 76 of `cli.py` no longer matches `[timeout]`. The `else` branch at line 192-199 correctly includes timeout results in `total` and evaluates `success`. Correct.
+
+**Path C (multi-run `_recompute_summary` -- lines 183-191 of `cli.py`):** This is the gap. For multi-run data, the code reads pre-computed `total_valid_runs` and `successes` directly from the JSON:
+
+```python
+valid = cond_data.get("total_valid_runs", 0)
+successes = cond_data.get("successes", 0)
+total_runs = len(cond_data["runs"])
+infra_errors += total_runs - valid
+```
+
+These values were computed by `Reporter._serialize_condition` during the *original* compilation. If the original run used the *old* `_is_infra_error` (which excluded timeouts), then `total_valid_runs` already excludes timeout runs. When you `--resume` off that old JSON, `_recompute_summary` trusts those stale numbers. The plan doc acknowledges this in "Risks & edge cases" item 3 and accepts it because Run 4 will be a fresh run. That's reasonable -- but it means `--resume` from any Run 3 multi-run data will produce silently inconsistent numbers.
+
+**Question 3: Are there other places that depend on timeout being an infra error?**
+
+One additional concern: the `[worker-crash]` prefix in `cli.py:486`:
+
+```python
+error=f"[worker-crash] {e}"
+```
+
+This prefix is **not** in either `_INFRA_ERROR_PREFIXES` or `Reporter._is_infra_error`. Worker crashes (OOM, race conditions) are genuinely infrastructure failures, yet they're currently counted as experimental outcomes in denominators. This is a pre-existing bug, not introduced by this change, but it's worth noting because the same "dual prefix list" pattern would need updating if you fix it.
+
+The `_load_prior_results` function at line 65 uses a different heuristic entirely:
+
+```python
+if cond_data.get("success") is True and "error" not in cond_data:
+    passed.add((task_id, cond_key))
+```
+
+This doesn't reference infra error prefixes at all. It just checks for `success=True` with no error field. Timeout results have `success=False`, so they were never carried forward as "passed" even under the old rules. This path is unaffected by the change. Correct.
+
+### 4. Risk analysis
+
+**Risk 1 (medium): Silent divergence in future prefix additions.** The next time someone adds a new error prefix (say `[rate-limit]`), they'll need to remember to update two separate tuples in two separate files. The comment helps, but comments rot. This is the exact class of bug that caused the current fix to be needed.
+
+**Risk 2 (low): Resume from stale multi-run JSON.** As noted above, `_recompute_summary` trusts pre-computed `total_valid_runs` from prior JSON. If anyone resumes from Run 3 multi-run data, they'll get inflated rates for conditions that had timeouts. The plan accepts this risk.
+
+**Risk 3 (low): Zero-tool-call timeouts.** A timeout with `tool_calls=0` now counts as a genuine failure. The plan document notes zero occurrences in Run 3 data. If it appears in Run 4, it would unfairly penalize a condition where the agent didn't even get to work. This is an edge case worth monitoring but not blocking on.
+
+**Risk 4 (pre-existing): `[worker-crash]` not in infra error lists.** Worker crashes from `cli.py:486` produce errors prefixed with `[worker-crash]`, which neither `_is_infra_error` nor `_is_infra_error_dict` recognizes. These count against success rates when they should be excluded. The AGENTS.md pitfall section even documents this scenario. Not introduced by this change, but the shared constant approach would make it easy to fix.
+
+### 5. Recommendations
+
+**Recommendation 1 (do now): Extract the prefix tuple into a shared constant.** This is the single most impactful architectural improvement for this change. Concrete implementation:
+
+In `/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py`, add at module level:
+
+```python
+# Error prefixes that indicate harness/infrastructure failures (not experimental outcomes).
+# Shared with cli._is_infra_error_dict — keep in sync or import from here.
+INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]",
+)
+```
+
+Then in `Reporter._is_infra_error`:
+
+```python
+return r.error.startswith(INFRA_ERROR_PREFIXES)
+```
+
+And in `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py`, replace lines 22-26:
+
+```python
+from lib.reporter import INFRA_ERROR_PREFIXES
+```
+
+And in `_is_infra_error_dict`:
+
+```python
+return error.startswith(INFRA_ERROR_PREFIXES)
+```
+
+This eliminates the dual-maintenance problem entirely. The comment "Shared between" becomes actual sharing.
+
+**Recommendation 2 (do now): Add `[worker-crash]` to the infra error prefixes.** Worker crashes are definitionally infrastructure failures. The AGENTS.md pitfall already documents this. Adding it to the shared constant is a one-line addition.
+
+**Recommendation 3 (do later): Make `_recompute_summary` re-derive `total_valid_runs` for multi-run data.** Instead of trusting pre-computed values, iterate the `runs` array and apply `_is_infra_error_dict` to each run. This would make `--resume` from old JSON produce correct numbers under the new classification. Not urgent for Run 4 (fresh run), but important if you ever need cross-run resume.
+
+**Recommendation 4 (document): Add a Pitfall entry to AGENTS.md.** The AGENTS.md for eval-harness should note that the infra error classification exists in two forms that must be kept in sync (or, after Recommendation 1, that both import from `reporter.py`).
+
+### Summary
+
+The timeout reclassification is correct in its logic and well-tested. The changes properly propagate through both the fresh-run and single-run-resume paths. The multi-run-resume path has a known gap that's acceptable for the immediate use case. The most concerning architectural issue is the duplicated prefix list, which is a trivial fix that should be done in this same changeset rather than deferred. The `[worker-crash]` gap is a pre-existing bug worth fixing opportunistically.</result>
+<usage>total_tokens: 103870
+tool_uses: 24
+duration_ms: 135734</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/af732fc.output
+
+---
+
+<task-notification>
+<task-id>a13d515</task-id>
+<status>completed</status>
+<summary>Agent "Performance analysis of changes" completed</summary>
+<result>Now I have the complete picture. Here is my analysis.
+
+---
+
+## Performance Analysis: `fix/eval-harness-run4-prep`
+
+### 1. Performance summary
+
+This changeset contains two code changes and two task config changes. The code changes are minimal in scope: removing `"[timeout]"` from two identical prefix tuples (one in `cli.py`, one in `reporter.py`) and bumping the default timeout from 300s to 450s. The task config changes are purely data: removing broken tasks and fixing paths. All 194 tests pass in 6.2s.
+
+The changes are clean and well-reasoned. The performance implications are entirely about the eval run itself, not the harness code.
+
+---
+
+### 2. Critical issues
+
+**None found.** The code changes are safe. The `_is_infra_error` and `_is_infra_error_dict` methods are O(1) string prefix checks against a fixed-size tuple. Removing one element from a 5-element tuple to make it 4 makes no measurable difference.
+
+---
+
+### 3. Question 1: Cost/time impact of 300s to 450s timeout
+
+This is the important one. Here are the numbers.
+
+**Run 3 data (300s timeout, 27 tasks x 3 conditions x 3 reps = 243 items):**
+- 46 timeouts (18.9%), all hitting exactly 300.0s
+- 63 successful completions, median 130.4s, p90 226.9s, p95 239.6s, max 284.5s
+- 27 infra errors, 107 non-timeout outcomes (successes + genuine fails)
+
+**Projected Run 4 (450s timeout, 21 tasks x 3 conditions x 5 reps = 315 items):**
+
+The timeout distribution is bimodal: tasks either finish well under 300s or they hit the wall. Every single one of the 46 timeouts landed at exactly 300.0s. No non-timeout run exceeded 284.5s. This means we don't know how many of those 46 would finish between 300-450s vs hitting the new wall.
+
+Worst case (all 46 would still timeout): The extra budget just adds wasted idle time. For the same ~19% timeout rate at 315 items, that's ~60 items timing out at 450s instead of 300s. Per item that's +150s of wasted compute. With 3 workers, worst-case total time added: `60 items * 150s / 3 workers = 50 minutes`.
+
+Best case (half of timeouts resolve under 450s): Some tasks that were close to finishing at 300s now succeed. The non-timeout distribution (max 284.5s) suggests many tasks are finishing well under the limit, so the tasks that timeout may genuinely need more than 450s (they're fundamentally harder). I'd estimate 20-40% of the 300s timeouts will resolve under 450s.
+
+**Realistic total run estimate:**
+- 315 items / 3 workers = 105 batches
+- Assume ~30% timeout at 450s (~95 items), ~70% complete with median ~150s
+- Effective per-item average: `0.7 * 150s + 0.3 * 450s = 240s`
+- Total: `315 * 240s / 3 = 25,200s = 7.0 hours`
+- Compare to 300s estimate: `315 * 180s / 3 = 18,900s = 5.25 hours`
+
+The plan document estimates 5.25-6.5 hours. 7 hours is on the pessimistic end but plausible. The +150s per-timeout-item is the real cost driver. Because context-heavy conditions (flat_llm and intent_layer) timeout at 22-23% vs none at 11%, the timeout increase disproportionately extends their runs, which is exactly the point -- you need those runs to complete to get useful data.
+
+**Cost impact**: Each Claude CLI invocation that runs 150s longer consumes more API tokens. From the prior data, timed-out runs were already consuming tokens (they had real tool_calls and input/output tokens). At 450s, the additional 150s per timeout item means roughly 50% more tokens per timeout. With ~60 timeout items, each consuming maybe $0.20-0.50 in API costs, that's roughly $12-30 additional API spend. Not large, but worth noting.
+
+**Verdict**: The 450s timeout is the right call. The confound it eliminates (can't tell if context is harmful vs just slower) is more valuable than the 1-2 hours of extra run time.
+
+---
+
+### 4. Question 2: Reporter.py `[timeout]` removal -- performance implications
+
+Two locations changed:
+
+**`/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py` line 258:**
+```python
+# Before
+return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]", "[timeout]"))
+
+# After
+return r.error.startswith(("[infrastructure]", "[pre-validation]", "[skill-generation]", "[empty-run]"))
+```
+
+**`/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py` lines 23-26:**
+```python
+# Before
+_INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]",
+    "[empty-run]", "[timeout]",
+)
+
+# After  
+_INFRA_ERROR_PREFIXES = (
+    "[infrastructure]", "[pre-validation]", "[skill-generation]",
+    "[empty-run]",
+)
+```
+
+**Performance**: Zero impact. `str.startswith(tuple)` is a C-level loop over the tuple elements. Going from 5 to 4 elements saves one string comparison in the worst case (when no prefix matches). This is called once per result at report time -- O(n) total where n=315. Negligible.
+
+**Correctness concern worth flagging**: The plan document (risk #2) correctly identifies that `reporter._is_infra_error` and `cli._is_infra_error_dict`/`cli._INFRA_ERROR_PREFIXES` are duplicate definitions that must stay in sync. Both are updated here, so it's consistent. But the duplication is a maintenance smell. The `_INFRA_ERROR_PREFIXES` tuple in `cli.py` is already defined as a module-level constant with a comment "shared between _is_infra_error_dict and Reporter._is_infra_error," yet `Reporter._is_infra_error` doesn't actually use it. A future change might update one and miss the other. Not a performance issue, but it's the kind of thing that causes subtle bugs later.
+
+**Statistical impact (the real "performance" question)**: This is where the change matters. In Run 3, 46 timeout runs were excluded from the success rate denominator. After this change, they count as failures. The per-protocol success rate denominator increases by 46, all contributing 0 successes. This will lower reported success rates across the board and, importantly, will reduce the bias that disproportionately hid flat_llm and intent_layer failures (those conditions had 2x the timeout rate of none).
+
+For Run 3 data retroactively recalculated:
+- none: 46 valid (was 35 valid) -- timeout rate lower, small rate decrease
+- flat_llm: 61 valid (was 42 valid) -- 19 more denominator entries, bigger rate decrease  
+- intent_layer: 63 valid (was 43 valid) -- 20 more denominator entries, bigger rate decrease
+
+This is the correct behavior. The old measurement was biased.
+
+---
+
+### 5. Question 3: Test suite performance (194 tests in 6.2s)
+
+**No concerns.** 194 tests in 6.2s is ~32ms per test on average. That's fast. The test changes are small and don't add expensive operations:
+
+- `test_timeout_tag_is_not_infra_error`: flips one assertion, O(1)
+- `test_all_infra_prefixes`: removes one iteration from a 5-element loop, now 4
+- `test_timeout_is_not_infra_error` (new): one assertion, O(1)
+- `test_error_tag_classification`: adds one more TaskResult construction and assertion
+
+None of these add I/O, network calls, or subprocess invocations. The test suite's 6.2s runtime is dominated by the existing tests that mock subprocess calls and build large data structures. Adding 1-2 more O(1) assertions is noise.
+
+The one collected-but-skipped test (`test_integration.py`) is correctly gated behind a `pytest.mark.integration` marker. Good practice -- integration tests that hit real Docker/Claude would blow up test time.
+
+---
+
+### 6. Scalability assessment
+
+**For the 315-item run**: The harness architecture is sound. `ThreadPoolExecutor(max_workers=3)` with independent Docker containers per task means parallelism is well-bounded. Memory per worker is dominated by the subprocess output buffers (test_output truncated to 1000 chars, Claude stdout captured in memory). At 3 workers and 450s max, peak memory is trivially low.
+
+The `PreValidationCache` with thread-safe locking (lines 49-104 of `task_runner.py`) correctly deduplicates across conditions. With 21 tasks x 3 conditions, that eliminates 42 redundant Docker runs. At 180s per Docker run, that's ~2.1 hours saved. The cache's `get_or_compute` correctly handles the thundering herd with `threading.Event` wait.
+
+**One observation on `_compute_summary` in `reporter.py` (lines 298-301):**
+
+```python
+has_multi_run = any(
+    sum(1 for r2 in results if r2.task_id == r.task_id and r2.condition == r.condition) > 1
+    for r in results
+)
+```
+
+This is theoretically O(n^2) but in practice O(n) because `any()` short-circuits on the first match, and with 5 reps every first element immediately finds a duplicate. My benchmark confirmed: 315 items takes 0.01ms. Even at 3000 items it's 0.04ms. Not worth changing.
+
+**The `_recompute_summary` in `cli.py`** (used in `--resume` path) does not have this pattern -- it reads pre-computed `total_valid_runs` from the JSON. The resume path is clean.
+
+---
+
+### 7. Recommended actions
+
+**Prioritized by impact:**
+
+1. **No blockers.** The changes are correct and ready. Ship them.
+
+2. **Low-priority cleanup** (after Run 4): Consolidate the duplicate infra-error prefix definitions. Make `Reporter._is_infra_error` reference the `_INFRA_ERROR_PREFIXES` constant from `cli.py`, or extract both into a shared module. Right now the same tuple is defined in two places:
+   - `/Users/ryo/dev/intent-layer/eval-harness/lib/cli.py` lines 23-26
+   - `/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py` line 258
+
+3. **Consider a `--timeout` upper bound**: There's no validation on the timeout value. Someone passing `--timeout 999999` would create a single-item run that blocks a worker for 11.5 days. A cap at 1800s (30 min) would be reasonable. Not urgent.
+
+4. **Monitor Run 4 timeout distribution**: If the 450s run shows most timeouts still hitting the wall (all at exactly 450.0s), that means the timeout increase didn't help -- those tasks are fundamentally unsolvable in the allotted time. If timeouts cluster between 300-450s with some finishing, the increase was justified. This data will inform whether to keep 450s or revert.
+
+5. **The `run_claude` default timeout in `claude_runner.py` is still 300s** (line 194: `def run_claude(..., timeout: int = 300, ...)`). This default isn't used by the harness (the CLI passes `--timeout` explicitly), but it could confuse someone calling `run_claude` directly. Consider aligning it with the CLI default, or at least adding a comment noting the CLI overrides it.</result>
+<usage>total_tokens: 100401
+tool_uses: 29
+duration_ms: 174000</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a13d515.output
+
+---
+
+yes
+
+---
+
+yes
