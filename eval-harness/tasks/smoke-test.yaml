@@ -1,0 +1,27 @@
+repo:
+  url: https://github.com/ansible/ansible
+  default_branch: devel
+  docker:
+    image: python:3.12-slim
+    setup:
+    - apt-get update && apt-get install -y git
+    - pip install --upgrade pip
+    - pip install -e .
+    - pip install pytest pytest-mock passlib bcrypt pexpect pywinrm
+    test_command: pytest --tb=short -q
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+tasks:
+- id: fix-ansiblemodule-human-to-bytes
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 222f786f233f6e32024f4b8c148ec2121f03edfa
+  fix_commit: 13a7393cfe982fab7cb6dbaf43e12879160afbc2
+  test_file: test/units/module_utils/basic/test_human_to_bytes.py
+  prompt_source: failing_test
+  issue_number: 85259
+  _commit_message: "Fix AnsibleModule.human_to_bytes (#85259)"
+  _files_changed: 4
+  _lines_changed: 46

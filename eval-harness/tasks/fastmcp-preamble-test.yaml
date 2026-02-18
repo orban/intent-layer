@@ -1,0 +1,45 @@
+# Preamble A/B test: compare Downlinks preamble vs old approach
+# Selected tasks from Run 1 where conditions diverged:
+# - Task 4: intent_layer=PASS, flat_llm=FAIL, none=TIMEOUT (discriminator)
+# - Task 8: all PASS (control - ceiling task)
+# - Task 1: all PASS (control - ceiling task, commit_message)
+
+repo:
+  url: https://github.com/jlowin/fastmcp
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install uv && uv sync --frozen --all-groups
+    test_command: uv run --frozen pytest --ignore=tests/client/transports/test_uv_transport.py
+  strip_extra:
+  - .claude/
+  - .cursor/
+
+tasks:
+# DISCRIMINATOR: intent_layer=PASS, flat_llm=FAIL, none=TIMEOUT in Run 1
+- id: fix-include_tagsexclude_tags-ignored-without-tool
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: bb60287005039725da5a7be6f3b474b8c5cf597f
+  fix_commit: ccfe5047bfa150bc10c4689f7c608051c77fe577
+  prompt_source: failing_test
+  _commit_message: Fix include_tags/exclude_tags ignored without tools in MCPConfig
+    (#3186)
+  _lines_changed: 109
+  _files_changed: 3
+  test_file: tests/test_mcp_config.py
+  issue_number: 3186
+
+# CONTROL: all PASS in Run 1 (easy task - variance baseline)
+- id: fix-snapshot-access-token-for-background-tasks
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: f75cd05e502061503d24e5e5cffdac763a6f9f45
+  fix_commit: 263e0bf6e0262149269863e09a99b8de1f08bbf0
+  prompt_source: failing_test
+  _commit_message: 'fix: snapshot access token for background tasks (#3095) (#3138)'
+  _lines_changed: 235
+  _files_changed: 4
+  test_file: tests/server/tasks/test_context_background_task.py
+  issue_number: 3095

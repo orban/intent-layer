@@ -1,0 +1,59 @@
+# PDM commit_message tasks: where context showed strongest signal
+# Run 2 results: none 42% → flat 80% → intent 89% on commit_message tasks
+# Plus one control (all-pass failing_test)
+
+repo:
+  url: https://github.com/pdm-project/pdm
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - apt-get update && apt-get install -y git
+    - pip install -e . && pip install pytest pytest-mock pytest-httpserver pytest-httpx pytest-xdist pytest-rerunfailures
+    - grep -q 'hishel._serializers' src/pdm/models/serializers.py 2>/dev/null && pip install 'hishel<1.0.0' || true
+    - pip install 'packaging<26'
+    test_command: pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - AGENTS.md
+  - CLAUDE.md
+
+tasks:
+# SIGNAL: none=1/3, flat=2/3, intent=2/3 in Run 2
+- id: fix-resolution-excludes-lock-file-candidates
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 1d31c8dfc9df91591ceb961b86253efe283c86dd
+  fix_commit: eb8a3df6fa5cac8247ed83f9237b772f1857ea97
+  prompt_source: commit_message
+  _commit_message: 'fix: apply resolution.excludes when evaluating candidates from the lock file'
+  _lines_changed: 5
+  _files_changed: 2
+  issue_number: 3727
+
+# SIGNAL: none=1/3, flat=3/3, intent=3/3 in Run 2
+- id: fix-pylock-toml-git-dependency-lock-failure
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 133a5140ddd979041910341eb486fdd98e82ce19
+  fix_commit: 312f2fbd5b89c6f7e4c95c374c44f8096cc1ce53
+  prompt_source: commit_message
+  _commit_message: 'fix: pylock.toml + git dependency => lock failure'
+  _lines_changed: 4
+  _files_changed: 2
+  issue_number: 3695
+
+# CONTROL: none=3/3, flat=3/3, intent=3/3 in Run 2 (ceiling)
+- id: fix-expand-env-vars-empty-string-missing
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: bd8c5d30c6b8b8a615f82605e63f1391e5fabfa2
+  fix_commit: 16a27ddbfcd9d18d31895f5493009c98c6dc1f74
+  prompt_source: failing_test
+  _commit_message: 'fix: update default behavior of expand_env_vars to return empty string for missing env vars'
+  _lines_changed: 7
+  _files_changed: 3
+  test_file: tests/test_utils.py
+  issue_number: 3655

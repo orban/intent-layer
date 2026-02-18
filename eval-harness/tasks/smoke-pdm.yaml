@@ -1,0 +1,31 @@
+repo:
+  url: https://github.com/pdm-project/pdm
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - apt-get update && apt-get install -y git
+    - pip install -e . && pip install pytest pytest-mock pytest-httpserver pytest-httpx pytest-xdist pytest-rerunfailures
+    - grep -q 'hishel._serializers' src/pdm/models/serializers.py 2>/dev/null && pip install 'hishel<1.0.0' || true
+    - pip install 'packaging<26'
+    test_command: pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - AGENTS.md
+  - CLAUDE.md
+
+tasks:
+- id: fix-expand-env-vars-empty-string-missing
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: aa8d27d6e33b6f5e6027ca3503f0fdddfb8e2956
+  fix_commit: a5c77da6f5e36f8b35bc3c79cc5b15bf5fe1b5c4
+  test_file: tests/cli/test_run.py
+  test_pattern: test_expand_env_vars_correctly
+  prompt_source: failing_test
+  issue_number: 3365
+  _commit_message: "fix empty/missing env var expansion"
+  _files_changed: 1
+  _lines_changed: 10
