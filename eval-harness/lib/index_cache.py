@@ -185,6 +185,10 @@ class IndexCache:
             condition: Condition name (e.g., "flat_llm", "intent_layer")
             repo_level: If True, cache by repo+condition only (no commit)
         """
+        # Never cache empty results — they poison all subsequent lookups
+        if not agents_files:
+            return
+
         # Create cache entry directory
         if repo_level:
             cache_key = self.get_repo_cache_key(repo, condition)

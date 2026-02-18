@@ -260,14 +260,22 @@ class Reporter:
     def _compute_summary(self, results: list[TaskResult]) -> dict:
         """Compute overall summary statistics.
 
-        Infrastructure errors (clone/docker/workspace failures) are excluded
-        from success rate calculations to avoid corrupting experimental data.
+        Two scoring modes:
+        - Per-protocol: infra errors excluded from denominator (existing behavior)
+        - ITT (intent-to-treat): all assigned tasks count, timeout/infra = fail
         """
         def success_rate(task_results: list[TaskResult]) -> float:
+            """Per-protocol: exclude infra errors from denominator."""
             valid = [r for r in task_results if not self._is_infra_error(r)]
             if not valid:
                 return 0
             return round(sum(1 for r in valid if r.success) / len(valid), 2)
+
+        def itt_rate(task_results: list[TaskResult]) -> float:
+            """Intent-to-treat: all tasks count, non-success = fail."""
+            if not task_results:
+                return 0
+            return round(sum(1 for r in task_results if r.success) / len(task_results), 2)
 
         none_results = [r for r in results if r.condition == Condition.NONE]
         flat_results = [r for r in results if r.condition == Condition.FLAT_LLM]
@@ -281,6 +289,9 @@ class Reporter:
             "none_success_rate": success_rate(none_results),
             "flat_llm_success_rate": success_rate(flat_results),
             "intent_layer_success_rate": success_rate(il_results),
+            "none_itt_rate": itt_rate(none_results),
+            "flat_llm_itt_rate": itt_rate(flat_results),
+            "intent_layer_itt_rate": itt_rate(il_results),
         }
 
         # Add CIs when we have multi-run data

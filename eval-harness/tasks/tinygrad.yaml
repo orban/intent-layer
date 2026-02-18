@@ -1,0 +1,142 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/tinygrad/tinygrad
+# Tasks found: 10
+
+repo:
+  url: https://github.com/tinygrad/tinygrad
+  default_branch: master
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install -e '.[testing_minimal]'
+    test_command: python -m pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+tasks:
+# --- simple_fix: <50 lines, 1-2 files ---
+
+- id: fix-getitem-tensor-indexing-sint
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 86352988d8f5a03ded93449e603d24f5e94de423
+  fix_commit: 787998fac3b27525f82853cad29fcdb006dbb6cd
+  prompt_source: failing_test
+  _commit_message: 'fix getitem tensor indexing detection'
+  _lines_changed: 9
+  _files_changed: 2
+  test_file: test/unit/test_indexing.py
+  issue_number: 14712
+
+- id: fix-copysign-negative-zero
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 62884585a79bfeade4238af563ac22a92a9cc3d7
+  fix_commit: 8c899e4aaf192f05a22e4ddcd4e0a310765230d4
+  prompt_source: failing_test
+  _commit_message: 'fix copysign for -0'
+  _lines_changed: 12
+  _files_changed: 2
+  test_file: test/test_ops.py
+  issue_number: 14380
+
+- id: fix-copysign-inf-input
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: f34efc1ad1e27d50bbf9f45ca32404385e84f02e
+  fix_commit: 8d1f3c8885f5995558f82868e0193d5d5d3c0558
+  prompt_source: failing_test
+  _commit_message: 'fix copysign for inf input'
+  _lines_changed: 17
+  _files_changed: 3
+  test_file: test/test_ops.py
+  issue_number: 14381
+
+- id: fix-long-decomp-none-tag
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 557134e1c7c1a5c09bbdb5aab3d9dfaa5f4d0519
+  fix_commit: 212789e31e01f6d9975d8a2770bca648ed0818ba
+  prompt_source: commit_message
+  _commit_message: 'fix long_decomp with None tag'
+  _lines_changed: 2
+  _files_changed: 1
+  # Existing test: test/null/test_tensor.py::TestIdxUpcast::test_int64_unsupported_overflow_sym
+  issue_number: 14707
+
+- id: fix-type-tensor-mean-var
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 2b5e99ccc14b965310e094b04dc11890c237e0dd
+  fix_commit: 079f33c208a7d3fec6ea2c5d5640727a087d6dc8
+  prompt_source: commit_message
+  _commit_message: 'fix type in Tensor.mean and Tensor.var'
+  _lines_changed: 7
+  _files_changed: 1
+  # No new test added; fix wraps UOp from symbolic shape with Tensor.from_uop
+  issue_number: 14410
+
+# --- targeted_refactor: 2-4 files, focused ---
+
+- id: fix-assign-hazard-on-shrink
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 145df879c1cf4fcf4b8033f032a03f178afe8300
+  fix_commit: f16372487a6a6d7c59a7f86847fc244d68f05466
+  prompt_source: failing_test
+  _commit_message: 'fix assign hazard on shrink'
+  _lines_changed: 30
+  _files_changed: 2
+  test_file: test/unit/test_assign.py
+  issue_number: 14355
+
+- id: fix-multiple-reduce-same-range
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 93c41a78fa08b0d530ecff44373ff768d3efd6fb
+  fix_commit: 4f2e7aed248395fbff3812b3fc0092299eecb6eb
+  prompt_source: failing_test
+  _commit_message: 'fix multiple REDUCE on same RANGE'
+  _lines_changed: 28
+  _files_changed: 2
+  test_file: test/test_schedule.py
+  issue_number: 14504
+
+- id: fix-estimate-from-uops-sliced-access
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 8551fa50d3c1b86de3e2f5f9102e837727fae3ac
+  fix_commit: 56caf6a3a2b13dbd4814a0142ed2668b08cd9afa
+  prompt_source: failing_test
+  _commit_message: 'fix Estimate.from_uops for sliced access'
+  _lines_changed: 28
+  _files_changed: 3
+  test_file: test/null/test_uops_stats.py
+  issue_number: 14695
+
+- id: fix-chained-full-buffer-assign
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 58fa82eef502d6d3ec4be3d6cf76aa0580ae1326
+  fix_commit: f2f039cc0f76c0a59f75d56f69e613c1623201f4
+  prompt_source: failing_test
+  _commit_message: 'fix chained full-buffer assign'
+  _lines_changed: 17
+  _files_changed: 3
+  test_file: test/unit/test_assign.py
+  issue_number: 14828
+
+# --- complex_fix: 3+ files or 100+ lines ---
+
+- id: torch-load-fix-shared-storage-slicing
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 8e7c5f5b090281f3174c6f2e8d6f757ae708c110
+  fix_commit: 0f1ca8eb43d3127bd6fcebd25caf1bb9ab80d782
+  prompt_source: failing_test
+  _commit_message: 'torch_load: fix shared storage slicing'
+  _lines_changed: 103
+  _files_changed: 2
+  test_file: test/unit/test_disk_tensor.py
+  issue_number: 14771

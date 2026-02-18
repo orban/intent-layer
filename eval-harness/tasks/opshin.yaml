@@ -1,0 +1,138 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/opshin/opshin
+# Tasks found: 10
+
+repo:
+  url: https://github.com/opshin/opshin
+  default_branch: dev
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install uv && uv sync --frozen --dev
+    test_command: uv run pytest tests
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - AGENTS.md
+
+tasks:
+# --- Bug fixes with new tests (best eval candidates) ---
+
+- id: fix-blueprint-schema-conversion-plutusdata
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 6fdbeb526b7977e842a37100a7ea80dfc5405423
+  fix_commit: aed05eb62b486e8c85cf882e6730da00af584024
+  prompt_source: failing_test
+  _commit_message: Fix conversion from/to blueprint schema for PlutusData
+  _lines_changed: 52
+  _files_changed: 2
+  test_file: tests/test_misc.py
+
+- id: fix-negative-access-to-pairs
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 7f2f4786739080f3d5f7c05c6f3193cdb9505b77
+  fix_commit: 9e5158e9db085dccb084994210248544099ab316
+  prompt_source: failing_test
+  _commit_message: Fix negative access to pairs
+  _lines_changed: 75
+  _files_changed: 4
+  test_file: tests/test_stdlib.py
+
+- id: fix-negative-index-handling-in-tuples
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 9e5158e9db085dccb084994210248544099ab316
+  fix_commit: 7bd70b22fd838ae6f18434c247d1750048f00d26
+  prompt_source: failing_test
+  _commit_message: Fix negative index handling in tuples
+  _lines_changed: 26
+  _files_changed: 2
+  test_file: tests/test_stdlib.py
+
+- id: fix-error-messages-list-dict-without-import
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 022b4c814b36da0f25d0595dc4e40027b5a8f757
+  fix_commit: 914d4765ba8787ef0e3481c4b61fafba1c6a7ad7
+  prompt_source: failing_test
+  _commit_message: Fix error messages when using List, Dict, and when using without import
+  _lines_changed: 145
+  _files_changed: 4
+  test_file: tests/test_rewrite/test_import_typing.py
+
+- id: derive-type-for-empty-literal-lists-and-dicts
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 018174e9ad5025786b213463c4dfa354c1250a96
+  fix_commit: 9e6e77a5ac7c1060bf641d2663f63a31545319fd
+  prompt_source: failing_test
+  _commit_message: Derive a type for empty literal lists and dicts
+  _lines_changed: 62
+  _files_changed: 2
+  test_file: tests/test_types.py
+
+- id: catch-errors-importing-invalid-modules
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 8db3d57f62fd0058be87defeef5638810b095bcb
+  fix_commit: d0b1669f20c0918112d486865f20d385f9a231f9
+  prompt_source: failing_test
+  _commit_message: Catch errors when importing invalid modules
+  _lines_changed: 50
+  _files_changed: 2
+  test_file: tests/test_rewrite/test_import.py
+  # Note: code fix is in e3c013fa, test added in d0b1669f (consecutive commits)
+
+- id: fix-annotation-handling-py39-blueprint
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: aed05eb62b486e8c85cf882e6730da00af584024
+  fix_commit: 1478c10350ad16fed7d38bc1c8086a93ae15153e
+  prompt_source: commit_message
+  _commit_message: Fix set/get class annotations (py3.9 compat)
+  _lines_changed: 78
+  _files_changed: 3
+  # Spans two commits: e0dfca6f (Fix annotation handling for py3.9) and
+  # 1478c103 (Fix set/get class annotations). Tests modified in e0dfca6f
+  # for test_misc.py but no new test functions added.
+
+- id: fix-order-of-optimization-config-applications
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 8464d4221b9ee600afbeb01ef6aae289e561b7e7
+  fix_commit: 59daa6e23e99e5f3a63d7109dd05a6ba533bfd81
+  prompt_source: commit_message
+  _commit_message: Fix order of optimization config applications
+  _lines_changed: 2
+  _files_changed: 1
+  # 1-line fix in compiler_config.py. No new tests but existing test suite
+  # covers this via optimization-level tests.
+
+# --- Fixes with test modifications (medium eval quality) ---
+
+- id: fixes-constant-folding-default-tests
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 311e70b6cff5b0c0b776fa7f301aed614e4d20c9
+  fix_commit: 8e827addc68372d641587ade7b8247cb611b9df5
+  prompt_source: failing_test
+  _commit_message: Move failing tests with default constant folding to dedicated tests
+  _lines_changed: 134
+  _files_changed: 3
+  test_file: tests/test_optimize/test_const_folding.py
+
+- id: loosen-typing-imports-unify-self
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 074a3e412531132ed5f75ce676c895ef3bcf8ef5
+  fix_commit: e9191c33c0eee75898e229ad083ce93210faa2db
+  prompt_source: failing_test
+  _commit_message: Loosen typing imports, unify with Self
+  _lines_changed: 91
+  _files_changed: 2
+  test_file: tests/test_rewrite/test_import_typing.py
+  issue_number: 537
+  # PR #537: code fix in b5730f96, tests in e9191c33

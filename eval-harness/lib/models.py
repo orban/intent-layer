@@ -22,6 +22,7 @@ class RepoConfig(BaseModel):
 class Task(BaseModel):
     id: str
     category: Literal["simple_fix", "targeted_refactor", "complex_fix"]
+    difficulty: Literal["easy", "medium", "hard"] | None = None
     pre_fix_commit: str
     fix_commit: str
     test_file: str | None = None

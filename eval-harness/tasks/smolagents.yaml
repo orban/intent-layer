@@ -1,0 +1,140 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/huggingface/smolagents
+# Tasks found: 10
+
+repo:
+  url: https://github.com/huggingface/smolagents
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install uv && uv pip install --system "smolagents[test] @ ."
+    test_command: pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+
+tasks:
+# --- simple_fix ---
+- id: fix-final-answer-exception-caught-by-except
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: bae54fd37431c67c6704870cf6e8e5865b72930e
+  fix_commit: 1af07997acf5ac5539581e8faeb79a61f7513030
+  prompt_source: failing_test
+  _commit_message: 'fix: prevent FinalAnswerException from being caught by except Exception'
+  _lines_changed: 28
+  _files_changed: 3
+  test_file: tests/test_local_python_executor.py
+  issue_number: 1914
+
+- id: fix-role-not-converted-back-to-enum
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: d8c921d526514ab15ef88c7defa1df7f71209251
+  fix_commit: 4dbafef429bf64350f4226cdf2833ba30352ef65
+  prompt_source: failing_test
+  _commit_message: 'bug: role not converted back to enum'
+  _lines_changed: 18
+  _files_changed: 2
+  test_file: tests/test_models.py
+  issue_number: 1833
+
+- id: fix-none-content-in-stop-sequence-trimming
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 51555688b509bb72b01cd06421f857d78bef54bf
+  fix_commit: 486db680d2cb40813bbfddc56bdae6281c4eb652
+  prompt_source: failing_test
+  _commit_message: 'Handle None content in stop-sequence trimming'
+  _lines_changed: 22
+  _files_changed: 2
+  test_file: tests/test_models.py
+  issue_number: 1826
+
+- id: fix-enum-metaclass-support-in-local-executor
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: eecc64e69c06099e1c2669679b77e669eb05e8d1
+  fix_commit: 3081d5130b545305ea0cc7711a7cdb28b7ea42c0
+  prompt_source: failing_test
+  _commit_message: 'Fix LocalPythonExecutor support for Enum and other metaclasses'
+  _lines_changed: 50
+  _files_changed: 2
+  test_file: tests/test_local_python_executor.py
+  issue_number: 1797
+
+- id: fix-dict-message-bug-in-memory-replay
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 39986e32916c5c61c976a88d097223eac11a2584
+  fix_commit: 1dfc9cf79361b867a7581b6b43fd4b6f1d4d1d17
+  prompt_source: failing_test
+  _commit_message: 'Fix dict(message) bug in AgentMemory.replay for ChatMessage objects'
+  _lines_changed: 27
+  _files_changed: 2
+  test_file: tests/test_monitoring.py
+  issue_number: 1763
+
+# --- targeted_refactor ---
+- id: add-nested-dictcomp-setcomp-in-local-executor
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 7440affecb70de6341262a24cff0d101e2fc7558
+  fix_commit: eff2d28c5dad80ab9d3739f3eb2379b7643170e6
+  prompt_source: failing_test
+  _commit_message: 'LocalPythonExecutor: Add support for nested dictcomp and setcomp'
+  _lines_changed: 218
+  _files_changed: 2
+  test_file: tests/test_local_python_executor.py
+  issue_number: 1823
+
+- id: fix-stop-sequence-cutting-post-generation
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 16499bfb071b537f677dd6b50dfe0eacac4d995b
+  fix_commit: 67b15aee2ba1ea70ba9536d94f0be4f1a598578c
+  prompt_source: failing_test
+  _commit_message: 'Cut generation at stop sequence post generation'
+  _lines_changed: 139
+  _files_changed: 3
+  test_file: tests/test_models.py
+  issue_number: 1802
+
+- id: coerce-tool-calls-to-chatmessagetoolcall
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: d97fa2c8452520040a663f723a0b5f20e8b1155a
+  fix_commit: c537327086e9264d7affd6e79967b05ce17731be
+  prompt_source: failing_test
+  _commit_message: 'Coerce tool calls from APIs into smolagents ChatMessageToolCall format'
+  _lines_changed: 142
+  _files_changed: 2
+  test_file: tests/test_models.py
+  issue_number: 1900
+
+# --- complex_fix ---
+- id: fix-safe-serializer-get-deserializer-code
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 41a3b005fadc6edd587a3ac6f6812987da405e26
+  fix_commit: b48889204ad50b6dce7546ae364eedc6ceb87d46
+  prompt_source: failing_test
+  _commit_message: 'Fix SafeSerializer.get_deserializer_code'
+  _lines_changed: 122
+  _files_changed: 3
+  test_file: tests/test_serialization.py
+  issue_number: 1983
+
+- id: refactor-deserialization-registry-pattern
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 0318214579d319c24ea82d28a63d6f1790cc2f60
+  fix_commit: ab4db760ab7019f9f5784ebbf726142cb30b0acb
+  prompt_source: failing_test
+  _commit_message: 'Refactor agent/model deserialization: Replace importlib with registry pattern'
+  _lines_changed: 157
+  _files_changed: 3
+  test_file: tests/test_agents.py
+  issue_number: 1944

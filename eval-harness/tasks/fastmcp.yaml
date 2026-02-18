@@ -16,6 +16,7 @@ repo:
 tasks:
 - id: merge-pull-request-3198-from-jlowinfixty-errors
   category: complex_fix
+  difficulty: hard
   pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
   fix_commit: 5dc2432950889d98454500c59df43e015de1fc00
   prompt_source: commit_message
@@ -26,6 +27,7 @@ tasks:
   issue_number: 3198
 - id: fix-ty-0017-diagnostics-and-bump-lockfile
   category: complex_fix
+  difficulty: hard
   pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
   fix_commit: 564b4c0d5c692df0231b9f1b35a647f1ea880684
   prompt_source: commit_message
@@ -35,6 +37,7 @@ tasks:
   # No new test functions added — fix is type-checker/linting changes only
 - id: merge-pull-request-3195-from-jlowinfixstateless
   category: simple_fix
+  difficulty: easy
   pre_fix_commit: 453dcbe808fc942a55b04c49a0e9478249fb2655
   fix_commit: b4eb1adbeb80f12e8d85c7a8b32f51e39cbc66fa
   prompt_source: failing_test
@@ -48,6 +51,7 @@ tasks:
 # trivial 2-line README logo fixes with no automated test coverage.
 - id: fix-include_tagsexclude_tags-ignored-without-tool
   category: targeted_refactor
+  difficulty: medium
   pre_fix_commit: bb60287005039725da5a7be6f3b474b8c5cf597f
   fix_commit: ccfe5047bfa150bc10c4689f7c608051c77fe577
   prompt_source: failing_test
@@ -59,6 +63,7 @@ tasks:
   issue_number: 3186
 - id: fix-stale-request-context-in-statefulproxyclient-h
   category: complex_fix
+  difficulty: hard
   pre_fix_commit: b62ed3408b3f1550c29f7b1eac13ec8b7f7bc386
   fix_commit: 5f941be5a31d210d09a0f94780d3077f9b32f697
   prompt_source: failing_test
@@ -69,6 +74,7 @@ tasks:
   issue_number: 3172
 - id: docs-fix-stale-get_-references-now-list_-316
   category: targeted_refactor
+  difficulty: hard
   pre_fix_commit: 175479f65fb8ccf92661700b9dfec333b2af8100
   fix_commit: 3907a4f9b6ec59c3ad9e3606e47e7f2d65763c0c
   prompt_source: commit_message
@@ -78,6 +84,7 @@ tasks:
   issue_number: 3168
 - id: fix-guard-client-pagination-loops-against-misbeha
   category: complex_fix
+  difficulty: hard
   pre_fix_commit: 359575b12f90990154864cb1bb3fc9e99d32a495
   fix_commit: 175479f65fb8ccf92661700b9dfec333b2af8100
   prompt_source: failing_test
@@ -89,6 +96,7 @@ tasks:
   issue_number: 3167
 - id: fix-snapshot-access-token-for-background-tasks
   category: complex_fix
+  difficulty: hard
   pre_fix_commit: f75cd05e502061503d24e5e5cffdac763a6f9f45
   fix_commit: 263e0bf6e0262149269863e09a99b8de1f08bbf0
   prompt_source: failing_test

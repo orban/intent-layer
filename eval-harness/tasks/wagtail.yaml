@@ -1,0 +1,129 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/wagtail/wagtail
+# Tasks found: 10
+
+repo:
+  url: https://github.com/wagtail/wagtail
+  default_branch: main
+  docker:
+    image: python:3.13-slim
+    setup:
+    - apt-get update && apt-get install -y --no-install-recommends gcc libjpeg-dev zlib1g-dev libffi-dev
+    - pip install -e '.[testing]' --config-settings editable_mode=strict
+    - pip install 'Django>=5.2,<5.3'
+    test_command: DJANGO_SETTINGS_MODULE=wagtail.test.settings DATABASE_ENGINE=django.db.backends.sqlite3 python runtests.py
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - AGENTS.md
+tasks:
+- id: fix-correct-converter-pk-type-for-modelviewset
+  category: targeted_refactor
+  difficulty: hard
+  pre_fix_commit: 38f1d405f0f554ec95527861eb15562a8126577f
+  fix_commit: b687315282cd2ba0a61628b3b4c1d107e20f577d
+  prompt_source: failing_test
+  _commit_message: Use correct converter depending on pk type for ModelViewSet
+  _lines_changed: 136
+  _files_changed: 9
+  test_file: wagtail/admin/tests/viewsets/test_model_viewset.py
+  issue_number: 13490
+- id: fix-normalize-redirect-paths-to-unicode
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 1381f60bedefddd2b6882f6080c7c8d8d0da4682
+  fix_commit: 9e522f00e180d0b74b5df46fa3e8bb116c75935e
+  prompt_source: failing_test
+  _commit_message: Normalize redirect paths to unicode
+  _lines_changed: 88
+  _files_changed: 3
+  test_file: wagtail/contrib/redirects/tests/test_redirects.py
+  issue_number: 13653
+- id: fix-avatar-preserves-original-format
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 4c15c1f33f6d18f0374c73fbe1d59ee109347756
+  fix_commit: 219cd5b6e239c750d5cdf6f02771c7755cf56f1a
+  prompt_source: failing_test
+  _commit_message: Preserving the format while uploading the avatar
+  _lines_changed: 41
+  _files_changed: 2
+  test_file: wagtail/admin/tests/test_account_management.py
+  issue_number: 13529
+- id: fix-disable-usage-count-ordering-when-searching
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 4dc9aba38eaeb6aec29f8581a8d149d1a3307850
+  fix_commit: c773b4c35028ec15e0e48395d3c0cb0822b6d75f
+  prompt_source: failing_test
+  _commit_message: Disable usage count ordering when searching on documents and images listing views
+  _lines_changed: 67
+  _files_changed: 4
+  test_file: wagtail/images/tests/test_admin_views.py
+  issue_number: 13560
+- id: fix-register-icons-hook-accumulated-icons
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: b687315282cd2ba0a61628b3b4c1d107e20f577d
+  fix_commit: b28c64df724ad46696e3765a7cae9654b752e83f
+  prompt_source: failing_test
+  _commit_message: Fix register_icons hook to pass accumulated icons to each hook
+  _lines_changed: 44
+  _files_changed: 6
+  test_file: wagtail/admin/tests/test_icon_sprite.py
+  issue_number: 13420
+- id: fix-admin-api-renderer-classes-no-rest-framework
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: c88e2dbf6800b70ea66c762c9e61f639472ee45c
+  fix_commit: 014549fa2bddb69c6625b1056eee5c404a36387b
+  prompt_source: failing_test
+  _commit_message: 'Fix #13262 admin API renderer classes when rest_framework not installed'
+  _lines_changed: 137
+  _files_changed: 6
+  test_file: wagtail/api/v2/tests/test_renderer_classes.py
+  issue_number: 13284
+- id: fix-preserve-svg-multiple-renditions
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 77f4721ef23c6515a191c79b8c1211548d32358a
+  fix_commit: 69e80629ac5996aeeca9d012c69f7095daa01422
+  prompt_source: failing_test
+  _commit_message: Handle preserve-svg for multiple renditions
+  _lines_changed: 389
+  _files_changed: 10
+  test_file: wagtail/images/tests/test_models.py
+  issue_number: 13125
+- id: fix-database-backends-complex-order-by
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 7ec01b05135b5f11342682310169dd76254fd9fc
+  fix_commit: 82d7fb25f816af4bf2e8b3589aa1feeb8873483c
+  prompt_source: failing_test
+  _commit_message: Fix database backends failing on complex order_by
+  _lines_changed: 38
+  _files_changed: 6
+  test_file: wagtail/search/tests/test_page_search.py
+  issue_number: 12965
+- id: fix-alias-of-draft-page-shows-edit-form
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 0ac7c158b7d0e2da81da5838bc1d40fe784d1a1a
+  fix_commit: 800a2dbd282b0d193431cb21f60675675bfd17a9
+  prompt_source: failing_test
+  _commit_message: Fix alias of draft page shows edit form
+  _lines_changed: 28
+  _files_changed: 4
+  test_file: wagtail/admin/tests/pages/test_edit_page.py
+  issue_number: 13210
+- id: fix-referenceindex-multiple-manytoone-fields
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 09ebbd52936ab5e794c6b432917c20c623650384
+  fix_commit: 0c41ffba43ab0585581c3330da9c86c072b3ee0a
+  prompt_source: commit_message
+  _commit_message: 'Issue 13614: ReferenceIndex not handling properly multiple ManyToOne fields.'
+  _lines_changed: 151
+  _files_changed: 8
+  issue_number: 13618

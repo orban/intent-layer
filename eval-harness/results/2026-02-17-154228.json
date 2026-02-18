@@ -1,0 +1,838 @@
+{
+  "eval_id": "2026-02-17-154228",
+  "timestamp": "2026-02-17T15:42:28Z",
+  "results": [
+    {
+      "task_id": "merge-pull-request-3198-from-jlowinfixty-errors",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 61.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "wall_clock_seconds": 175.58231782913208,
+        "input_tokens": 1375458,
+        "output_tokens": 10082,
+        "tool_calls": 48,
+        "lines_changed": 42,
+        "files_touched": [
+          "src/fastmcp/cli/run.py",
+          "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+          "tests/client/telemetry/test_client_tracing.py",
+          "tests/client/test_streamable_http.py",
+          "tests/server/http/test_http_auth_middleware.py",
+          "tests/server/providers/test_local_provider_prompts.py",
+          "tests/server/telemetry/test_provider_tracing.py",
+          "tests/server/versioning/test_mounting.py",
+          "tests/utilities/json_schema_type/test_advanced.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 77.7 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "fix_only": {
+          "wall_clock_seconds": 175.57196617126465,
+          "input_tokens": 1244749,
+          "output_tokens": 10645,
+          "tool_calls": 42,
+          "lines_changed": 42,
+          "files_touched": [
+            "src/fastmcp/cli/run.py",
+            "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+            "tests/client/telemetry/test_client_tracing.py",
+            "tests/client/test_streamable_http.py",
+            "tests/server/http/test_http_auth_middleware.py",
+            "tests/server/providers/test_local_provider_prompts.py",
+            "tests/server/telemetry/test_provider_tracing.py",
+            "tests/server/versioning/test_mounting.py",
+            "tests/utilities/json_schema_type/test_advanced.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0016260147094726562,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 175.57359218597412,
+          "input_tokens": 1244749,
+          "output_tokens": 10645
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 29.8 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "fix_only": {
+          "wall_clock_seconds": 187.2461278438568,
+          "input_tokens": 1698054,
+          "output_tokens": 10682,
+          "tool_calls": 45,
+          "lines_changed": 42,
+          "files_touched": [
+            "src/fastmcp/cli/run.py",
+            "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+            "tests/client/telemetry/test_client_tracing.py",
+            "tests/client/test_streamable_http.py",
+            "tests/server/http/test_http_auth_middleware.py",
+            "tests/server/providers/test_local_provider_prompts.py",
+            "tests/server/telemetry/test_provider_tracing.py",
+            "tests/server/versioning/test_mounting.py",
+            "tests/utilities/json_schema_type/test_advanced.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.003182649612426758,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 187.24931049346924,
+          "input_tokens": 1698054,
+          "output_tokens": 10682
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-0.0%",
+          "tokens_percent": "-9.4%",
+          "tool_calls_percent": "-12.5%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+6.6%",
+          "tokens_percent": "+23.3%",
+          "tool_calls_percent": "-6.2%",
+          "lines_changed_percent": "+0.0%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-ty-0017-diagnostics-and-bump-lockfile",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 76.2 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "wall_clock_seconds": 276.90567898750305,
+        "input_tokens": 4258876,
+        "output_tokens": 10695,
+        "tool_calls": 51,
+        "lines_changed": 58,
+        "files_touched": [
+          "pyproject.toml",
+          "src/fastmcp/cli/run.py",
+          "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+          "tests/client/telemetry/test_client_tracing.py",
+          "uv.lock"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.0129699707031,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 57,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.0155301094055,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 63,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "merge-pull-request-3195-from-jlowinfixstateless",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 84.4 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.85",
+        "wall_clock_seconds": 203.77595400810242,
+        "input_tokens": 2736360,
+        "output_tokens": 7462,
+        "tool_calls": 35,
+        "lines_changed": 7,
+        "files_touched": [
+          "src/fastmcp/server/http.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 49.4 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.87",
+        "fix_only": {
+          "wall_clock_seconds": 123.5927221775055,
+          "input_tokens": 1220169,
+          "output_tokens": 4354,
+          "tool_calls": 19,
+          "lines_changed": 7,
+          "files_touched": [
+            "src/fastmcp/server/http.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0009810924530029297,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 123.5937032699585,
+          "input_tokens": 1220169,
+          "output_tokens": 4354
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 87.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.69",
+        "fix_only": {
+          "wall_clock_seconds": 117.80296492576599,
+          "input_tokens": 1272404,
+          "output_tokens": 3944,
+          "tool_calls": 18,
+          "lines_changed": 12,
+          "files_touched": [
+            "src/fastmcp/server/http.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0033080577850341797,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 117.80627298355103,
+          "input_tokens": 1272404,
+          "output_tokens": 3944
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-39.3%",
+          "tokens_percent": "-55.4%",
+          "tool_calls_percent": "-45.7%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "-42.2%",
+          "tokens_percent": "-53.5%",
+          "tool_calls_percent": "-48.6%",
+          "lines_changed_percent": "+71.4%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-include_tagsexclude_tags-ignored-without-tool",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 91.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 26 items\n\ntests/test_mcp_config.py ..........................                      [100%]\n\n============================== 26 passed in 7.68s ===",
+        "wall_clock_seconds": 132.77905201911926,
+        "input_tokens": 1158102,
+        "output_tokens": 5243,
+        "tool_calls": 18,
+        "lines_changed": 44,
+        "files_touched": [
+          "src/fastmcp/mcp_config.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 92.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 26 items\n\ntests/test_mcp_config.py ..........................                      [100%]\n\n============================== 26 passed in 7.46s ===",
+        "fix_only": {
+          "wall_clock_seconds": 128.85301518440247,
+          "input_tokens": 1112607,
+          "output_tokens": 4864,
+          "tool_calls": 18,
+          "lines_changed": 30,
+          "files_touched": [
+            "src/fastmcp/mcp_config.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0012388229370117188,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 128.85425400733948,
+          "input_tokens": 1112607,
+          "output_tokens": 4864
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 88.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 26 items\n\ntests/test_mcp_config.py ..........................                      [100%]\n\n============================== 26 passed in 7.42s ===",
+        "fix_only": {
+          "wall_clock_seconds": 160.00079488754272,
+          "input_tokens": 1204382,
+          "output_tokens": 5651,
+          "tool_calls": 16,
+          "lines_changed": 24,
+          "files_touched": [
+            "src/fastmcp/mcp_config.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0274050235748291,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 160.02819991111755,
+          "input_tokens": 1204382,
+          "output_tokens": 5651
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-3.0%",
+          "tokens_percent": "-3.9%",
+          "tool_calls_percent": "+0.0%",
+          "lines_changed_percent": "-31.8%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+20.5%",
+          "tokens_percent": "+4.0%",
+          "tool_calls_percent": "-11.1%",
+          "lines_changed_percent": "-45.5%"
+        }
+      }
+    },
+    {
+      "task_id": "docs-fix-stale-get_-references-now-list_-316",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.010262966156,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 52,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.01138615608215,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 13,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 83.0 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4340 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "fix_only": {
+          "wall_clock_seconds": 57.532442808151245,
+          "input_tokens": 791891,
+          "output_tokens": 2001,
+          "tool_calls": 13,
+          "lines_changed": 0,
+          "files_touched": []
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.010760307312011719,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 57.54320311546326,
+          "input_tokens": 791891,
+          "output_tokens": 2001
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-snapshot-access-token-for-background-tasks",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 59.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 24 items\n\ntests/server/tasks/test_context_background_task.py ..................... [ 87%]\n...                                                   ",
+        "wall_clock_seconds": 126.13216376304626,
+        "input_tokens": 1475669,
+        "output_tokens": 4267,
+        "tool_calls": 16,
+        "lines_changed": 39,
+        "files_touched": [
+          "src/fastmcp/server/context.py",
+          "src/fastmcp/server/dependencies.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 89.7 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 24 items\n\ntests/server/tasks/test_context_background_task.py ..................... [ 87%]\n...                                                   ",
+        "fix_only": {
+          "wall_clock_seconds": 118.91978406906128,
+          "input_tokens": 1205188,
+          "output_tokens": 4047,
+          "tool_calls": 17,
+          "lines_changed": 26,
+          "files_touched": [
+            "src/fastmcp/server/context.py",
+            "src/fastmcp/server/dependencies.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0010631084442138672,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 118.9208471775055,
+          "input_tokens": 1205188,
+          "output_tokens": 4047
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 87.7 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 24 items\n\ntests/server/tasks/test_context_background_task.py ..................... [ 87%]\n...                                                   ",
+        "fix_only": {
+          "wall_clock_seconds": 93.4239981174469,
+          "input_tokens": 939678,
+          "output_tokens": 2828,
+          "tool_calls": 11,
+          "lines_changed": 29,
+          "files_touched": [
+            "src/fastmcp/server/context.py",
+            "src/fastmcp/server/dependencies.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0026471614837646484,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 93.42664527893066,
+          "input_tokens": 939678,
+          "output_tokens": 2828
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-5.7%",
+          "tokens_percent": "-18.3%",
+          "tool_calls_percent": "+6.2%",
+          "lines_changed_percent": "-33.3%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "-25.9%",
+          "tokens_percent": "-36.3%",
+          "tool_calls_percent": "-31.2%",
+          "lines_changed_percent": "-25.6%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-final-answer-exception-caught-by-except",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: datadir-1.8.0, anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 381 items\n\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_assign PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_assignment_cannot_overwrite_tool PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_subscript_call PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_call PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_call_s",
+        "fix_only": {
+          "wall_clock_seconds": 72.30956292152405,
+          "input_tokens": 771110,
+          "output_tokens": 2057,
+          "tool_calls": 10,
+          "lines_changed": 2,
+          "files_touched": [
+            "src/smolagents/local_python_executor.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0014901161193847656,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 72.31105303764343,
+          "input_tokens": 771110,
+          "output_tokens": 2057
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-role-not-converted-back-to-enum",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: datadir-1.8.0, anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 111 items\n\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_parameter_precedence PASSED\ntests/test_models.py::TestModel::test_agglomerate_stream_deltas PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[regular-model-stop_sequences0-True] PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[openai/o3-stop_sequences1-False] PASSED\ntests/test_models.py::TestModel::test_prepare_c",
+        "fix_only": {
+          "wall_clock_seconds": 44.03478670120239,
+          "input_tokens": 365519,
+          "output_tokens": 1429,
+          "tool_calls": 6,
+          "lines_changed": 5,
+          "files_touched": [
+            "src/smolagents/models.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.002156972885131836,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 44.036943674087524,
+          "input_tokens": 365519,
+          "output_tokens": 1429
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-enum-metaclass-support-in-local-executor",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: timeout-2.4.0, datadir-1.8.0, anyio-4.12.1\ncollecting ... collected 377 items\n\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_assign PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_assignment_cannot_overwrite_tool PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_subscript_call PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_call PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_call_s",
+        "fix_only": {
+          "wall_clock_seconds": 87.01903510093689,
+          "input_tokens": 990476,
+          "output_tokens": 2885,
+          "tool_calls": 11,
+          "lines_changed": 17,
+          "files_touched": [
+            "src/smolagents/local_python_executor.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.005168914794921875,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 87.02420401573181,
+          "input_tokens": 990476,
+          "output_tokens": 2885
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-none-content-in-stop-sequence-trimming",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": false,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: timeout-2.4.0, datadir-1.8.0, anyio-4.12.1\ncollecting ... collected 109 items\n\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_parameter_precedence PASSED\ntests/test_models.py::TestModel::test_agglomerate_stream_deltas PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[regular-model-stop_sequences0-True] PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[openai/o3-stop_sequences1-False] PASSED\ntests/test_models.py::TestModel::test_prepare_c",
+        "fix_only": {
+          "wall_clock_seconds": 78.91209983825684,
+          "input_tokens": 447831,
+          "output_tokens": 1132,
+          "tool_calls": 6,
+          "lines_changed": 2,
+          "files_touched": [
+            "src/smolagents/models.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0011661052703857422,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 78.91326594352722,
+          "input_tokens": 447831,
+          "output_tokens": 1132
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-dict-message-bug-in-memory-replay",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: timeout-2.4.0, datadir-1.8.0, anyio-4.12.1\ncollecting ... collected 8 items\n\ntests/test_monitoring.py::MonitoringTester::test_code_agent_metrics_generation_error PASSED\ntests/test_monitoring.py::MonitoringTester::test_code_agent_metrics_max_steps PASSED\ntests/test_monitoring.py::MonitoringTester::test_streaming_agent_image_output \u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 New run \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502 Test task                         ",
+        "fix_only": {
+          "wall_clock_seconds": 43.12469291687012,
+          "input_tokens": 354036,
+          "output_tokens": 1297,
+          "tool_calls": 5,
+          "lines_changed": 2,
+          "files_touched": [
+            "src/smolagents/monitoring.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0012459754943847656,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 43.1259388923645,
+          "input_tokens": 354036,
+          "output_tokens": 1297
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "add-nested-dictcomp-setcomp-in-local-executor",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: timeout-2.4.0, datadir-1.8.0, anyio-4.12.1\ncollecting ... collected 380 items\n\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_assign PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_assignment_cannot_overwrite_tool PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_subscript_call PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_call PASSED\ntests/test_local_python_executor.py::TestEvaluatePythonCode::test_evaluate_call_s",
+        "fix_only": {
+          "wall_clock_seconds": 112.04983901977539,
+          "input_tokens": 1174714,
+          "output_tokens": 5555,
+          "tool_calls": 17,
+          "lines_changed": 127,
+          "files_touched": [
+            "src/smolagents/local_python_executor.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.01915907859802246,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 112.06899809837341,
+          "input_tokens": 1174714,
+          "output_tokens": 5555
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-stop-sequence-cutting-post-generation",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": false,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: timeout-2.4.0, datadir-1.8.0, anyio-4.12.1\ncollecting ... collected 107 items\n\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_parameter_precedence PASSED\ntests/test_models.py::TestModel::test_agglomerate_stream_deltas PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[regular-model-stop_sequences0-True] PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[openai/o3-stop_sequences1-False] PASSED\ntests/test_models.py::TestModel::test_prepare_c",
+        "fix_only": {
+          "wall_clock_seconds": 68.1031973361969,
+          "input_tokens": 610410,
+          "output_tokens": 2300,
+          "tool_calls": 10,
+          "lines_changed": 8,
+          "files_touched": [
+            "src/smolagents/models.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0015599727630615234,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 68.10475730895996,
+          "input_tokens": 610410,
+          "output_tokens": 2300
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "coerce-tool-calls-to-chatmessagetoolcall",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: datadir-1.8.0, anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 120 items\n\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_parameter_precedence PASSED\ntests/test_models.py::TestModel::test_agglomerate_stream_deltas PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[regular-model-stop_sequences0-True] PASSED\ntests/test_models.py::TestModel::test_prepare_completion_kwargs_stop_sequences[openai/o3-stop_sequences1-False] PASSED\ntests/test_models.py::TestModel::test_prepare_c",
+        "fix_only": {
+          "wall_clock_seconds": 164.97478866577148,
+          "input_tokens": 1568947,
+          "output_tokens": 6755,
+          "tool_calls": 26,
+          "lines_changed": 47,
+          "files_touched": [
+            "src/smolagents/models.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0021610260009765625,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 164.97694969177246,
+          "input_tokens": 1568947,
+          "output_tokens": 6755
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-safe-serializer-get-deserializer-code",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: datadir-1.8.0, anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 57 items\n\ntests/test_serialization.py::TestSafeSerializationSecurity::test_safe_mode_blocks_custom_classes PASSED\ntests/test_serialization.py::TestSafeSerializationSecurity::test_safe_mode_blocks_pickle_deserialization PASSED\ntests/test_serialization.py::TestSafeSerializationSecurity::test_pickle_fallback_with_warning PASSED\ntests/test_serialization.py::TestSafeSerializationRoundtrip::test_primitives PASSED\ntests/test_serialization.py::TestSafeSerializationR",
+        "fix_only": {
+          "wall_clock_seconds": 210.29100489616394,
+          "input_tokens": 1892588,
+          "output_tokens": 6918,
+          "tool_calls": 24,
+          "lines_changed": 29,
+          "files_touched": [
+            "src/smolagents/serialization.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0027971267700195312,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 210.29380202293396,
+          "input_tokens": 1892588,
+          "output_tokens": 6918
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "refactor-deserialization-registry-pattern",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: datadir-1.8.0, anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 97 items\n\ntests/test_agents.py::TestAgent::test_fake_toolcalling_agent PASSED\ntests/test_agents.py::TestAgent::test_toolcalling_agent_handles_image_tool_outputs PASSED\ntests/test_agents.py::TestAgent::test_toolcalling_agent_handles_image_inputs PASSED\ntests/test_agents.py::TestAgent::test_fake_code_agent \u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 New run \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                          ",
+        "fix_only": {
+          "wall_clock_seconds": 183.18983697891235,
+          "input_tokens": 2493864,
+          "output_tokens": 6951,
+          "tool_calls": 29,
+          "lines_changed": 44,
+          "files_touched": [
+            "src/smolagents/agents.py",
+            "src/smolagents/models.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0013430118560791016,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 183.19117999076843,
+          "input_tokens": 2493864,
+          "output_tokens": 6951
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 16,
+    "infrastructure_errors": 4,
+    "none_success_rate": 1.0,
+    "flat_llm_success_rate": 1.0,
+    "intent_layer_success_rate": 0.87,
+    "none_itt_rate": 0.83,
+    "flat_llm_itt_rate": 0.67,
+    "intent_layer_itt_rate": 0.81,
+    "resumed_from": "2026-02-17-105514"
+  }
+}

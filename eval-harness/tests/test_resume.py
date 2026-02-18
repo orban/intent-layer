@@ -256,6 +256,10 @@ class TestRecomputeSummary:
         assert summary["none_success_rate"] == 1.0
         assert summary["flat_llm_success_rate"] == 0  # timeout is infra error
         assert summary["intent_layer_success_rate"] == 1.0
+        # ITT: infra errors count as failures in denominator
+        assert summary["none_itt_rate"] == 1.0
+        assert summary["flat_llm_itt_rate"] == 0  # 0 successes / 1 assigned
+        assert summary["intent_layer_itt_rate"] == 1.0
 
     def test_multi_run_summary(self):
         results = [{

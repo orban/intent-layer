@@ -1,0 +1,97 @@
+{
+  "eval_id": "2026-02-17-095051",
+  "timestamp": "2026-02-17T09:50:51Z",
+  "results": [
+    {
+      "task_id": "merge-pull-request-3195-from-jlowinfixstateless",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 70.6 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.51",
+        "wall_clock_seconds": 128.2278289794922,
+        "input_tokens": 1249527,
+        "output_tokens": 4587,
+        "tool_calls": 19,
+        "lines_changed": 6,
+        "files_touched": [
+          "src/fastmcp/server/http.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 72.6 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.58",
+        "fix_only": {
+          "wall_clock_seconds": 110.88925218582153,
+          "input_tokens": 1001415,
+          "output_tokens": 3582,
+          "tool_calls": 17,
+          "lines_changed": 4,
+          "files_touched": [
+            "src/fastmcp/server/http.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0011379718780517578,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 110.89039015769958,
+          "input_tokens": 1001415,
+          "output_tokens": 3582
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 69.8 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.47",
+        "fix_only": {
+          "wall_clock_seconds": 134.2075960636139,
+          "input_tokens": 1464221,
+          "output_tokens": 4480,
+          "tool_calls": 20,
+          "lines_changed": 12,
+          "files_touched": [
+            "src/fastmcp/server/http.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.004321098327636719,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 134.21191716194153,
+          "input_tokens": 1464221,
+          "output_tokens": 4480
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-13.5%",
+          "tokens_percent": "-19.9%",
+          "tool_calls_percent": "-10.5%",
+          "lines_changed_percent": "-33.3%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+4.7%",
+          "tokens_percent": "+17.1%",
+          "tool_calls_percent": "+5.3%",
+          "lines_changed_percent": "+100.0%"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 1.0,
+    "flat_llm_success_rate": 1.0,
+    "intent_layer_success_rate": 1.0
+  }
+}

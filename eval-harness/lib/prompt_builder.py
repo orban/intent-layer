@@ -84,28 +84,34 @@ def build_skill_generation_prompt(plugin_root: str) -> str:
     CLAUDE_PLUGIN_ROOT is set in the env (by the caller), and the prompt
     gives Claude the same workflow from the skill.
     """
+    scripts = f"{plugin_root}/scripts"
     return f"""Create an Intent Layer for this codebase to help future agents fix bugs.
 
-The Intent Layer plugin scripts are available at: {plugin_root}/scripts/
+IMPORTANT: Your current working directory is the TARGET repository to analyze.
+All commands below use "." (current directory) as the target. Do NOT pass any
+other path — the scripts at {scripts}/ are tools, not the target.
 
 ## Step 0: Detect State
 
-Run: {plugin_root}/scripts/detect_state.sh .
+Run: {scripts}/detect_state.sh .
+
+If this reports "complete", the Intent Layer already exists. In that case, skip
+to Step 5 (validate). Otherwise continue.
 
 ## Step 1: Measure
 
-Run: {plugin_root}/scripts/estimate_all_candidates.sh .
+Run: {scripts}/estimate_all_candidates.sh .
 This shows which directories are large enough to warrant their own AGENTS.md.
 
 ## Step 2: Mine Git History
 
-Run: {plugin_root}/scripts/mine_git_history.sh .
+Run: {scripts}/mine_git_history.sh .
 This extracts pitfalls, anti-patterns, and contracts from past bug fixes and reverts.
 Git-mined pitfalls are the highest-value content in any node.
 
 ## Step 3: Create Root CLAUDE.md
 
-Create a CLAUDE.md at the project root with these sections:
+Create a CLAUDE.md in the current directory (the project root) with these sections:
 - **TL;DR**: One-line project description
 - **Entry Points**: Table of common tasks and where to start
 - **Architecture**: Components, data flow, key patterns (big picture only)
@@ -136,7 +142,7 @@ Rules:
 
 ## Step 5: Validate
 
-Run: {plugin_root}/scripts/validate_node.sh CLAUDE.md
+Run: {scripts}/validate_node.sh CLAUDE.md
 Run validation on each child AGENTS.md too.
 
 Focus on information that would help someone unfamiliar with the codebase navigate and fix bugs safely."""

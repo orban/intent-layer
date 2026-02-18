@@ -1,0 +1,154 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/getzep/graphiti
+# Tasks found: 10
+#
+# NOTE: graphiti requires DISABLE_* env vars to skip database driver imports.
+# The unit_tests CI job uses: DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1
+# and ignores integration/mock/DB test files. The docker setup below mirrors that.
+
+repo:
+  url: https://github.com/getzep/graphiti
+  default_branch: main
+  docker:
+    image: python:3.10-slim
+    setup:
+    - pip install uv && uv sync --frozen --all-extras
+    test_command: >-
+      DISABLE_NEPTUNE=1 DISABLE_NEO4J=1 DISABLE_FALKORDB=1 DISABLE_KUZU=1
+      uv run pytest -m "not integration"
+      --ignore=tests/test_graphiti_int.py
+      --ignore=tests/test_graphiti_mock.py
+      --ignore=tests/test_node_int.py
+      --ignore=tests/test_edge_int.py
+      --ignore=tests/test_entity_exclusion_int.py
+      --ignore=tests/test_add_triplet.py
+      --ignore=tests/driver/
+      --ignore=tests/llm_client/test_anthropic_client_int.py
+      --ignore=tests/utils/maintenance/test_temporal_operations_int.py
+      --ignore=tests/cross_encoder/test_bge_reranker_client_int.py
+      --ignore=tests/evals/
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - CLAUDE.md
+  - AGENTS.md
+
+tasks:
+# --- Tasks with new/modified tests (prompt_source: failing_test) ---
+
+- id: fix-azure-structured-completions
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 9cc04e61c98f2ea593a6f72b806790bb44471df0
+  fix_commit: 8d9998420498d2f881c995940dc03cea0b9d167a
+  prompt_source: failing_test
+  _commit_message: Fix Azure structured completions
+  _lines_changed: 176
+  _files_changed: 2
+  test_file: tests/llm_client/test_azure_openai_client.py
+  issue_number: 1039
+
+- id: preserve-all-signatures-when-edge-type-reused
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 37ec7b43c60e69f0aa554243fcf5e473ba925af9
+  fix_commit: 45a3d920349411e7e303dd2466fe3268128e733d
+  prompt_source: failing_test
+  _commit_message: 'fix(edges): preserve all signatures when edge type is reused across node pairs'
+  _lines_changed: 164
+  _files_changed: 3
+  test_file: tests/utils/maintenance/test_edge_operations.py
+  issue_number: 1197
+
+- id: exclude-duplicate-edges-from-node-summary
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 6e90bc6ebe84ff86b0bd67d488ce196f42a95f0a
+  fix_commit: fe19482e445eff4b9cd7f8cff073469fc095da77
+  prompt_source: failing_test
+  _commit_message: 'fix(summary): exclude duplicate edges from node summary generation'
+  _lines_changed: 58
+  _files_changed: 4
+  test_file: tests/utils/maintenance/test_edge_operations.py
+  issue_number: 1223
+
+- id: fix-entity-extraction-adaptive-chunking
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: b53338ef763f9a7d9438197571b9102cfb5ab920
+  fix_commit: a4af90b539cef387b183d5279ba522f2d90ca4ce
+  prompt_source: failing_test
+  _commit_message: Fix entity extraction for large episode inputs with adaptive chunking
+  _lines_changed: 2200
+  _files_changed: 6
+  test_file: tests/utils/maintenance/test_entity_extraction.py
+  issue_number: 1129
+
+# --- Tasks without new test functions (prompt_source: commit_message) ---
+
+- id: fix-limited-number-of-edges
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: be224cf1e007431c9d9545936c5860e37ddbd055
+  fix_commit: d5c4fc0bec904c432951878d3ca31cdf2ebb7740
+  prompt_source: commit_message
+  _commit_message: Fix limited number of edges
+  _lines_changed: 18
+  _files_changed: 2
+  issue_number: 1124
+
+- id: fix-datetime-comparison-normalize-utc
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 27d4f1097bfb3274cc3f67d185f173fcb7d0c0af
+  fix_commit: 73015e980e4b6dcceb7518adbce9f8436a13b27f
+  prompt_source: commit_message
+  _commit_message: Fix datetime comparison errors by normalizing to UTC
+  _lines_changed: 37
+  _files_changed: 2
+  issue_number: 988
+
+- id: sanitize-pipe-slash-in-falkordb-fulltext
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 930663d7f760986eb9cc20c7deea90f4c811cc1e
+  fix_commit: ec108559c7acc603dd7ec013d06728f0dbe54675
+  prompt_source: commit_message
+  _commit_message: 'fix(falkordb): sanitize pipe and slash chars in fulltext queries'
+  _lines_changed: 7
+  _files_changed: 1
+  issue_number: 1183
+
+- id: escape-group-ids-in-redisearch-fulltext
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 894b71ff011adedf14864a643009908f40d36ab4
+  fix_commit: 45882dd56dd6209ae76ca7e5241f92b2f5921610
+  prompt_source: commit_message
+  _commit_message: 'fix(falkordb): escape group_ids in RediSearch fulltext queries'
+  _lines_changed: 5
+  _files_changed: 1
+  issue_number: 1175
+
+- id: filter-falsey-values-before-creating-embeddings
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 5ca8b9565cd4a3f93be679b1018f517c0f719a82
+  fix_commit: bec3f0203625cd2c1ba2f5683b56afe2d129f47d
+  prompt_source: commit_message
+  _commit_message: filter out falsey values before creating embeddings
+  _lines_changed: 24
+  _files_changed: 4
+  issue_number: 966
+
+- id: validate-nodes-edges-not-falsey
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: a44df4c29079a21f55ea94939b50dccfbdd136e2
+  fix_commit: ff260f010e947486501a3d33076184276b42f268
+  prompt_source: commit_message
+  _commit_message: validate nodes and edges aren't falsey
+  _lines_changed: 15
+  _files_changed: 4
+  issue_number: 973

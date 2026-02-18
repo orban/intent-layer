@@ -1,0 +1,74 @@
+{
+  "eval_id": "2026-02-16-134621",
+  "timestamp": "2026-02-16T13:46:21Z",
+  "results": [
+    {
+      "task_id": "docs-fix-jsdoc-for-reqaccepts-return-value-and",
+      "none": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (56ms)\n    \u2714 should not stack overflow with a large sync route stack\n    \u2714 should not",
+        "wall_clock_seconds": 104.95208787918091,
+        "input_tokens": 31,
+        "output_tokens": 3550,
+        "tool_calls": 0,
+        "lines_changed": 12,
+        "files_touched": [
+          "lib/request.js"
+        ]
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-enhance-reqacceptscharsets-method-6088",
+      "none": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (56ms)\n    \u2714 should not stack overflow with a large sync route stack (49ms)\n    \u2714 sho",
+        "wall_clock_seconds": 300.0285360813141,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": []
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "doc-fix-securitymd-link-to-point-to-security-tab",
+      "none": {
+        "success": true,
+        "test_output": "\n> express@5.2.1 test\n> mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/\n\n\n\n  Route\n    \u2714 should work without handlers\n    \u2714 should not stack overflow with a large sync stack\n    .all\n      \u2714 should add handler\n      \u2714 should handle VERBS\n      \u2714 should stack\n    .VERB\n      \u2714 should support .get\n      \u2714 should limit to just .VERB\n      \u2714 should allow fallthrough\n    errors\n      \u2714 should handle errors via arity 4 functions\n      \u2714 should handle throw\n      \u2714 should handle throwing inside error handlers\n      \u2714 should handle throw in .all\n      \u2714 should handle single error handler\n\n  Router\n    \u2714 should return a function with router methods\n    \u2714 should support .use of other routers\n    \u2714 should support dynamic routes\n    \u2714 should handle blank URL\n    \u2714 should handle missing URL\n    \u2714 handle missing method\n    \u2714 should not stack overflow with many registered routes (57ms)\n    \u2714 should not stack overflow with a large sync route stack\n    \u2714 should not",
+        "wall_clock_seconds": 76.58764100074768,
+        "input_tokens": 17,
+        "output_tokens": 2632,
+        "tool_calls": 0,
+        "lines_changed": 2,
+        "files_touched": [
+          "Readme.md"
+        ]
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 3,
+    "infrastructure_errors": 0,
+    "none_success_rate": 1.0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0
+  }
+}

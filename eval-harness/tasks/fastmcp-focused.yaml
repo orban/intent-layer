@@ -1,0 +1,51 @@
+# Focused multi-run: divergent + control tasks from fastmcp
+# 2 divergent (infra-noise), 1 control (all-PASS)
+
+repo:
+  url: https://github.com/jlowin/fastmcp
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install uv && uv sync --frozen --all-groups
+    test_command: uv run --frozen pytest --ignore=tests/client/transports/test_uv_transport.py
+  strip_extra:
+  - .claude/
+  - .cursor/
+
+tasks:
+# CONTROL: all-PASS in single run (easy task, variance baseline)
+- id: merge-pull-request-3195-from-jlowinfixstateless
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 453dcbe808fc942a55b04c49a0e9478249fb2655
+  fix_commit: b4eb1adbeb80f12e8d85c7a8b32f51e39cbc66fa
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #3195 from jlowin/fix/stateless-http-disable-get-sse'
+  _lines_changed: 29
+  _files_changed: 2
+  test_file: tests/client/test_streamable_http.py
+  issue_number: 3195
+
+# DIVERGENT (infra-noise): none=PASS, flat_llm=INFRA, intent_layer=INFRA
+- id: fix-ty-0017-diagnostics-and-bump-lockfile
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 85a833a74b9130d88bcdaa944126385aff2a8ec7
+  fix_commit: 564b4c0d5c692df0231b9f1b35a647f1ea880684
+  prompt_source: commit_message
+  _commit_message: Fix ty 0.0.17 diagnostics and bump lockfile
+  _lines_changed: 852
+  _files_changed: 10
+
+# DIVERGENT (infra-noise): none=INFRA, flat_llm=INFRA, intent_layer=PASS
+- id: docs-fix-stale-get_-references-now-list_-316
+  category: targeted_refactor
+  difficulty: hard
+  pre_fix_commit: 175479f65fb8ccf92661700b9dfec333b2af8100
+  fix_commit: 3907a4f9b6ec59c3ad9e3606e47e7f2d65763c0c
+  prompt_source: commit_message
+  _commit_message: 'docs: fix stale get_* references, now list_* (#3168)'
+  _lines_changed: 101
+  _files_changed: 5
+  issue_number: 3168

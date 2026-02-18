@@ -1,0 +1,170 @@
+{
+  "eval_id": "2026-02-17-202346",
+  "timestamp": "2026-02-17T20:23:46Z",
+  "results": [
+    {
+      "task_id": "fix-expand-env-vars-empty-string-missing",
+      "none": {
+        "success": true,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [108 kB]\nFetched 9811 kB in 1s (11.2 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 89.36321210861206,
+        "input_tokens": 956592,
+        "output_tokens": 2931,
+        "tool_calls": 13,
+        "lines_changed": 2,
+        "files_touched": [
+          "src/pdm/utils.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-ignore-python-requirement-during-lock",
+      "none": {
+        "success": false,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [108 kB]\nFetched 9811 kB in 1s (11.4 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 147.53928089141846,
+        "input_tokens": 1787569,
+        "output_tokens": 4997,
+        "tool_calls": 21,
+        "lines_changed": 2,
+        "files_touched": [
+          "src/pdm/resolver/python.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-pylock-toml-git-dependency-lock-failure",
+      "none": {
+        "success": true,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [108 kB]\nFetched 9811 kB in 1s (9979 kB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 112.82488799095154,
+        "input_tokens": 1132086,
+        "output_tokens": 3451,
+        "tool_calls": 19,
+        "lines_changed": 3,
+        "files_touched": [
+          "src/pdm/formats/pylock.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-resolution-excludes-lock-file-candidates",
+      "none": {
+        "success": true,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [108 kB]\nFetched 9811 kB in 1s (9822 kB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 243.7681221961975,
+        "input_tokens": 3820321,
+        "output_tokens": 7584,
+        "tool_calls": 42,
+        "lines_changed": 5,
+        "files_touched": [
+          "src/pdm/models/repositories/lock.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-publish-skip-existing-nexus-370",
+      "none": {
+        "success": true,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [108 kB]\nFetched 9811 kB in 1s (11.4 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 139.38787412643433,
+        "input_tokens": 593607,
+        "output_tokens": 2442,
+        "tool_calls": 11,
+        "lines_changed": 5,
+        "files_touched": [
+          "src/pdm/cli/commands/publish/__init__.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-pdm-toml-not-considered-pre-build-hook",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.03095602989197,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 61,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-http-cache-clear-directory-crash",
+      "none": {
+        "success": true,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [108 kB]\nFetched 9811 kB in 1s (11.1 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 268.0818738937378,
+        "input_tokens": 1670356,
+        "output_tokens": 4901,
+        "tool_calls": 27,
+        "lines_changed": 7,
+        "files_touched": [
+          "src/pdm/models/session.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 7,
+    "infrastructure_errors": 1,
+    "none_success_rate": 0.83,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0,
+    "none_itt_rate": 0.71,
+    "flat_llm_itt_rate": 0,
+    "intent_layer_itt_rate": 0
+  }
+}

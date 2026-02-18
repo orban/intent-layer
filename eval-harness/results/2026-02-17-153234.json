@@ -1,0 +1,36 @@
+{
+  "eval_id": "2026-02-17-153234",
+  "timestamp": "2026-02-17T15:32:34Z",
+  "results": [
+    {
+      "task_id": "smoke-lazy-init-default-tokenizer",
+      "none": {
+        "success": false,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\nerror: No virtual environment found; run `uv venv` to create an environment, or pass `--system` to install into a non-virtual environment\n",
+        "wall_clock_seconds": 91.93487286567688,
+        "input_tokens": 1151281,
+        "output_tokens": 3181,
+        "tool_calls": 25,
+        "lines_changed": 0,
+        "files_touched": [],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0.0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0,
+    "none_itt_rate": 0.0,
+    "flat_llm_itt_rate": 0,
+    "intent_layer_itt_rate": 0
+  }
+}

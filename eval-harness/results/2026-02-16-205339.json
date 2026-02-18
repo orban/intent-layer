@@ -1,0 +1,35 @@
+{
+  "eval_id": "2026-02-16-205339",
+  "timestamp": "2026-02-16T20:53:39Z",
+  "results": [
+    {
+      "task_id": "merge-pull-request-3195-from-jlowinfixstateless",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 58.3 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "wall_clock_seconds": 200.80695104599,
+        "input_tokens": 2319160,
+        "output_tokens": 7229,
+        "tool_calls": 30,
+        "lines_changed": 7,
+        "files_touched": [
+          "src/fastmcp/server/http.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 1.0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0
+  }
+}

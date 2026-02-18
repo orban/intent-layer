@@ -1,0 +1,36 @@
+{
+  "eval_id": "2026-02-17-153018",
+  "timestamp": "2026-02-17T15:30:18Z",
+  "results": [
+    {
+      "task_id": "smoke-fix-enhance-reqacceptscharsets-method-6088",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 3e81873b. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": null,
+      "intent_layer": null,
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 1,
+    "none_success_rate": 0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0,
+    "none_itt_rate": 0.0,
+    "flat_llm_itt_rate": 0,
+    "intent_layer_itt_rate": 0
+  }
+}

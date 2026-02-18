@@ -1,0 +1,606 @@
+{
+  "eval_id": "2026-02-17-125440",
+  "timestamp": "2026-02-17T12:54:40Z",
+  "results": [
+    {
+      "task_id": "merge-pull-request-3198-from-jlowinfixty-errors",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 61.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "wall_clock_seconds": 175.58231782913208,
+        "input_tokens": 1375458,
+        "output_tokens": 10082,
+        "tool_calls": 48,
+        "lines_changed": 42,
+        "files_touched": [
+          "src/fastmcp/cli/run.py",
+          "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+          "tests/client/telemetry/test_client_tracing.py",
+          "tests/client/test_streamable_http.py",
+          "tests/server/http/test_http_auth_middleware.py",
+          "tests/server/providers/test_local_provider_prompts.py",
+          "tests/server/telemetry/test_provider_tracing.py",
+          "tests/server/versioning/test_mounting.py",
+          "tests/utilities/json_schema_type/test_advanced.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 77.7 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "fix_only": {
+          "wall_clock_seconds": 175.57196617126465,
+          "input_tokens": 1244749,
+          "output_tokens": 10645,
+          "tool_calls": 42,
+          "lines_changed": 42,
+          "files_touched": [
+            "src/fastmcp/cli/run.py",
+            "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+            "tests/client/telemetry/test_client_tracing.py",
+            "tests/client/test_streamable_http.py",
+            "tests/server/http/test_http_auth_middleware.py",
+            "tests/server/providers/test_local_provider_prompts.py",
+            "tests/server/telemetry/test_provider_tracing.py",
+            "tests/server/versioning/test_mounting.py",
+            "tests/utilities/json_schema_type/test_advanced.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0016260147094726562,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 175.57359218597412,
+          "input_tokens": 1244749,
+          "output_tokens": 10645
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 29.8 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "fix_only": {
+          "wall_clock_seconds": 187.2461278438568,
+          "input_tokens": 1698054,
+          "output_tokens": 10682,
+          "tool_calls": 45,
+          "lines_changed": 42,
+          "files_touched": [
+            "src/fastmcp/cli/run.py",
+            "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+            "tests/client/telemetry/test_client_tracing.py",
+            "tests/client/test_streamable_http.py",
+            "tests/server/http/test_http_auth_middleware.py",
+            "tests/server/providers/test_local_provider_prompts.py",
+            "tests/server/telemetry/test_provider_tracing.py",
+            "tests/server/versioning/test_mounting.py",
+            "tests/utilities/json_schema_type/test_advanced.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.003182649612426758,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 187.24931049346924,
+          "input_tokens": 1698054,
+          "output_tokens": 10682
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-0.0%",
+          "tokens_percent": "-9.4%",
+          "tool_calls_percent": "-12.5%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+6.6%",
+          "tokens_percent": "+23.3%",
+          "tool_calls_percent": "-6.2%",
+          "lines_changed_percent": "+0.0%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-ty-0017-diagnostics-and-bump-lockfile",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 76.2 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4351 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "wall_clock_seconds": 276.90567898750305,
+        "input_tokens": 4258876,
+        "output_tokens": 10695,
+        "tool_calls": 51,
+        "lines_changed": 58,
+        "files_touched": [
+          "pyproject.toml",
+          "src/fastmcp/cli/run.py",
+          "src/fastmcp/utilities/mcp_server_config/v1/sources/filesystem.py",
+          "tests/client/telemetry/test_client_tracing.py",
+          "uv.lock"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.033509016037,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 54,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.02258801460266,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 59,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "note": "mixed resume \u2014 deltas not recomputed"
+      }
+    },
+    {
+      "task_id": "merge-pull-request-3195-from-jlowinfixstateless",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 84.4 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.85",
+        "wall_clock_seconds": 203.77595400810242,
+        "input_tokens": 2736360,
+        "output_tokens": 7462,
+        "tool_calls": 35,
+        "lines_changed": 7,
+        "files_touched": [
+          "src/fastmcp/server/http.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 49.4 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.87",
+        "fix_only": {
+          "wall_clock_seconds": 123.5927221775055,
+          "input_tokens": 1220169,
+          "output_tokens": 4354,
+          "tool_calls": 19,
+          "lines_changed": 7,
+          "files_touched": [
+            "src/fastmcp/server/http.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0009810924530029297,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 123.5937032699585,
+          "input_tokens": 1220169,
+          "output_tokens": 4354
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 87.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 14 items\n\ntests/client/test_streamable_http.py ......x.......                      [100%]\n\n======================== 13 passed, 1 xfailed in 2.69",
+        "fix_only": {
+          "wall_clock_seconds": 117.80296492576599,
+          "input_tokens": 1272404,
+          "output_tokens": 3944,
+          "tool_calls": 18,
+          "lines_changed": 12,
+          "files_touched": [
+            "src/fastmcp/server/http.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0033080577850341797,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 117.80627298355103,
+          "input_tokens": 1272404,
+          "output_tokens": 3944
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-39.3%",
+          "tokens_percent": "-55.4%",
+          "tool_calls_percent": "-45.7%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "-42.2%",
+          "tokens_percent": "-53.5%",
+          "tool_calls_percent": "-48.6%",
+          "lines_changed_percent": "+71.4%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-include_tagsexclude_tags-ignored-without-tool",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 91.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 26 items\n\ntests/test_mcp_config.py ..........................                      [100%]\n\n============================== 26 passed in 7.68s ===",
+        "wall_clock_seconds": 132.77905201911926,
+        "input_tokens": 1158102,
+        "output_tokens": 5243,
+        "tool_calls": 18,
+        "lines_changed": 44,
+        "files_touched": [
+          "src/fastmcp/mcp_config.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 92.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 26 items\n\ntests/test_mcp_config.py ..........................                      [100%]\n\n============================== 26 passed in 7.46s ===",
+        "fix_only": {
+          "wall_clock_seconds": 128.85301518440247,
+          "input_tokens": 1112607,
+          "output_tokens": 4864,
+          "tool_calls": 18,
+          "lines_changed": 30,
+          "files_touched": [
+            "src/fastmcp/mcp_config.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0012388229370117188,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 128.85425400733948,
+          "input_tokens": 1112607,
+          "output_tokens": 4864
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 88.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 26 items\n\ntests/test_mcp_config.py ..........................                      [100%]\n\n============================== 26 passed in 7.42s ===",
+        "fix_only": {
+          "wall_clock_seconds": 160.00079488754272,
+          "input_tokens": 1204382,
+          "output_tokens": 5651,
+          "tool_calls": 16,
+          "lines_changed": 24,
+          "files_touched": [
+            "src/fastmcp/mcp_config.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0274050235748291,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 160.02819991111755,
+          "input_tokens": 1204382,
+          "output_tokens": 5651
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-3.0%",
+          "tokens_percent": "-3.9%",
+          "tool_calls_percent": "+0.0%",
+          "lines_changed_percent": "-31.8%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+20.5%",
+          "tokens_percent": "+4.0%",
+          "tool_calls_percent": "-11.1%",
+          "lines_changed_percent": "-45.5%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-stale-request-context-in-statefulproxyclient-h",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.0170192718506,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 36,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.01229906082153,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 41,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.0180947780609,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 38,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "docs-fix-stale-get_-references-now-list_-316",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.0210630893707,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 45,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 300.0192070007324,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 25,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 300.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 83.0 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\ntestpaths: tests\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 4340 items\n\ntests/cli/test_cimd_cli.py .................                             [  0%]\ntests/cli/test_cli.py .............",
+        "fix_only": {
+          "wall_clock_seconds": 57.532442808151245,
+          "input_tokens": 791891,
+          "output_tokens": 2001,
+          "tool_calls": 13,
+          "lines_changed": 0,
+          "files_touched": []
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.010760307312011719,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 57.54320311546326,
+          "input_tokens": 791891,
+          "output_tokens": 2001
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "note": "mixed resume \u2014 deltas not recomputed"
+      }
+    },
+    {
+      "task_id": "fix-guard-client-pagination-loops-against-misbeha",
+      "none": {
+        "success": false,
+        "test_output": "Command timed out",
+        "wall_clock_seconds": 5.903968811035156,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 1,
+        "lines_changed": 0,
+        "files_touched": [],
+        "exit_code": 1
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 28 items\n\ntests/server/test_pagination.py .....................FFFFFF.             [100%]\n\n=================================== FAILURES ===================================\n______ TestPaginationCycleDetection.test_tools_co",
+        "fix_only": {
+          "wall_clock_seconds": 7.486368179321289,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "tool_calls": 1,
+          "lines_changed": 0,
+          "files_touched": []
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0012688636779785156,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 7.487637042999268,
+          "input_tokens": 0,
+          "output_tokens": 0
+        },
+        "exit_code": 1
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "Command timed out",
+        "fix_only": {
+          "wall_clock_seconds": 7.152318954467773,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "tool_calls": 1,
+          "lines_changed": 0,
+          "files_touched": []
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.002591848373413086,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 7.1549108028411865,
+          "input_tokens": 0,
+          "output_tokens": 0
+        },
+        "exit_code": 1
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "+26.8%",
+          "tokens_percent": "+0.0%",
+          "tool_calls_percent": "+0.0%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+21.1%",
+          "tokens_percent": "+0.0%",
+          "tool_calls_percent": "+0.0%",
+          "lines_changed_percent": "+0.0%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-snapshot-access-token-for-background-tasks",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 59.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 24 items\n\ntests/server/tasks/test_context_background_task.py ..................... [ 87%]\n...                                                   ",
+        "wall_clock_seconds": 126.13216376304626,
+        "input_tokens": 1475669,
+        "output_tokens": 4267,
+        "tool_calls": 16,
+        "lines_changed": 39,
+        "files_touched": [
+          "src/fastmcp/server/context.py",
+          "src/fastmcp/server/dependencies.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 89.7 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 24 items\n\ntests/server/tasks/test_context_background_task.py ..................... [ 87%]\n...                                                   ",
+        "fix_only": {
+          "wall_clock_seconds": 118.91978406906128,
+          "input_tokens": 1205188,
+          "output_tokens": 4047,
+          "tool_calls": 17,
+          "lines_changed": 26,
+          "files_touched": [
+            "src/fastmcp/server/context.py",
+            "src/fastmcp/server/dependencies.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0010631084442138672,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 118.9208471775055,
+          "input_tokens": 1205188,
+          "output_tokens": 4047
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Downloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nDownloading uv-0.10.3-py3-none-manylinux_2_28_aarch64.whl (21.9 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 21.9/21.9 MB 87.7 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.3\n============================= test session starts ==============================\nplatform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, httpx-0.36.0, xdist-3.8.0, timeout-2.4.0, flakefinder-1.1.0, report-0.2.1, retry-1.7.0, inline-snapshot-0.31.1, asyncio-1.3.0, env-1.2.0, cov-7.0.0\ntimeout: 5.0s\ntimeout method: signal\ntimeout func_only: False\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 24 items\n\ntests/server/tasks/test_context_background_task.py ..................... [ 87%]\n...                                                   ",
+        "fix_only": {
+          "wall_clock_seconds": 93.4239981174469,
+          "input_tokens": 939678,
+          "output_tokens": 2828,
+          "tool_calls": 11,
+          "lines_changed": 29,
+          "files_touched": [
+            "src/fastmcp/server/context.py",
+            "src/fastmcp/server/dependencies.py"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0026471614837646484,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 93.42664527893066,
+          "input_tokens": 939678,
+          "output_tokens": 2828
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-5.7%",
+          "tokens_percent": "-18.3%",
+          "tool_calls_percent": "+6.2%",
+          "lines_changed_percent": "-33.3%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "-25.9%",
+          "tokens_percent": "-36.3%",
+          "tool_calls_percent": "-31.2%",
+          "lines_changed_percent": "-25.6%"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 8,
+    "infrastructure_errors": 7,
+    "none_success_rate": 0.83,
+    "flat_llm_success_rate": 0.8,
+    "intent_layer_success_rate": 0.83,
+    "resumed_from": "2026-02-17-105514"
+  }
+}

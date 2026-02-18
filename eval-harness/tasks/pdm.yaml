@@ -1,0 +1,111 @@
+# Curated eval tasks for pdm
+# Generated from: https://github.com/pdm-project/pdm
+# Tasks: 7 (2 failing_test + 5 commit_message)
+#
+# Dropped tasks:
+#   fix-uv-lock-parsing-direct-url-sources — test passes at pre_fix (invalid)
+#   fix-python-314-default-formatter-usage — test passes at pre_fix (invalid)
+#   fix-packaging-26-compatibility — circular: the task IS about packaging 26,
+#     but we pin packaging<26 to avoid 38 pre-existing failures
+
+repo:
+  url: https://github.com/pdm-project/pdm
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - apt-get update && apt-get install -y git
+    - pip install -e . && pip install pytest pytest-mock pytest-httpserver pytest-httpx pytest-xdist pytest-rerunfailures
+    - grep -q 'hishel._serializers' src/pdm/models/serializers.py 2>/dev/null && pip install 'hishel<1.0.0' || true
+    - pip install 'packaging<26'
+    test_command: pytest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - AGENTS.md
+  - CLAUDE.md
+
+tasks:
+# --- Tasks with failing_test prompt ---
+
+- id: fix-ignore-python-requirement-during-lock
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: 28a71dfbdd458b96bf69e6096b525a2cd51646db
+  fix_commit: da748c576bd8da0dfe102f8854996efec48b62df
+  prompt_source: failing_test
+  _commit_message: "fix: ignore unnecessary 'python' requirement during lock"
+  _lines_changed: 14
+  _files_changed: 3
+  test_file: tests/cli/test_lock.py
+  issue_number: 3643
+
+- id: fix-expand-env-vars-empty-string-missing
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: bd8c5d30c6b8b8a615f82605e63f1391e5fabfa2
+  fix_commit: 16a27ddbfcd9d18d31895f5493009c98c6dc1f74
+  prompt_source: failing_test
+  _commit_message: 'fix: update default behavior of expand_env_vars to return empty string for missing env vars'
+  _lines_changed: 7
+  _files_changed: 3
+  test_file: tests/test_utils.py
+  issue_number: 3655
+
+# --- Tasks with commit_message prompt ---
+
+- id: fix-resolution-excludes-lock-file-candidates
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 1d31c8dfc9df91591ceb961b86253efe283c86dd
+  fix_commit: eb8a3df6fa5cac8247ed83f9237b772f1857ea97
+  prompt_source: commit_message
+  _commit_message: 'fix: apply resolution.excludes when evaluating candidates from the lock file'
+  _lines_changed: 5
+  _files_changed: 2
+  issue_number: 3727
+
+- id: fix-pylock-toml-git-dependency-lock-failure
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 133a5140ddd979041910341eb486fdd98e82ce19
+  fix_commit: 312f2fbd5b89c6f7e4c95c374c44f8096cc1ce53
+  prompt_source: commit_message
+  _commit_message: 'fix: pylock.toml + git dependency => lock failure'
+  _lines_changed: 4
+  _files_changed: 2
+  issue_number: 3695
+
+- id: fix-publish-skip-existing-nexus-370
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 002b8abf97fe1114276a98f04afb23748e33562a
+  fix_commit: f8ae0926b3a492e440d346b712f723d6c1dd93f1
+  prompt_source: commit_message
+  _commit_message: 'fix: publish --skip-existing for Nexus Repository OSS >= 3.70'
+  _lines_changed: 6
+  _files_changed: 2
+  issue_number: 3617
+
+- id: fix-pdm-toml-not-considered-pre-build-hook
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: c6f332ad8a7c10bf22ed53f95d8a3c392bc9ac18
+  fix_commit: a8d967960b7ca1d6b38c1891c8ed43db77bb99be
+  prompt_source: commit_message
+  _commit_message: 'fix: pdm.toml is not considered in pdm build if it is created on-the-fly in a pre_build hook'
+  _lines_changed: 37
+  _files_changed: 3
+  issue_number: 3621
+
+- id: fix-http-cache-clear-directory-crash
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 29f7f88f665b16d4a0de9edc624d3f6fdf206a41
+  fix_commit: 26cd4a9abca91daa70b16e28f1f7460633010aae
+  prompt_source: commit_message
+  _commit_message: 'fix: handle both directory and file when clearing old http cache files'
+  _lines_changed: 8
+  _files_changed: 2
+  issue_number: 3716

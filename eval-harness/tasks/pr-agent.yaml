@@ -1,0 +1,144 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/qodo-ai/pr-agent
+# Tasks found: 10
+
+repo:
+  url: https://github.com/qodo-ai/pr-agent
+  default_branch: main
+  docker:
+    image: python:3.12-slim
+    setup:
+    - apt-get update && apt-get install --no-install-recommends -y git curl && rm -rf /var/lib/apt/lists/*
+    - pip install --no-cache-dir . && pip install --no-cache-dir -r requirements-dev.txt
+    test_command: pytest -v tests/unittest
+  strip_extra:
+  - .claude/
+  - .cursor/
+  - .codex/
+  - AGENTS.md
+tasks:
+# --- Tasks with new test files (failing_test) ---
+
+- id: fix-respect-reasoning-effort-config-for-gpt5
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 1ac0e27d24b82b80cfddbb52149faa503167bf49
+  fix_commit: 6bbb1b65afd722b16e716f592be619d9977de200
+  prompt_source: failing_test
+  _commit_message: 'fix: respect reasoning_effort config for GPT-5 models (#2131)'
+  _lines_changed: 715
+  _files_changed: 3
+  test_file: tests/unittest/test_litellm_reasoning_effort.py
+  issue_number: 2131
+
+- id: fix-handle-similar-issue-on-non-github
+  category: simple_fix
+  difficulty: medium
+  pre_fix_commit: f65414369b8fc1b737a96eadc9b8438ca67d62da
+  fix_commit: edbe6e91236a81d4f58288009859dc8b600ad422
+  prompt_source: failing_test
+  _commit_message: 'fix: handle /similar_issue on non-GitHub (#2158)'
+  _lines_changed: 70
+  _files_changed: 2
+  test_file: tests/unittest/test_similar_issue_non_github.py
+  issue_number: 2158
+
+- id: add-aws-secrets-manager-for-lambda-deployments
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 5856a9e548810409c9d7f683151355f8296635bf
+  fix_commit: b6787fa6de7ff7ea5618f06848529816238788e8
+  prompt_source: failing_test
+  _commit_message: 'feat: add AWS Secrets Manager Integration for Lambda deployments'
+  _lines_changed: 445
+  _files_changed: 12
+  test_file: tests/unittest/test_aws_secrets_manager_provider.py
+  issue_number: 1839
+
+- id: add-ignore-repositories-config-for-pr-filtering
+  category: targeted_refactor
+  difficulty: hard
+  pre_fix_commit: 7b82b08173b6d9bd48c32bdbba00dd564c355e04
+  fix_commit: d606672801582d123f5304386219b5bc9bbafc51
+  prompt_source: failing_test
+  _commit_message: 'Add ignore_repositories config for PR filtering'
+  _lines_changed: 112
+  _files_changed: 5
+  test_file: tests/unittest/test_ignore_repositories.py
+  issue_number: 1736
+
+- id: support-ignoring-auto-generated-files-by-lang
+  category: targeted_refactor
+  difficulty: hard
+  pre_fix_commit: dd4fe4dcb4da15b48fa161df81bcabacfa90ea0d
+  fix_commit: 446c1fb49ae5fc86a4a389e4dfcf964ea79aff9b
+  prompt_source: failing_test
+  _commit_message: 'feat: support ignoring auto-generated files by language/framework'
+  _lines_changed: 127
+  _files_changed: 6
+  test_file: tests/unittest/test_file_filter.py
+  issue_number: 1898
+
+# --- Tasks with modified test files (failing_test) ---
+
+- id: gitea-update-auth-to-authorization-header-token
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 4d85580e8fd5993764c905cadda6bb18401c2d0e
+  fix_commit: 073091750d23c09d5a4f2b8023a48e4a64bf3a4f
+  prompt_source: failing_test
+  _commit_message: 'core(gitea): update authentication method to use AuthorizationHeaderToken for API calls (#2142)'
+  _lines_changed: 279
+  _files_changed: 3
+  test_file: tests/unittest/test_gitea_provider.py
+  issue_number: 2142
+
+- id: fix-edge-case-files-with-unknown-extensions
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 16d980ec763082621ba0bfcee308705c20696e11
+  fix_commit: 73cf69889a32e7fb83ffe01902c673e01cf4b9c0
+  prompt_source: failing_test
+  _commit_message: 'fix(test_language_handler): Add edge case for files with unknown extensions'
+  _lines_changed: 5
+  _files_changed: 1
+  test_file: tests/unittest/test_language_handler.py
+  issue_number: 1818
+
+# --- Tasks without new tests (commit_message) ---
+
+- id: refactor-extract-todo-formatting-functions
+  category: targeted_refactor
+  difficulty: medium
+  pre_fix_commit: 37ef4bad8f50cecaf123e0cc5303c73ddf187711
+  fix_commit: 75bde39b035b4022023f0873a6ed1742f61a2051
+  prompt_source: commit_message
+  _commit_message: 'refactor: extract TODO formatting functions and simplify data structure'
+  _lines_changed: 128
+  _files_changed: 3
+  # No new test functions added — refactor of existing code
+  issue_number: 1888
+
+- id: set-custom-toml-loader-for-dynaconf
+  category: complex_fix
+  difficulty: hard
+  pre_fix_commit: 8bd134e30cbc2d0c58434fa1c9e91998d5f1674d
+  fix_commit: d141e4ff9d9b8bedc1c5be0a94ea9f8f46e3f7ce
+  prompt_source: commit_message
+  _commit_message: 'Set a custom toml loader for Dynaconf (#2087)'
+  _lines_changed: 207
+  _files_changed: 4
+  # No new test functions added — custom TOML loader to prevent config injection
+  issue_number: 2087
+
+- id: fix-safe-attribute-access-in-review-prompt
+  category: simple_fix
+  difficulty: easy
+  pre_fix_commit: 5f8ac3d8cf329b51df03b96a8a0104dc149e0c2a
+  fix_commit: f2bbf708f2ffcfd6b37294c4cf5c0e9b7872a17e
+  prompt_source: commit_message
+  _commit_message: 'fix: safe attribute access in review prompt template'
+  _lines_changed: 2
+  _files_changed: 1
+  # No new test functions — 1-line fix in a .toml template file
+  issue_number: 2067

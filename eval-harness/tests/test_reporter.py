@@ -215,6 +215,10 @@ def test_summary_three_success_rates(three_condition_results):
     assert summary["none_success_rate"] == 0.0
     assert summary["flat_llm_success_rate"] == 1.0
     assert summary["intent_layer_success_rate"] == 1.0
+    # ITT rates: same as per-protocol when no infra errors
+    assert summary["none_itt_rate"] == 0.0
+    assert summary["flat_llm_itt_rate"] == 1.0
+    assert summary["intent_layer_itt_rate"] == 1.0
 
 
 def test_markdown_multi_row_layout(tmp_path, three_condition_results):
@@ -318,6 +322,8 @@ def test_infrastructure_errors_excluded_from_success_rate():
     assert summary["infrastructure_errors"] == 1
     # Only fix-good counts — 1 success out of 1 valid = 1.0
     assert summary["none_success_rate"] == 1.0
+    # ITT: 1 success out of 2 assigned = 0.5 (infra error counts as failure)
+    assert summary["none_itt_rate"] == 0.5
 
 
 def test_pre_validation_and_skill_gen_errors_excluded():

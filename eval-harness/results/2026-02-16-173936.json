@@ -1,0 +1,45 @@
+{
+  "eval_id": "2026-02-16-173936",
+  "timestamp": "2026-02-16T17:39:36Z",
+  "results": [
+    {
+      "task_id": "merge-pull-request-3195-from-jlowinfixstateless",
+      "none": null,
+      "flat_llm": null,
+      "intent_layer": {
+        "success": false,
+        "test_output": "Obtaining file:///work\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting authlib>=1.6.5 (from fastmcp==0.0.0)\n  Downloading authlib-1.6.8-py2.py3-none-any.whl.metadata (9.8 kB)\nCollecting cyclopts>=4.0.0 (from fastmcp==0.0.0)\n  Downloading cyclopts-4.5.3-py3-none-any.whl.metadata (12 kB)\nCollecting exceptiongroup>=1.2.2 (from fastmcp==0.0.0)\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl.metadata (6.7 kB)\nCollecting httpx<1.0,>=",
+        "fix_only": {
+          "wall_clock_seconds": 3.0710408687591553,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "tool_calls": 0,
+          "lines_changed": 0,
+          "files_touched": []
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.001956939697265625,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 3.072997808456421,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0.0
+  }
+}

@@ -167,9 +167,9 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
     for multi-run data, and significance flags via CI overlap.
     """
     cond_stats: dict[str, dict] = {
-        "none": {"successes": 0, "total": 0},
-        "flat_llm": {"successes": 0, "total": 0},
-        "intent_layer": {"successes": 0, "total": 0},
+        "none": {"successes": 0, "total": 0, "assigned": 0},
+        "flat_llm": {"successes": 0, "total": 0, "assigned": 0},
+        "intent_layer": {"successes": 0, "total": 0, "assigned": 0},
     }
     infra_errors = 0
     has_multi_run = False
@@ -188,7 +188,9 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
                 infra_errors += total_runs - valid
                 cond_stats[cond_key]["successes"] += successes
                 cond_stats[cond_key]["total"] += valid
+                cond_stats[cond_key]["assigned"] += total_runs
             else:
+                cond_stats[cond_key]["assigned"] += 1
                 if _is_infra_error_dict(cond_data):
                     infra_errors += 1
                 else:
@@ -201,12 +203,20 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
             return 0
         return round(stats["successes"] / stats["total"], 2)
 
+    def itt_rate(stats):
+        if stats["assigned"] == 0:
+            return 0
+        return round(stats["successes"] / stats["assigned"], 2)
+
     summary: dict = {
         "total_tasks": len(merged_results),
         "infrastructure_errors": infra_errors,
         "none_success_rate": rate(cond_stats["none"]),
         "flat_llm_success_rate": rate(cond_stats["flat_llm"]),
         "intent_layer_success_rate": rate(cond_stats["intent_layer"]),
+        "none_itt_rate": itt_rate(cond_stats["none"]),
+        "flat_llm_itt_rate": itt_rate(cond_stats["flat_llm"]),
+        "intent_layer_itt_rate": itt_rate(cond_stats["intent_layer"]),
         "resumed_from": None,  # Filled in by caller
     }
 

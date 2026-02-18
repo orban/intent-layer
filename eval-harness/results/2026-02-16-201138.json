@@ -1,0 +1,333 @@
+{
+  "eval_id": "2026-02-16-201138",
+  "timestamp": "2026-02-16T20:11:38Z",
+  "results": [
+    {
+      "task_id": "merge-pull-request-3198-from-jlowinfixty-errors",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 85a833a7. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[infrastructure] Command '['git', 'clone', 'https://github.com/jlowin/fastmcp', 'workspaces/fastmcp-85a833a7-flat_llm-r0']' returned non-zero exit status 128."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 85a833a7. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-ty-0017-diagnostics-and-bump-lockfile",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 85a833a7. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[infrastructure] Command '['git', 'clone', 'https://github.com/jlowin/fastmcp', 'workspaces/fastmcp-85a833a7-flat_llm-r0']' returned non-zero exit status 128."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 85a833a7. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "merge-pull-request-3195-from-jlowinfixstateless",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 453dcbe8. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 453dcbe8. This task is not a valid failing-test scenario."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 453dcbe8. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-include_tagsexclude_tags-ignored-without-tool",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit bb602870. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit bb602870. This task is not a valid failing-test scenario."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit bb602870. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-stale-request-context-in-statefulproxyclient-h",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit b62ed340. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit b62ed340. This task is not a valid failing-test scenario."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit b62ed340. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "docs-fix-stale-get_-references-now-list_-316",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test command timed out during pre-validation. Docker setup or test infrastructure may be broken."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test command timed out during pre-validation. Docker setup or test infrastructure may be broken."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test command timed out during pre-validation. Docker setup or test infrastructure may be broken."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-guard-client-pagination-loops-against-misbeha",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 359575b1. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 359575b1. This task is not a valid failing-test scenario."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit 359575b1. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    },
+    {
+      "task_id": "fix-snapshot-access-token-for-background-tasks",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit f75cd05e. This task is not a valid failing-test scenario."
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit f75cd05e. This task is not a valid failing-test scenario."
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 0,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[pre-validation] Test already passes at pre_fix_commit f75cd05e. This task is not a valid failing-test scenario."
+      },
+      "deltas": {
+        "flat_llm": {},
+        "intent_layer": {}
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 8,
+    "infrastructure_errors": 24,
+    "none_success_rate": 0,
+    "flat_llm_success_rate": 0,
+    "intent_layer_success_rate": 0
+  }
+}
