@@ -3,8 +3,9 @@
   "checkpoint_id": "c32f00df5f1d",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 6,
+  "checkpoints_count": 14,
   "files_touched": [
+    "eval-harness/docs/reference/agentbench-harness",
     "eval-harness/lib/cli.py",
     "eval-harness/lib/docker_runner.py",
     "eval-harness/lib/git_ops.py",
@@ -13,17 +14,17 @@
     "eval-harness/lib/prompt_builder.py",
     "eval-harness/lib/reporter.py",
     "eval-harness/lib/task_runner.py",
-    "eval-harness/results/2026-02-17-125440.json",
-    "eval-harness/results/2026-02-17-125440.md",
-    "eval-harness/results/2026-02-17-153018.json",
-    "eval-harness/results/2026-02-17-153018.md",
-    "eval-harness/results/2026-02-17-153037.json",
-    "eval-harness/results/2026-02-17-153037.md",
-    "eval-harness/results/2026-02-17-153234.json",
-    "eval-harness/results/2026-02-17-153234.md",
-    "eval-harness/results/2026-02-17-154228.json",
-    "eval-harness/results/2026-02-17-154228.md",
-    "eval-harness/tasks/graphiti.yaml",
+    "eval-harness/results/2026-02-16-consolidated.md",
+    "eval-harness/results/2026-02-17-173819.json",
+    "eval-harness/results/2026-02-17-173819.md",
+    "eval-harness/results/2026-02-17-200637.json",
+    "eval-harness/results/2026-02-17-200637.md",
+    "eval-harness/results/2026-02-17-202346.json",
+    "eval-harness/results/2026-02-17-202346.md",
+    "eval-harness/results/2026-02-17-consolidated.md",
+    "eval-harness/tasks/fastmcp-focused.yaml",
+    "eval-harness/tasks/pdm.yaml",
+    "eval-harness/tasks/smolagents-focused.yaml",
     "eval-harness/tests/test_reporter.py",
     "eval-harness/tests/test_resume.py",
     "eval-harness/workspaces/.index-cache/cache-manifest.json"
@@ -45,10 +46,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 2493,
-    "cache_creation_tokens": 457096,
-    "cache_read_tokens": 22935786,
-    "output_tokens": 7407,
-    "api_call_count": 185
+    "input_tokens": 340,
+    "cache_creation_tokens": 588336,
+    "cache_read_tokens": 30000287,
+    "output_tokens": 9861,
+    "api_call_count": 247
   }
 }
