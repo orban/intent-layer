@@ -291,6 +291,13 @@ class Reporter:
 
         infra_errors = sum(1 for r in results if self._is_infra_error(r))
 
+        def median_tokens(task_results: list[TaskResult]) -> int:
+            """Median total tokens (input+output) for valid runs."""
+            valid = [r for r in task_results if not self._is_infra_error(r)]
+            if not valid:
+                return 0
+            return int(statistics.median(r.input_tokens + r.output_tokens for r in valid))
+
         summary: dict[str, Any] = {
             "total_tasks": len(set(r.task_id for r in results)),
             "infrastructure_errors": infra_errors,
@@ -300,6 +307,9 @@ class Reporter:
             "none_itt_rate": itt_rate(none_results),
             "flat_llm_itt_rate": itt_rate(flat_results),
             "intent_layer_itt_rate": itt_rate(il_results),
+            "none_median_tokens": median_tokens(none_results),
+            "flat_llm_median_tokens": median_tokens(flat_results),
+            "intent_layer_median_tokens": median_tokens(il_results),
         }
 
         # Add CIs when we have multi-run data
@@ -385,6 +395,24 @@ class Reporter:
                 )
             else:
                 lines.append(f"- **{display_name} success rate:** {rate:.0%}")
+
+        # Per-condition median token usage
+        none_tok = summary.get("none_median_tokens", 0)
+        if none_tok:
+            lines.append("")
+            lines.append("**Median tokens (input+output, fix phase only):**")
+            for label, display_name in [
+                ("none", "None"),
+                ("flat_llm", "Flat LLM"),
+                ("intent_layer", "Intent Layer"),
+            ]:
+                tok = summary.get(f"{label}_median_tokens", 0)
+                tok_fmt = f"{tok / 1000:.0f}k" if tok else "N/A"
+                if label == "none" or not none_tok:
+                    lines.append(f"- **{display_name}:** {tok_fmt}")
+                else:
+                    pct_diff = (tok - none_tok) / none_tok * 100
+                    lines.append(f"- **{display_name}:** {tok_fmt} ({pct_diff:+.0f}% vs none)")
 
         # Significance flags
         if has_cis:

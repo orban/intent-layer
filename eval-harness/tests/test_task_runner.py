@@ -776,3 +776,65 @@ def test_timeout_tag_is_not_infra_error():
         is_timeout=True,
     )
     assert Reporter._is_infra_error(result) is False
+
+
+# --- claude_timeout threading ---
+
+def test_task_runner_accepts_claude_timeout(sample_repo, tmp_path):
+    """TaskRunner stores claude_timeout and defaults to 300."""
+    runner = TaskRunner(sample_repo, str(tmp_path))
+    assert runner.claude_timeout == 300
+
+    runner2 = TaskRunner(sample_repo, str(tmp_path), claude_timeout=450)
+    assert runner2.claude_timeout == 450
+
+
+# --- Intent Layer hooks injection ---
+
+def test_intent_layer_hooks_config_written(tmp_path):
+    """Intent Layer hook injection writes .claude/settings.local.json."""
+    import json
+    from pathlib import Path
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    # Simulate what task_runner.run() does for intent_layer
+    plugin_root = str(Path(__file__).resolve().parents[2])
+    hooks_config = {
+        "hooks": {
+            "SessionStart": [{
+                "hooks": [{
+                    "type": "command",
+                    "command": f"{plugin_root}/scripts/inject-learnings.sh",
+                    "timeout": 15,
+                }]
+            }],
+            "PreToolUse": [{
+                "matcher": "Edit|Write|NotebookEdit",
+                "hooks": [{
+                    "type": "command",
+                    "command": f"{plugin_root}/scripts/pre-edit-check.sh",
+                    "timeout": 10,
+                }]
+            }],
+        }
+    }
+    claude_dir = workspace / ".claude"
+    claude_dir.mkdir(exist_ok=True)
+    (claude_dir / "settings.local.json").write_text(json.dumps(hooks_config, indent=2))
+
+    # Verify the file was created with correct structure
+    settings = json.loads((claude_dir / "settings.local.json").read_text())
+    assert "hooks" in settings
+    assert "SessionStart" in settings["hooks"]
+    assert "PreToolUse" in settings["hooks"]
+
+    # Verify scripts actually exist at the referenced paths
+    session_cmd = settings["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    pre_tool_cmd = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    assert Path(session_cmd).exists(), f"inject-learnings.sh not found at {session_cmd}"
+    assert Path(pre_tool_cmd).exists(), f"pre-edit-check.sh not found at {pre_tool_cmd}"
+
+    # Verify matcher targets the right tools
+    assert settings["hooks"]["PreToolUse"][0]["matcher"] == "Edit|Write|NotebookEdit"

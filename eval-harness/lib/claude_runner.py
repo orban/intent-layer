@@ -211,6 +211,11 @@ def run_claude(
         "--output-format", output_format,
         "--max-turns", str(max_turns),
         "--dangerously-skip-permissions",
+        # Isolation: prevent user's global MCP servers, plugins, and hooks
+        # from affecting eval results. Only workspace-local settings load
+        # (used for intent_layer hooks via .claude/settings.local.json).
+        "--strict-mcp-config",
+        "--setting-sources", "local",
     ]
     if stderr_log:
         cmd.append("--verbose")

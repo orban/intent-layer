@@ -451,6 +451,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             use_cache=not no_cache,
             reference_clone=reference_clones.get(repo.url),
             pre_val_cache=pre_val_cache,
+            claude_timeout=timeout,
         )
         return runner.run(task, condition, model=model, rep=rep)
 

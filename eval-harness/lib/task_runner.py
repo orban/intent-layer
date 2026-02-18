@@ -158,6 +158,7 @@ class TaskRunner:
         use_cache: bool = True,
         reference_clone: str | None = None,
         pre_val_cache: PreValidationCache | None = None,
+        claude_timeout: int = 300,
     ):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
@@ -166,6 +167,7 @@ class TaskRunner:
         self.index_cache = IndexCache(cache_dir) if use_cache else None
         self.reference_clone = reference_clone
         self.pre_val_cache = pre_val_cache
+        self.claude_timeout = claude_timeout
 
     def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
         """Report progress if callback is set."""
@@ -729,6 +731,39 @@ class TaskRunner:
 
             # NONE: no generation, stripping already happened
 
+            # Intent Layer hooks: inject .claude/settings.local.json so
+            # SessionStart and PreToolUse hooks fire during Claude's run.
+            # This enables the "push" model — AGENTS.md content is
+            # automatically injected into context before edits, rather
+            # than relying on Claude to voluntarily read them.
+            if condition == Condition.INTENT_LAYER:
+                plugin_root = str(Path(__file__).resolve().parents[2])
+                hooks_config = {
+                    "hooks": {
+                        "SessionStart": [{
+                            "hooks": [{
+                                "type": "command",
+                                "command": f"{plugin_root}/scripts/inject-learnings.sh",
+                                "timeout": 15,
+                            }]
+                        }],
+                        "PreToolUse": [{
+                            "matcher": "Edit|Write|NotebookEdit",
+                            "hooks": [{
+                                "type": "command",
+                                "command": f"{plugin_root}/scripts/pre-edit-check.sh",
+                                "timeout": 10,
+                            }]
+                        }],
+                    }
+                }
+                claude_dir = Path(workspace) / ".claude"
+                claude_dir.mkdir(exist_ok=True)
+                (claude_dir / "settings.local.json").write_text(
+                    json.dumps(hooks_config, indent=2)
+                )
+                self._progress(task.id, cond_str, "hooks", "injected Intent Layer hooks config")
+
             # Baseline commit: snapshot workspace state so diff stats
             # only measure changes made by Claude, not by the harness
             create_baseline_commit(workspace)
@@ -740,8 +775,8 @@ class TaskRunner:
             # Run Claude on the task
             fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
             self._progress(task.id, cond_str, "claude", f"running Claude to fix the bug... (tail -f {fix_log})")
-            claude_result = run_claude(workspace, prompt, model=model,
-                                       stderr_log=str(fix_log))
+            claude_result = run_claude(workspace, prompt, timeout=self.claude_timeout,
+                                       model=model, stderr_log=str(fix_log))
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Detect empty runs: Claude returned without doing any work
