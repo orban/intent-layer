@@ -1,0 +1,1 @@
+update our global settings file to use the newest sonnet model for haiku calls
