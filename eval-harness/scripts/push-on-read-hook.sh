@@ -64,6 +64,13 @@ if [[ -z "$NODE_PATH" ]]; then
     exit 0
 fi
 
+# Skip root CLAUDE.md — it's already auto-loaded by Claude CLI.
+# Only inject child AGENTS.md files (subsystem-specific context).
+NODE_DIR=$(dirname "$NODE_PATH")
+if [[ -d "$NODE_DIR/.git" ]]; then
+    exit 0
+fi
+
 # Extract sections from covering AGENTS.md
 extract_section() {
     local section_name="$1"
