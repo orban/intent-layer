@@ -160,6 +160,7 @@ class TaskRunner:
         pre_val_cache: PreValidationCache | None = None,
         claude_timeout: int = 300,
         skip_pre_validation_for: frozenset[str] = frozenset(),
+        pre_validation_timeout: int = PRE_VALIDATION_TIMEOUT,
     ):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
@@ -170,6 +171,7 @@ class TaskRunner:
         self.pre_val_cache = pre_val_cache
         self.claude_timeout = claude_timeout
         self._skip_pre_validation_for = skip_pre_validation_for
+        self._pre_validation_timeout = pre_validation_timeout
 
     def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
         """Report progress if callback is set."""
@@ -251,7 +253,7 @@ class TaskRunner:
                 workspace,
                 self.repo.docker.image,
                 smoke_cmd,
-                timeout=PRE_VALIDATION_TIMEOUT,
+                timeout=self._pre_validation_timeout,
                 stream_log=stream_log,
                 heartbeat_interval=TEST_HEARTBEAT_INTERVAL,
                 heartbeat_callback=self._make_docker_heartbeat_callback(
@@ -282,7 +284,7 @@ class TaskRunner:
                 workspace,
                 self.repo.docker.image,
                 test_cmd,
-                timeout=PRE_VALIDATION_TIMEOUT,
+                timeout=self._pre_validation_timeout,
                 stream_log=stream_log,
                 heartbeat_interval=TEST_HEARTBEAT_INTERVAL,
                 heartbeat_callback=self._make_docker_heartbeat_callback(
@@ -743,22 +745,29 @@ class TaskRunner:
             # CLAUDE.md. The preamble directs Claude to read CLAUDE.md's
             # Downlinks table and then read relevant AGENTS.md files.
             #
-            # "Push-on-read" hook: injects covering AGENTS.md content when
-            # Claude reads/greps files in covered directories. This turns
-            # the unreliable pull model into a reliable push — Claude gets
-            # subsystem context automatically during exploration, not just
-            # during editing.
+            # Hooks: use the actual Intent Layer plugin hooks:
+            # - PreToolUse (Edit|Write|NotebookEdit): injects covering
+            #   AGENTS.md sections (Pitfalls, Checks, Patterns, Context)
+            # - SessionStart: injects learnings, pending mistakes, and
+            #   resolved project context
             if condition == Condition.INTENT_LAYER:
-                harness_root = str(Path(__file__).resolve().parents[1])
                 plugin_root = str(Path(__file__).resolve().parents[2])
                 hooks_config = {
                     "hooks": {
                         "PreToolUse": [{
-                            "matcher": "Read|Grep|Edit|Write|NotebookEdit",
+                            "matcher": "Edit|Write|NotebookEdit",
                             "hooks": [{
                                 "type": "command",
-                                "command": f"{harness_root}/scripts/push-on-read-hook.sh",
+                                "command": f"{plugin_root}/scripts/pre-edit-check.sh",
                                 "timeout": 10,
+                            }]
+                        }],
+                        "SessionStart": [{
+                            "matcher": "",
+                            "hooks": [{
+                                "type": "command",
+                                "command": f"{plugin_root}/scripts/inject-learnings.sh",
+                                "timeout": 15,
                             }]
                         }],
                     }
@@ -768,7 +777,7 @@ class TaskRunner:
                 (claude_dir / "settings.local.json").write_text(
                     json.dumps(hooks_config, indent=2)
                 )
-                self._progress(task.id, cond_str, "hooks", "injected PreToolUse hook config")
+                self._progress(task.id, cond_str, "hooks", "injected plugin hooks (PreToolUse + SessionStart)")
 
             # Baseline commit: snapshot workspace state so diff stats
             # only measure changes made by Claude, not by the harness
@@ -781,8 +790,12 @@ class TaskRunner:
             # Run Claude on the task
             fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
             self._progress(task.id, cond_str, "claude", f"running Claude to fix the bug... (tail -f {fix_log})")
+            fix_extra_env = None
+            if condition == Condition.INTENT_LAYER:
+                fix_extra_env = {"CLAUDE_PLUGIN_ROOT": str(Path(__file__).resolve().parents[2])}
             claude_result = run_claude(workspace, prompt, timeout=self.claude_timeout,
-                                       model=model, stderr_log=str(fix_log))
+                                       model=model, stderr_log=str(fix_log),
+                                       extra_env=fix_extra_env)
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Detect empty runs: Claude returned without doing any work

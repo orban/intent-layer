@@ -1,6 +1,9 @@
 # DRAFT - Review and curate before use
 # Generated from: https://github.com/huggingface/transformers
-# Tasks found: 10
+# Tasks found: 9
+#
+# Dropped tasks:
+#   fix-early-image-processor-return-error — test already passes at pre_fix_commit (validated 2026-02-18)
 #
 # WARNING: transformers is huge (~450MB). Docker setup installs only core deps
 # plus torch (CPU) and pytest. Individual tasks target specific test files.
@@ -127,18 +130,6 @@ tasks:
   # No new test functions — fix to loss calculation across 4 loss files
   # Models using sigmoid/focal loss had wrong cardinality check
   issue_number: 42199
-
-- id: fix-early-image-processor-return-error
-  category: simple_fix
-  difficulty: easy
-  pre_fix_commit: 2bd902dbc45ff87d6cd1986f8d2d40765bc34853
-  fix_commit: 349e00c1a367ce263624e525038250625dcf20c7
-  prompt_source: failing_test
-  _commit_message: 'Fix early image processor return not raising error (#43981)'
-  _lines_changed: 5
-  _files_changed: 1
-  test_file: tests/models/llava/test_image_processing_llava.py
-  # Early return for square images skipped background_color validation
 
 - id: fix-failing-tests-no-pad-token-id
   category: complex_fix

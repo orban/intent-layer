@@ -1,9 +1,13 @@
 # lib/git_ops.py
 from __future__ import annotations
+import logging
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 import re
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,20 +20,28 @@ class DiffStats:
 def clone_repo(url: str, dest: str, shallow: bool = True, reference: str | None = None) -> None:
     """Clone a repository.
 
-    If reference is provided, creates a shared clone (git alternates)
-    from the reference directory instead of fetching over the network.
-    Nearly instant since no objects are copied. The clone depends on
-    the reference directory for its lifetime — safe for ephemeral
-    workspaces where the reference outlives all clones.
+    If reference is provided, tries --shared first (git alternates,
+    nearly instant) then falls back to --local (hardlink copy) if
+    --shared fails. Large repos like transformers and wagtail can
+    fail with --shared under concurrent access.
     """
     if reference:
         cmd = ["git", "clone", "--shared", "--no-checkout", reference, dest]
+        result = subprocess.run(cmd, capture_output=True)
+        if result.returncode != 0:
+            logger.warning(
+                "git clone --shared failed for %s, falling back to --local", dest
+            )
+            if Path(dest).exists():
+                shutil.rmtree(dest)
+            cmd = ["git", "clone", "--local", "--no-checkout", reference, dest]
+            subprocess.run(cmd, check=True, capture_output=True)
     else:
         cmd = ["git", "clone"]
         if shallow:
             cmd.extend(["--depth", "1"])
         cmd.extend([url, dest])
-    subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(cmd, check=True, capture_output=True)
 
 
 def checkout_commit(repo_path: str, commit: str) -> None:

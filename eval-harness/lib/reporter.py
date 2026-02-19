@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.task_runner import TaskResult, Condition
-from lib.stats import wilson_score_interval, ci_overlap
+from lib.stats import wilson_score_interval, ci_overlap, mcnemar_test
 
 
 @dataclass
@@ -344,7 +344,55 @@ class Reporter:
                         )
                         summary[f"{treatment}_vs_none_significant"] = not overlaps
 
+        # McNemar's paired analysis: compare conditions per (task, rep) pair
+        summary["mcnemar"] = self._compute_mcnemar(results)
+
         return summary
+
+    def _compute_mcnemar(self, results: list[TaskResult]) -> dict:
+        """Compute McNemar's test for each pair of conditions.
+
+        Pairs results by (task_id, rep_index) where rep_index is derived
+        from ordering within each (task_id, condition) group. Excludes
+        pairs where either result is an infra error.
+        """
+        # Group by (task_id, condition) preserving insertion order as rep index
+        grouped: dict[str, dict[str, list[TaskResult]]] = {}
+        for r in results:
+            if r.task_id not in grouped:
+                grouped[r.task_id] = {}
+            cond = r.condition.value
+            if cond not in grouped[r.task_id]:
+                grouped[r.task_id][cond] = []
+            grouped[r.task_id][cond].append(r)
+
+        comparisons = [
+            ("flat_llm", "none"),
+            ("intent_layer", "none"),
+            ("intent_layer", "flat_llm"),
+        ]
+
+        mcnemar_results = {}
+        for cond_a, cond_b in comparisons:
+            b = 0  # a passes, b fails
+            c = 0  # a fails, b passes
+            for task_id, conditions in grouped.items():
+                a_runs = conditions.get(cond_a, [])
+                b_runs = conditions.get(cond_b, [])
+                # Pair by rep index (position in list)
+                for rep_idx in range(min(len(a_runs), len(b_runs))):
+                    ra = a_runs[rep_idx]
+                    rb = b_runs[rep_idx]
+                    # Exclude pairs where either is an infra error
+                    if self._is_infra_error(ra) or self._is_infra_error(rb):
+                        continue
+                    if ra.success and not rb.success:
+                        b += 1
+                    elif not ra.success and rb.success:
+                        c += 1
+            mcnemar_results[f"{cond_a}_vs_{cond_b}"] = mcnemar_test(b, c)
+
+        return mcnemar_results
 
     def write_json(self, results: EvalResults) -> str:
         """Write results to JSON file."""
@@ -547,6 +595,26 @@ class Reporter:
         # Remove trailing blank row
         if lines and lines[-1].strip().replace("|", "").replace(" ", "") == "":
             lines.pop()
+
+        # Paired Analysis (McNemar's Test) section
+        mcnemar_data = summary.get("mcnemar", {})
+        if mcnemar_data and any(v["n_discordant"] > 0 for v in mcnemar_data.values()):
+            lines += [
+                "",
+                "",
+                "## Paired Analysis (McNemar's Test)",
+                "",
+                "| Comparison | Discordant | A wins | B wins | p-value | Sig. |",
+                "|---|---|---|---|---|---|",
+            ]
+            for key, data in mcnemar_data.items():
+                label = key.replace("_vs_", " vs ")
+                sig = "*" if data["p_value"] < 0.05 else ""
+                lines.append(
+                    f"| {label} | {data['n_discordant']} | "
+                    f"{data['a_wins']} | {data['b_wins']} | "
+                    f"{data['p_value']:.3f} | {sig} |"
+                )
 
         with open(path, "w") as f:
             f.write("\n".join(lines))

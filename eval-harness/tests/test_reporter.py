@@ -756,3 +756,133 @@ def test_json_multi_run_has_ci(tmp_path):
     # Summary has CIs too
     assert "none_ci_90" in data["summary"]
     assert "intent_layer_ci_90" in data["summary"]
+
+
+# ── McNemar's test integration tests ──────────────────────────────
+
+
+def _make_mcnemar_results():
+    """Helper: 3 reps per condition for 2 tasks, with known discordant pairs.
+
+    Task 1:
+      rep 0: none=PASS, flat=FAIL, il=PASS  → flat vs none: c+=1; il vs none: concordant
+      rep 1: none=FAIL, flat=PASS, il=PASS  → flat vs none: b+=1; il vs none: b+=1
+      rep 2: none=FAIL, flat=FAIL, il=FAIL  → all concordant
+
+    Task 2:
+      rep 0: none=PASS, flat=PASS, il=FAIL  → flat vs none: concordant; il vs none: c+=1
+      rep 1: none=FAIL, flat=FAIL, il=PASS  → flat vs none: concordant; il vs none: b+=1
+      rep 2: none=FAIL, flat=PASS, il=PASS  → flat vs none: b+=1; il vs none: b+=1
+
+    Expected flat_llm vs none: b=2 (flat wins), c=1 (none wins)
+    Expected intent_layer vs none: b=3 (il wins), c=1 (none wins)
+    """
+    patterns = {
+        "task-1": {
+            "none":         [True, False, False],
+            "flat_llm":     [False, True, False],
+            "intent_layer": [True, True, False],
+        },
+        "task-2": {
+            "none":         [True, False, False],
+            "flat_llm":     [True, False, True],
+            "intent_layer": [False, True, True],
+        },
+    }
+
+    results = []
+    for task_id, conds in patterns.items():
+        for cond_str, successes in conds.items():
+            cond = Condition(cond_str)
+            for success in successes:
+                results.append(TaskResult(
+                    task_id=task_id, condition=cond, success=success,
+                    test_output="PASS" if success else "FAIL",
+                    wall_clock_seconds=50.0, input_tokens=2000,
+                    output_tokens=1000, tool_calls=10,
+                    lines_changed=20, files_touched=["a.py"],
+                ))
+    return results
+
+
+def test_mcnemar_in_summary():
+    """McNemar's test produces correct b/c counts from known results."""
+    reporter = Reporter(output_dir="/tmp")
+    results = _make_mcnemar_results()
+    eval_results = reporter.compile_results(results)
+    summary = eval_results.summary
+
+    assert "mcnemar" in summary
+    mcnemar = summary["mcnemar"]
+
+    # flat_llm vs none: b=2 (flat wins), c=1 (none wins)
+    flat_vs_none = mcnemar["flat_llm_vs_none"]
+    assert flat_vs_none["a_wins"] == 2
+    assert flat_vs_none["b_wins"] == 1
+    assert flat_vs_none["n_discordant"] == 3
+
+    # intent_layer vs none: b=3 (il wins), c=1 (none wins)
+    il_vs_none = mcnemar["intent_layer_vs_none"]
+    assert il_vs_none["a_wins"] == 3
+    assert il_vs_none["b_wins"] == 1
+    assert il_vs_none["n_discordant"] == 4
+
+
+def test_mcnemar_excludes_infra_errors():
+    """Infra errors are excluded from McNemar pairing."""
+    results = [
+        # Rep 0: none=PASS, il=infra error → excluded from pairing
+        TaskResult(
+            task_id="fix-infra", condition=Condition.NONE, success=True,
+            test_output="PASS", wall_clock_seconds=50.0,
+            input_tokens=2000, output_tokens=1000, tool_calls=10,
+            lines_changed=20, files_touched=["a.py"],
+        ),
+        TaskResult(
+            task_id="fix-infra", condition=Condition.INTENT_LAYER, success=False,
+            test_output="", wall_clock_seconds=0, input_tokens=0,
+            output_tokens=0, tool_calls=0, lines_changed=0,
+            files_touched=[],
+            error="[infrastructure] clone failed",
+        ),
+        # Rep 1: none=FAIL, il=PASS → discordant (il wins)
+        TaskResult(
+            task_id="fix-infra", condition=Condition.NONE, success=False,
+            test_output="FAIL", wall_clock_seconds=50.0,
+            input_tokens=2000, output_tokens=1000, tool_calls=10,
+            lines_changed=20, files_touched=["a.py"],
+        ),
+        TaskResult(
+            task_id="fix-infra", condition=Condition.INTENT_LAYER, success=True,
+            test_output="PASS", wall_clock_seconds=50.0,
+            input_tokens=2000, output_tokens=1000, tool_calls=10,
+            lines_changed=20, files_touched=["a.py"],
+        ),
+    ]
+
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(results)
+    mcnemar = eval_results.summary["mcnemar"]
+
+    il_vs_none = mcnemar["intent_layer_vs_none"]
+    # Only rep 1 is paired (rep 0 excluded due to infra error)
+    assert il_vs_none["n_discordant"] == 1
+    assert il_vs_none["a_wins"] == 1  # il passes, none fails
+    assert il_vs_none["b_wins"] == 0
+
+
+def test_mcnemar_markdown_output(tmp_path):
+    """Paired Analysis section appears in markdown output."""
+    reporter = Reporter(output_dir=str(tmp_path))
+    results = _make_mcnemar_results()
+    eval_results = reporter.compile_results(results)
+    md_path = reporter.write_markdown(eval_results)
+
+    with open(md_path) as f:
+        content = f.read()
+
+    assert "## Paired Analysis (McNemar's Test)" in content
+    assert "| Comparison |" in content
+    assert "flat_llm vs none" in content
+    assert "intent_layer vs none" in content
+    assert "p-value" in content

@@ -39,6 +39,7 @@ tasks:
   _lines_changed: 12
   _files_changed: 2
   test_file: test/test_ops.py
+  test_pattern: copysign
   issue_number: 14380
 
 - id: fix-copysign-inf-input
@@ -51,6 +52,7 @@ tasks:
   _lines_changed: 17
   _files_changed: 3
   test_file: test/test_ops.py
+  test_pattern: copysign
   issue_number: 14381
 
 - id: fix-long-decomp-none-tag

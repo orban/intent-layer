@@ -2,7 +2,8 @@
 import pytest
 import tempfile
 import os
-import shutil
+import json
+from pathlib import Path
 from dataclasses import dataclass
 from lib.task_runner import (
     TaskRunner,
@@ -792,7 +793,7 @@ def test_task_runner_accepts_claude_timeout(sample_repo, tmp_path):
 # --- Intent Layer hooks injection ---
 
 def test_intent_layer_hooks_config_written(tmp_path):
-    """Intent Layer hook injection writes .claude/settings.local.json with push-on-read hook."""
+    """Intent Layer hook injection writes .claude/settings.local.json with actual plugin hooks."""
     import json
     from pathlib import Path
 
@@ -800,15 +801,23 @@ def test_intent_layer_hooks_config_written(tmp_path):
     workspace.mkdir()
 
     # Simulate what task_runner.run() does for intent_layer
-    harness_root = str(Path(__file__).resolve().parents[1])
+    plugin_root = str(Path(__file__).resolve().parents[2])
     hooks_config = {
         "hooks": {
             "PreToolUse": [{
-                "matcher": "Read|Grep|Edit|Write|NotebookEdit",
+                "matcher": "Edit|Write|NotebookEdit",
                 "hooks": [{
                     "type": "command",
-                    "command": f"{harness_root}/scripts/push-on-read-hook.sh",
+                    "command": f"{plugin_root}/scripts/pre-edit-check.sh",
                     "timeout": 10,
+                }]
+            }],
+            "SessionStart": [{
+                "matcher": "",
+                "hooks": [{
+                    "type": "command",
+                    "command": f"{plugin_root}/scripts/inject-learnings.sh",
+                    "timeout": 15,
                 }]
             }],
         }
@@ -821,13 +830,17 @@ def test_intent_layer_hooks_config_written(tmp_path):
     settings = json.loads((claude_dir / "settings.local.json").read_text())
     assert "hooks" in settings
     assert "PreToolUse" in settings["hooks"]
+    assert "SessionStart" in settings["hooks"]
 
-    # Verify script actually exists at the referenced path
-    hook_cmd = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    assert Path(hook_cmd).exists(), f"push-on-read-hook.sh not found at {hook_cmd}"
+    # Verify scripts actually exist at the referenced paths
+    pre_edit_cmd = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    assert Path(pre_edit_cmd).exists(), f"pre-edit-check.sh not found at {pre_edit_cmd}"
 
-    # Verify matcher includes Read/Grep for push-on-read delivery
-    assert settings["hooks"]["PreToolUse"][0]["matcher"] == "Read|Grep|Edit|Write|NotebookEdit"
+    inject_cmd = settings["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    assert Path(inject_cmd).exists(), f"inject-learnings.sh not found at {inject_cmd}"
+
+    # Verify PreToolUse matcher only fires on writes (not reads)
+    assert settings["hooks"]["PreToolUse"][0]["matcher"] == "Edit|Write|NotebookEdit"
 
 
 def test_intent_layer_preamble_mentions_downlinks():
@@ -836,3 +849,427 @@ def test_intent_layer_preamble_mentions_downlinks():
     assert "Downlinks" in INTENT_LAYER_PREAMBLE
     assert "AGENTS.md" in INTENT_LAYER_PREAMBLE
     assert "Pitfalls" in INTENT_LAYER_PREAMBLE
+
+
+# --- Plugin integration tests ---
+
+
+def test_plugin_root_resolves_to_repo_root():
+    """plugin_root (2 parents up from task_runner.py) points to the intent-layer repo root."""
+    from pathlib import Path
+
+    # This is the same calculation task_runner.py uses
+    task_runner_path = Path(__file__).resolve().parents[2] / "eval-harness" / "lib" / "task_runner.py"
+    plugin_root = task_runner_path.resolve().parents[2]
+
+    # Verify it's the intent-layer repo root by checking for key files
+    assert (plugin_root / "scripts" / "pre-edit-check.sh").exists()
+    assert (plugin_root / "scripts" / "inject-learnings.sh").exists()
+    assert (plugin_root / "lib" / "common.sh").exists()
+    assert (plugin_root / "lib" / "find_covering_node.sh").exists()
+
+
+def test_plugin_hooks_env_for_intent_layer(sample_repo, monkeypatch):
+    """CLAUDE_PLUGIN_ROOT is passed to run_claude for intent_layer condition."""
+    from pathlib import Path
+
+    captured_calls = []
+
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        captured_calls.append({
+            "workspace": workspace,
+            "extra_env": extra_env,
+        })
+        return type("ClaudeResult", (), {
+            "exit_code": 0,
+            "wall_clock_seconds": 10.0,
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "tool_calls": 5,
+            "stdout": "{}",
+            "stderr": "",
+            "timed_out": False,
+            "cost_usd": 0.01,
+            "num_turns": 3,
+        })()
+
+    def fake_run_in_docker(workspace, image, command, timeout=180, **kwargs):
+        return type("Result", (), {
+            "exit_code": 0,
+            "stdout": "PASSED",
+            "stderr": "",
+            "timed_out": False,
+        })()
+
+    def fake_get_diff_stats(workspace):
+        return type("DiffStats", (), {
+            "lines_changed": 5,
+            "files": ["src/main.py"],
+        })()
+
+    def fake_check_or_generate_index(self, workspace, repo_url, commit,
+                                      condition="", model=None, timeout=600,
+                                      repo_level=False):
+        import pathlib
+        (pathlib.Path(workspace) / "CLAUDE.md").write_text("# context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=1.0, input_tokens=0, output_tokens=0,
+            cache_hit=True, files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr("lib.task_runner.run_in_docker", fake_run_in_docker)
+    monkeypatch.setattr("lib.task_runner.get_diff_stats", fake_get_diff_stats)
+    monkeypatch.setattr(TaskRunner, "_check_or_generate_index", fake_check_or_generate_index)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-plugin-test",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        runner.run(task, Condition.INTENT_LAYER)
+
+        assert len(captured_calls) == 1
+        env = captured_calls[0]["extra_env"]
+        assert env is not None
+        assert "CLAUDE_PLUGIN_ROOT" in env
+        assert Path(env["CLAUDE_PLUGIN_ROOT"]).is_dir()
+
+
+def test_no_plugin_env_for_none_condition(sample_repo, monkeypatch):
+    """CLAUDE_PLUGIN_ROOT is NOT set for the none condition."""
+    captured_calls = []
+
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        captured_calls.append({"extra_env": extra_env})
+        return type("ClaudeResult", (), {
+            "exit_code": 0,
+            "wall_clock_seconds": 10.0,
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "tool_calls": 5,
+            "stdout": "{}",
+            "stderr": "",
+            "timed_out": False,
+            "cost_usd": 0.01,
+            "num_turns": 3,
+        })()
+
+    def fake_run_in_docker(workspace, image, command, timeout=180, **kwargs):
+        return type("Result", (), {
+            "exit_code": 0,
+            "stdout": "PASSED",
+            "stderr": "",
+            "timed_out": False,
+        })()
+
+    def fake_get_diff_stats(workspace):
+        return type("DiffStats", (), {
+            "lines_changed": 5,
+            "files": ["src/main.py"],
+        })()
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr("lib.task_runner.run_in_docker", fake_run_in_docker)
+    monkeypatch.setattr("lib.task_runner.get_diff_stats", fake_get_diff_stats)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-none-test",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        runner.run(task, Condition.NONE)
+
+        assert len(captured_calls) == 1
+        assert captured_calls[0]["extra_env"] is None
+
+
+def test_no_plugin_hooks_for_flat_llm(sample_repo, monkeypatch):
+    """flat_llm condition does NOT install plugin hooks or set CLAUDE_PLUGIN_ROOT."""
+    captured_calls = []
+    written_settings = []
+
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        # Check if .claude/settings.local.json was written
+        settings_path = os.path.join(workspace, ".claude", "settings.local.json")
+        if os.path.exists(settings_path):
+            with open(settings_path) as f:
+                written_settings.append(json.load(f))
+        captured_calls.append({"extra_env": extra_env})
+        return type("ClaudeResult", (), {
+            "exit_code": 0,
+            "wall_clock_seconds": 10.0,
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "tool_calls": 5,
+            "stdout": "{}",
+            "stderr": "",
+            "timed_out": False,
+            "cost_usd": 0.01,
+            "num_turns": 3,
+        })()
+
+    def fake_run_in_docker(workspace, image, command, timeout=180, **kwargs):
+        return type("Result", (), {
+            "exit_code": 0,
+            "stdout": "PASSED",
+            "stderr": "",
+            "timed_out": False,
+        })()
+
+    def fake_get_diff_stats(workspace):
+        return type("DiffStats", (), {
+            "lines_changed": 5,
+            "files": ["src/main.py"],
+        })()
+
+    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None):
+        # Create a CLAUDE.md so _find_agents_files has something
+        import pathlib
+        workspace_path = pathlib.Path(workspace)
+        (workspace_path / "CLAUDE.md").write_text("# flat context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=1.0,
+            input_tokens=0,
+            output_tokens=0,
+            cache_hit=True,
+            files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr("lib.task_runner.run_in_docker", fake_run_in_docker)
+    monkeypatch.setattr("lib.task_runner.get_diff_stats", fake_get_diff_stats)
+    monkeypatch.setattr(TaskRunner, "_generate_flat_context", fake_generate_flat_context)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-flat-test",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        runner.run(task, Condition.FLAT_LLM)
+
+        assert len(captured_calls) == 1
+        assert captured_calls[0]["extra_env"] is None
+        # No hook config should have been written
+        assert len(written_settings) == 0
+
+
+def test_intent_layer_writes_hooks_to_workspace(sample_repo, monkeypatch):
+    """intent_layer condition writes .claude/settings.local.json with plugin hooks into workspace."""
+    import json
+    from pathlib import Path
+
+    written_settings = {}
+
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_check_or_generate_index(self, workspace, repo_url, commit,
+                                      condition="", model=None, timeout=600,
+                                      repo_level=False):
+        import pathlib
+        # Create a CLAUDE.md so the runner is satisfied
+        (pathlib.Path(workspace) / "CLAUDE.md").write_text("# intent layer context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=1.0,
+            input_tokens=0,
+            output_tokens=0,
+            cache_hit=True,
+            files_created=["CLAUDE.md"],
+        )
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        # Capture the settings file at the time Claude runs
+        settings_path = os.path.join(workspace, ".claude", "settings.local.json")
+        if os.path.exists(settings_path):
+            with open(settings_path) as f:
+                written_settings.update(json.load(f))
+        return type("ClaudeResult", (), {
+            "exit_code": 0,
+            "wall_clock_seconds": 10.0,
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "tool_calls": 5,
+            "stdout": "{}",
+            "stderr": "",
+            "timed_out": False,
+            "cost_usd": 0.01,
+            "num_turns": 3,
+        })()
+
+    def fake_run_in_docker(workspace, image, command, timeout=180, **kwargs):
+        return type("Result", (), {
+            "exit_code": 0,
+            "stdout": "PASSED",
+            "stderr": "",
+            "timed_out": False,
+        })()
+
+    def fake_get_diff_stats(workspace):
+        return type("DiffStats", (), {
+            "lines_changed": 5,
+            "files": ["src/main.py"],
+        })()
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr("lib.task_runner.run_in_docker", fake_run_in_docker)
+    monkeypatch.setattr("lib.task_runner.get_diff_stats", fake_get_diff_stats)
+    monkeypatch.setattr(TaskRunner, "_check_or_generate_index", fake_check_or_generate_index)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-hooks-written",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        runner.run(task, Condition.INTENT_LAYER)
+
+        # Hooks config should have been written before Claude ran
+        assert "hooks" in written_settings
+        assert "PreToolUse" in written_settings["hooks"]
+        assert "SessionStart" in written_settings["hooks"]
+
+        # Verify PreToolUse points to pre-edit-check.sh
+        pre_edit_cmd = written_settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        assert pre_edit_cmd.endswith("/scripts/pre-edit-check.sh")
+        assert Path(pre_edit_cmd).exists()
+
+        # Verify SessionStart points to inject-learnings.sh
+        inject_cmd = written_settings["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        assert inject_cmd.endswith("/scripts/inject-learnings.sh")
+        assert Path(inject_cmd).exists()
+
+        # Verify matcher is write-only (not reads)
+        assert written_settings["hooks"]["PreToolUse"][0]["matcher"] == "Edit|Write|NotebookEdit"
+
+
+def test_pre_edit_check_runs_against_sample_agents_md():
+    """Integration smoke test: pre-edit-check.sh produces output for a covered file."""
+    import json as _json
+    import subprocess
+    from pathlib import Path
+
+    plugin_root = str(Path(__file__).resolve().parents[2])
+    script = os.path.join(plugin_root, "scripts", "pre-edit-check.sh")
+
+    # Create a temp workspace with an AGENTS.md that has a Pitfalls section
+    with tempfile.TemporaryDirectory() as tmpdir:
+        agents_md = os.path.join(tmpdir, "AGENTS.md")
+        with open(agents_md, "w") as f:
+            f.write("# Test Module\n\n## Pitfalls\n\n### Watch out for X\n\nDon't do X.\n")
+
+        # Create a source file in the same directory
+        src_file = os.path.join(tmpdir, "main.py")
+        with open(src_file, "w") as f:
+            f.write("print('hello')\n")
+
+        # Build the JSON input that Claude sends to PreToolUse hooks
+        input_json = _json.dumps({
+            "tool_name": "Edit",
+            "tool_input": {"file_path": src_file},
+        })
+
+        result = subprocess.run(
+            [script],
+            input=input_json,
+            capture_output=True,
+            text=True,
+            env={
+                **os.environ,
+                "CLAUDE_PLUGIN_ROOT": plugin_root,
+            },
+            timeout=10,
+        )
+
+        # The hook should exit 0 and produce JSON output with additionalContext
+        assert result.returncode == 0
+        assert result.stdout.strip(), "pre-edit-check.sh produced no output"
+        output = _json.loads(result.stdout)
+        # Hook output is wrapped: {"hookSpecificOutput": {"additionalContext": "..."}}
+        hook_output = output.get("hookSpecificOutput", output)
+        assert "additionalContext" in hook_output
+        assert "Pitfalls" in hook_output["additionalContext"]

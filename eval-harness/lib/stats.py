@@ -108,3 +108,26 @@ def ci_overlap(ci_a: tuple[float, float], ci_b: tuple[float, float]) -> bool:
     at 90% confidence suggest a statistically meaningful difference.
     """
     return ci_a[0] <= ci_b[1] and ci_b[0] <= ci_a[1]
+
+
+def mcnemar_test(b: int, c: int) -> dict:
+    """McNemar's test for paired binary outcomes using exact binomial.
+
+    Args:
+        b: pairs where condition A passes, B fails
+        c: pairs where condition A fails, B passes
+
+    Returns:
+        dict with p_value, n_discordant, a_wins, b_wins
+    """
+    n = b + c
+    if n == 0:
+        return {"p_value": 1.0, "n_discordant": 0, "a_wins": b, "b_wins": c}
+
+    k = max(b, c)
+    p_value = 0.0
+    for i in range(k, n + 1):
+        p_value += math.comb(n, i) * 0.5**n
+    p_value = min(p_value * 2, 1.0)  # two-sided
+
+    return {"p_value": p_value, "n_discordant": n, "a_wins": b, "b_wins": c}

@@ -1,6 +1,6 @@
 # tests/test_stats.py
 import pytest
-from lib.stats import _inverse_normal_cdf, wilson_score_interval, ci_overlap
+from lib.stats import _inverse_normal_cdf, wilson_score_interval, ci_overlap, mcnemar_test
 
 
 class TestInverseNormalCDF:
@@ -137,3 +137,35 @@ class TestCIOverlap:
     def test_identical(self):
         """Same interval overlaps with itself."""
         assert ci_overlap((0.3, 0.7), (0.3, 0.7)) is True
+
+
+class TestMcNemarTest:
+    def test_mcnemar_perfect_split(self):
+        """All discordant pairs go one way — highly significant."""
+        result = mcnemar_test(0, 10)
+        assert result["p_value"] < 0.01
+        assert result["n_discordant"] == 10
+        assert result["a_wins"] == 0
+        assert result["b_wins"] == 10
+
+    def test_mcnemar_even_split(self):
+        """Equal discordant pairs — not significant at all."""
+        result = mcnemar_test(5, 5)
+        assert result["p_value"] == 1.0
+        assert result["n_discordant"] == 10
+        assert result["a_wins"] == 5
+        assert result["b_wins"] == 5
+
+    def test_mcnemar_no_discordant(self):
+        """No discordant pairs — p=1.0 by convention."""
+        result = mcnemar_test(0, 0)
+        assert result["p_value"] == 1.0
+        assert result["n_discordant"] == 0
+
+    def test_mcnemar_single_pair(self):
+        """Single discordant pair — two-sided exact binomial gives p=1.0."""
+        result = mcnemar_test(0, 1)
+        assert result["p_value"] == 1.0
+        assert result["n_discordant"] == 1
+        assert result["a_wins"] == 0
+        assert result["b_wins"] == 1

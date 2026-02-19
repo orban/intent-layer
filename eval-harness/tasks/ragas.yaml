@@ -1,6 +1,10 @@
 # DRAFT - Review and curate before use
 # Generated from: https://github.com/vibrantlabsai/ragas
-# Tasks found: 10
+# Tasks found: 8
+#
+# Dropped tasks:
+#   optimize-average-precision-algorithm — test already passes at pre_fix_commit (validated 2026-02-18)
+#   correct-multiturn-sample-user-input-validation — test already passes at pre_fix_commit (validated 2026-02-18)
 
 repo:
   url: https://github.com/vibrantlabsai/ragas
@@ -16,18 +20,6 @@ repo:
   - .cursor/
   - .codex/
 tasks:
-- id: optimize-average-precision-algorithm
-  category: targeted_refactor
-  difficulty: medium
-  pre_fix_commit: b928239d3c03956acb9e911be60f9ae81298a11e
-  fix_commit: db8eb679f0933f7211e170d1508afebe39a3a49a
-  prompt_source: failing_test
-  _commit_message: 'perf: optimize average precision algorithm'
-  _lines_changed: 158
-  _files_changed: 3
-  test_file: tests/unit/test_average_precision_algorithm.py
-  issue_number: 2567
-
 - id: lazy-init-default-tokenizer-avoid-network
   category: simple_fix
   difficulty: medium
@@ -60,17 +52,6 @@ tasks:
   _lines_changed: 370
   _files_changed: 6
   test_file: tests/unit/test_chrf_score_collections.py
-
-- id: correct-multiturn-sample-user-input-validation
-  category: simple_fix
-  difficulty: easy
-  pre_fix_commit: bd46e30102dcb5d1f0d41be1b973f2ce6e59be5a
-  fix_commit: 32b4afc8c5947ca92fead0fcae787ea38639d6ca
-  prompt_source: failing_test
-  _commit_message: 'fix: correct MultiTurnSample user_input validation logic'
-  _lines_changed: 30
-  _files_changed: 2
-  test_file: tests/unit/test_dataset_schema.py
 
 - id: make-gitpython-optional-dependency
   category: simple_fix

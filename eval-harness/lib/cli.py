@@ -589,8 +589,9 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 @main.command()
 @click.option("--tasks", "-t", multiple=True, required=True, help="Task YAML files")
 @click.option("--parallel", "-p", default=2, help="Number of parallel workers")
+@click.option("--timeout", default=300, help="Pre-validation timeout in seconds (default: 300)")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed progress")
-def validate(tasks, parallel, verbose):
+def validate(tasks, parallel, timeout, verbose):
     """Validate task configs without spending Claude API tokens.
 
     For each task: clones the repo, checks out pre_fix_commit, strips context
@@ -599,13 +600,18 @@ def validate(tasks, parallel, verbose):
 
     Use this to catch bad configs before burning API budget on a full run.
     """
-    # Load all tasks
+    # Load all tasks, deduplicating by task ID (overlapping YAML files
+    # like graphiti.yaml and graphiti-signal.yaml share task IDs)
     all_tasks = []
+    seen_ids: set[str] = set()
     for task_path in tasks:
         if not Path(task_path).exists():
             raise click.ClickException(f"Task file does not exist: {task_path}")
         task_file = TaskFile.from_yaml(Path(task_path))
         for task in task_file.tasks:
+            if task.id in seen_ids:
+                continue
+            seen_ids.add(task.id)
             all_tasks.append((task_file.repo, task))
 
     click.echo(f"Validating {len(all_tasks)} tasks from {len(tasks)} file(s)")
@@ -634,6 +640,7 @@ def validate(tasks, parallel, verbose):
             progress_callback=progress_callback,
             use_cache=False,
             reference_clone=reference_clones.get(repo.url),
+            pre_validation_timeout=timeout,
         )
         workspace = runner._setup_workspace(task, Condition.NONE, rep=0)
         error = None
