@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "c32f00df5f1d",
+  "session_id": "c2128dd1-0a90-4e1f-83d3-420fe0287750",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T00:06:03.961821Z",
+  "branch": "fix/eval-harness-run4-prep",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "eval-harness/docs/reference/agentbench-harness"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "19898e08-271d-4899-ab93-766e0f9d40ca",
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 101693,
+    "cache_read_tokens": 2700137,
+    "output_tokens": 691,
+    "api_call_count": 32
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T00:06:03.704946Z",
+    "agent_lines": 0,
+    "human_added": 660,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 660,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-ryo-dev-intent-layer/c2128dd1-0a90-4e1f-83d3-420fe0287750.jsonl"
+}

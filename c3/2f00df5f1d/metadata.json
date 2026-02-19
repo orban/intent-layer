@@ -3,7 +3,7 @@
   "checkpoint_id": "c32f00df5f1d",
   "strategy": "manual-commit",
   "branch": "fix/eval-harness-run4-prep",
-  "checkpoints_count": 9,
+  "checkpoints_count": 12,
   "files_touched": [
     "eval-harness/docs/reference/agentbench-harness",
     "eval-harness/lib/cli.py",
@@ -78,13 +78,20 @@
       "context": "/c3/2f00df5f1d/3/context.md",
       "content_hash": "/c3/2f00df5f1d/3/content_hash.txt",
       "prompt": "/c3/2f00df5f1d/3/prompt.txt"
+    },
+    {
+      "metadata": "/c3/2f00df5f1d/4/metadata.json",
+      "transcript": "/c3/2f00df5f1d/4/full.jsonl",
+      "context": "/c3/2f00df5f1d/4/context.md",
+      "content_hash": "/c3/2f00df5f1d/4/content_hash.txt",
+      "prompt": "/c3/2f00df5f1d/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 8909,
-    "cache_creation_tokens": 755557,
-    "cache_read_tokens": 50804341,
-    "output_tokens": 14129,
-    "api_call_count": 416
+    "input_tokens": 8949,
+    "cache_creation_tokens": 857250,
+    "cache_read_tokens": 53504478,
+    "output_tokens": 14820,
+    "api_call_count": 448
   }
 }
