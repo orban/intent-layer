@@ -1806,3 +1806,555 @@ Summary:
 
 If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/feb9e237-3ee9-400e-b404-2e27f664a68a.jsonl
 Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+but that doesn't actually test the plugin
+
+---
+
+<task-notification>
+<task-id>a02be6b</task-id>
+<tool-use-id>toolu_01XmakXbT5s9oyLWBozsYfg9</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore graphiti_core directory" completed</summary>
+<result>Perfect! Now I have enough information to write a comprehensive AGENTS.md. Let me create a structured analysis document:
+
+## Comprehensive Analysis of graphiti_core/
+
+Based on my deep exploration of the graphiti_core directory, here's the structured analysis for your AGENTS.md:
+
+### **Top-Level Structure**
+
+The graphiti_core/ directory is organized as:
+- **graphiti.py** (63KB) - Main Graphiti class orchestrating all functionality
+- **nodes.py** (35KB) - Core node data model with EpisodeType enum and node classes
+- **edges.py** (33KB) - Core edge data model and edge types
+- **helpers.py** - Utility functions (group_id validation, semaphore_gather, lucene_sanitize, normalize_l2, parse_db_date)
+- **graph_queries.py** - Database-agnostic query generation for Neo4j/FalkorDB/Kuzu
+- **errors.py** - Custom exception hierarchy (EdgeNotFoundError, NodeNotFoundError, EntityTypeValidationError, GroupIdValidationError, etc.)
+- **graphiti_types.py** - GraphitiClients Pydantic model (driver, llm_client, embedder, cross_encoder, tracer)
+- **decorators.py** - handle_multiple_group_ids decorator for FalkorDB multi-partition support
+- **tracer.py** - OpenTelemetry tracing support
+- **Subdirectories:**
+  - driver/ - Graph database drivers (Neo4j, FalkorDB, Neptune, Kuzu)
+  - llm_client/ - LLM provider integrations (OpenAI, Anthropic, Gemini, Groq, Azure)
+  - embedder/ - Embedding clients (OpenAI, Voyage)
+  - search/ - Hybrid search (semantic + keyword + graph traversal)
+  - utils/ - Bulk operations, maintenance, chunking, datetime handling
+  - prompts/ - LLM prompt templates for extraction/dedup/summarization
+  - models/ - Database query builders
+  - cross_encoder/ - Reranking clients
+  - namespaces/ - NodeNamespace, EdgeNamespace for API
+  - migrations/ - Database schema migrations
+  - telemetry/ - Event capture
+
+### **Contracts & Invariants**
+
+1. **Group IDs are critical boundaries:**
+   - Must contain only alphanumeric, dashes, underscores (validated in helpers.validate_group_id)
+   - Empty string is valid (default for most providers)
+   - FalkorDB uses '_' as default instead of empty string
+   - When group_id provided, driver is cloned with that ID as database name
+   - Invariant: all nodes/edges in a graph partition must share the same group_id
+
+2. **Node UUIDs and Edge UUIDs are globally unique:**
+   - Used in deduplication logic (resolve_extracted_nodes, resolve_extracted_edges)
+   - Cannot be reused across different entity relationships
+   - add_triplet will generate a new UUID if edge UUID exists but with different src/dst nodes (commit 6773dd2)
+
+3. **Episode timestamps are bi-temporal:**
+   - created_at: when the episode was ingested (immutable)
+   - valid_at (reference_time): when the event occurred (temporal validity marker)
+   - Invariant: valid_at should be <= created_at in most cases
+
+4. **Entity deduplication requires previous episodes context:**
+   - resolve_extracted_nodes looks at RELEVANT_SCHEMA_LIMIT (search_utils) previous episodes
+   - Uses semantic search + LLM similarity to find candidates
+   - Without previous episodes context, every extraction creates new nodes
+
+5. **Custom entity types must define valid attributes:**
+   - Pydantic model definitions checked in validate_entity_types
+   - Cannot use protected attribute names (validated in errors.EntityTypeValidationError)
+   - excluded_entity_types filters out entire entity types from graph (including 'Entity')
+
+6. **Edge type signatures are per-node-pair:**
+   - edge_type_map: dict[tuple[str, str], list[str]] maps (src_type, dst_type) → edge_type_names
+   - Same edge type can appear for multiple node pairs
+   - All signatures must be preserved when same edge type used for (User, Person) and (Person, Person) (commit 45a3d92)
+
+7. **Content chunking only applies to large entity-dense content:**
+   - CHUNK_MIN_TOKENS (1000) threshold - short content never chunks
+   - CHUNK_DENSITY_THRESHOLD (0.15) - only chunks if density exceeds threshold
+   - Preserves context for narrative/prose while targeting failure case of large entity-dense inputs
+
+8. **Embeddings are lazy-generated:**
+   - Nodes have name_embedding (on-demand generation)
+   - Edges have fact_embedding (on-demand generation)
+   - Must be generated before save() for bulk operations
+   - add_triplet explicitly generates missing embeddings
+
+### **Key Import Boundaries & Dependencies**
+
+1. **graphiti.py imports and orchestrates everything:**
+   - Imports from: nodes, edges, driver, llm_client, embedder, cross_encoder, search, utils/maintenance, prompts, tracer
+   - Exports: Graphiti, AddEpisodeResults, AddBulkEpisodeResults, AddTripletResults
+   - Responsibility: add_episode, add_episode_bulk, add_triplet, retrieve_episodes, search operations, community building
+
+2. **nodes.py and edges.py are independent but interdependent:**
+   - Both depend on: driver, embedder, helpers, datetime_utils
+   - edges.py imports Node class but not vice versa (unidirectional)
+   - Node subclasses: Entity, Episodic, Community, Saga
+   - Edge subclasses: Entity, Episodic, HasEpisode, NextEpisode, Community
+
+3. **utils/maintenance/ is the extraction pipeline:**
+   - node_operations.py: extract_nodes → resolve_extracted_nodes → extract_attributes_from_nodes
+   - edge_operations.py: extract_edges → resolve_extracted_edges → extract_edges (for attributes)
+   - community_operations.py: build_communities → update_community → remove_communities
+   - bulk_utils.py: orchestrates all above for bulk processing
+   - dedup_helpers.py: shared dedup logic (build_candidate_indexes, resolve_with_similarity)
+
+4. **driver/driver.py is the abstraction layer:**
+   - GraphDriver interface with execute_query, get_by_uuid, etc.
+   - Providers: Neo4j, FalkorDB, Neptune, Kuzu
+   - Provider-specific operations via graph_operations_interface (recent architecture redesign in commit 99923c0)
+   - Fallback to base implementation if provider operations raise NotImplementedError
+
+5. **llm_client/ and embedder/ are pluggable:**
+   - LLMClient has unified interface across providers
+   - EmbedderClient has unified embedding interface
+   - Token tracking via LLMClient.token_tracker
+   - Cross-encoder for reranking
+
+6. **search/ is built on GraphDriver queries:**
+   - search() function accepts SearchConfig with strategies (keyword, semantic, graph_distance, cross-encoder reranking)
+   - Returns SearchResults with nodes and edges
+   - Hybrid search combines multiple strategies with RRF or custom scoring
+
+7. **models/edges and models/nodes generate database queries:**
+   - Named queries per edge/node type and provider (edge_db_queries.py, node_db_queries.py)
+   - Bulk save queries for performance
+   - Provider-specific return formats (Neo4j vs FalkorDB vs Kuzu vs Neptune)
+
+### **Pitfalls from Git History**
+
+1. **CVE in diskcache (commit bde2f79):**
+   - diskcache <=5.6.3 has unsafe pickle deserialization with no patch
+   - Replaced with SQLite+JSON cache in llm_client/cache.py
+   - Lesson: Cache implementation should only store JSON-serializable data
+
+2. **Custom edge attributes not extracted on first episode (commit c1afd8b):**
+   - resolve_extracted_edge() had fast path returning early when no existing edges
+   - Skipped LLM attribute extraction for edges in first episode
+   - Lesson: Custom ontology attributes need explicit extraction call even for new edges
+
+3. **add_triplet overwrites edges with wrong src/dst (commit 6773dd2):**
+   - If edge UUID provided but src/dst nodes differ, would silently overwrite
+   - Now generates new UUID to preserve original edge
+   - Lesson: Always validate existence constraints before updates
+
+4. **Edge type signatures lost when type reused (commit 45a3d92):**
+   - Dict comprehension in edge_type_signature_map overwrote when same type for multiple node pairs
+   - Changed to edge_type_signatures_map (plural) with list of all valid signatures
+   - Lesson: Use lists for mappings when one-to-many relationships exist
+
+5. **FalkorDB fulltext search needs character escaping (commits ec10855, 45882dd):**
+   - RediSearch requires escaping pipe, slash, AND, OR, NOT in queries
+   - lucene_sanitize() handles this for most chars but note special cases
+   - Lesson: Database-specific syntax rules (lucene vs cypher vs SQL) differ subtly
+
+6. **Graph driver architecture recently redesigned (commit 99923c0):**
+   - Introduced graph_operations_interface for provider-specific operations
+   - Fallback pattern: try provider operations, catch NotImplementedError, use base implementation
+   - Lesson: New driver features should use try/except fallback rather than if/else checks
+
+7. **PII in log messages (commit 7985997):**
+   - Episode content and other user data can leak in logs
+   - Lesson: Sanitize before logging; use sparse logging for sensitive operations
+
+8. **Database name hardcoding (CLAUDE.md):**
+   - Neo4j defaults to 'neo4j' database (hardcoded in Neo4jDriver)
+   - FalkorDB defaults to 'default_db'
+   - Must override via driver constructor or pass as group_id
+   - Lesson: Document database name behavior clearly
+
+### **Common Patterns & Best Practices**
+
+1. **Always await node/edge resolution:**
+   - resolve_extracted_nodes, resolve_extracted_edges use LLM similarity and search
+   - Can take seconds; must be awaited in correct order (nodes before edges)
+
+2. **Bulk operations are faster than individual saves:**
+   - add_nodes_and_edges_bulk batches saves in single DB transaction
+   - add_episode calls this once with all nodes/edges
+   - add_triplet also uses bulk save
+
+3. **Episode context is critical for dedup:**
+   - retrieve_episodes called with reference_time and RELEVANT_SCHEMA_LIMIT
+   - Without previous episodes, dedup has no context
+   - previous_episode_uuids can be provided explicitly (optimization for bulk add)
+
+4. **Custom extraction instructions flow through the pipeline:**
+   - custom_extraction_instructions parameter in add_episode
+   - Appended to extract_nodes and extract_edges prompts
+   - Allows task-specific guidance without redefining entity/edge types
+
+5. **Sagas chain episodes sequentially:**
+   - saga name (str) or SagaNode object passed to add_episode
+   - Creates HAS_EPISODE edges from saga to episode
+   - NEXT_EPISODE edges link consecutive saga episodes
+   - saga_previous_episode_uuid optimization: reuse prior episode's UUID for next episode in saga
+
+6. **Group IDs enable multi-tenant graphs:**
+   - handle_multiple_group_ids decorator automatically fans out to multiple FalkorDB partitions
+   - Each group_id creates independent node/edge namespace
+   - Allows safe multi-user/multi-project scenarios
+
+### **File Responsibilities Summary**
+
+| File | Responsibility | Key Functions |
+|------|---|---|
+| graphiti.py | Main orchestrator | add_episode, add_triplet, add_episode_bulk, search, retrieve_episodes, build_communities |
+| nodes.py | Node model & types | Node (abstract), EntityNode, EpisodicNode, CommunityNode, SagaNode, EpisodeType enum |
+| edges.py | Edge model & types | Edge (abstract), EntityEdge, EpisodicEdge, HasEpisodeEdge, NextEpisodeEdge, CommunityEdge |
+| helpers.py | Common utilities | validate_group_id, semaphore_gather, parse_db_date, lucene_sanitize, normalize_l2, get_default_group_id |
+| errors.py | Exception types | GraphitiError, NodeNotFoundError, EdgeNotFoundError, EntityTypeValidationError, GroupIdValidationError |
+| decorators.py | Multi-partition logic | handle_multiple_group_ids (for FalkorDB) |
+| graph_queries.py | DB-agnostic queries | get_range_indices, get_fulltext_indices, get_nodes_query (Neo4j/FalkorDB/Kuzu) |
+| utils/bulk_utils.py | Batch processing | add_nodes_and_edges_bulk, extract_nodes_and_edges_bulk, dedupe_nodes_bulk, dedupe_edges_bulk |
+| utils/maintenance/node_operations.py | Node extraction | extract_nodes, resolve_extracted_nodes, extract_attributes_from_nodes |
+| utils/maintenance/edge_operations.py | Edge extraction | extract_edges, resolve_extracted_edges, resolve_extracted_edge, build_episodic_edges |
+| utils/maintenance/community_operations.py | Community management | build_communities, update_community, remove_communities |
+| utils/datetime_utils.py | Time handling | utc_now, ensure_utc, convert_datetimes_to_strings |
+| utils/content_chunking.py | Text splitting | should_chunk, estimate_tokens (for entity-dense content) |
+| utils/text_utils.py | Text processing | truncate_at_sentence |
+| driver/driver.py | Database abstraction | GraphDriver interface, execute_query, get_by_uuid, batch operations |
+| llm_client/client.py | LLM operations | extract_entities, extract_edges, dedupe_nodes (unified interface) |
+| embedder/embedder.py | Embedding generation | generate embeddings for nodes and edges |
+| search/search.py | Hybrid retrieval | search (combines keyword, semantic, graph distance, reranking) |
+| models/nodes/node_db_queries.py | Node DB queries | get_entity_node_save_query, get_entity_node_return_query (per-provider) |
+| models/edges/edge_db_queries.py | Edge DB queries | get_entity_edge_save_query, get_entity_edge_return_query (per-provider) |
+
+This analysis provides the operational knowledge needed for agents to fix bugs, extend functionality, or optimize performance in graphiti_core.</result>
+<usage>total_tokens: 73786
+tool_uses: 65
+duration_ms: 150492</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a02be6b.output
+
+---
+
+<task-notification>
+<task-id>a87901b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore ansible module_utils" completed</summary>
+<result>Perfect. Now I have enough information to write a comprehensive AGENTS.md. Let me compile the analysis:
+
+## Comprehensive Analysis of `lib/ansible/module_utils/`
+
+Based on my exploration of the ansible repository, here's a structured analysis for the `lib/ansible/module_utils/` directory:
+
+### Directory Contents & Key Files
+
+The `lib/ansible/module_utils/` directory contains utilities shipped to remote machines as part of module execution. Key structure:
+
+- **basic.py** (2210 lines) - The core AnsibleModule class. This is the foundation for all Python modules.
+- **_text.py** - Deprecated text conversion imports (now in common/text/converters.py)
+- **common/** (11 modules) - Shared utilities:
+  - `text/converters.py` - to_bytes, to_text, to_native, jsonify (encoding aware, supports surrogateescape)
+  - `text/formatters.py` - human_to_bytes, bytes_to_human, SIZE_RANGES
+  - `arg_spec.py` - ModuleArgumentSpecValidator, ValidationResult
+  - `parameters.py` - Type validators, fallback handlers, parameter defaults (PASS_VARS, PASS_BOOLS)
+  - `validation.py` - check_type_* functions (str, int, bool, bytes, list, dict, path, etc.)
+  - `collections.py` - is_iterable, recursive utilities
+  - `warnings.py` - deprecate, warn, get_warnings, get_deprecations
+  - `file.py` - PERM_BITS, is_executable, format_attributes
+  - `sys_info.py` - get_distribution, get_platform_subclass
+  - `json.py` - JSON encoding/decoding with DataTag support
+  - `yaml.py` - Safe YAML loading
+  - `network.py` - is_mac, to_masklen, etc.
+- **parsing/** - convert_bool.py (BOOLEANS_TRUE, BOOLEANS_FALSE, boolean())
+- **facts/** (12 subdirs) - System fact collection (hardware, network, system, virtual, etc.)
+- **errors.py** - Exception hierarchy (AnsibleValidationError, RequiredError, ArgumentTypeError, etc.)
+- **urls.py** - HTTP utilities
+- **compat/** (5 modules) - Compatibility shims (selinux, paramiko, typing, version)
+- **distro/** - OS distribution detection
+- **_internal/** (internal only) - NOT shipped, controller-only
+  - AnsiballZ (module encapsulation)
+  - Debugging, deprecation, tracing infrastructure
+
+### Critical Isolation Boundary
+
+**This is non-negotiable: module_utils is shipped to remote machines.**
+
+Each module_utils file has strict import constraints:
+
+```
+✅ ALLOWED:
+- Standard library only (sys, os, re, json, subprocess, etc.)
+- ansible.module_utils.* (imports from within module_utils)
+- ansible.module_utils.compat.* (compatibility shims)
+
+❌ FORBIDDEN:
+- ansible.* (except ansible.module_utils)
+- ansible.parsing, ansible.plugins, ansible.inventory, etc.
+- External dependencies
+- Controller-side code
+```
+
+**Why:** module_utils files are serialized into a zip archive by AnsiballZ and sent to remote machines where there's no Ansible installation. They must be completely self-contained.
+
+### Key Contracts & Invariants
+
+#### AnsibleModule Initialization
+```python
+module = AnsibleModule(
+    argument_spec={
+        'param_name': {
+            'type': 'str',  # see validation.py for all types
+            'required': False,
+            'default': None,
+            'choices': [...],
+            'aliases': [...],
+            'no_log': False,  # password-like params
+        },
+    },
+    supports_check_mode=False,
+    mutually_exclusive=[['opt1', 'opt2']],
+    required_together=[['opt3', 'opt4']],
+    required_one_of=[['opt5', 'opt6']],
+    required_if=[('state', 'present', ['name'])],
+    required_by={'advanced': ['base']},
+)
+```
+
+- **argument_spec validation happens in __init__** - errors trigger fail_json automatically
+- **module.params** - validated dict of parameters (type-coerced)
+- **module.check_mode** - true if running with ansible-playbook -C
+- **module.check_mode + not supports_check_mode** → module exits with skipped=True
+
+#### Return Value Contracts
+```python
+# Success
+module.exit_json(changed=True, result={'key': 'value'})
+
+# Failure
+module.fail_json(msg='Error message', exception=e)
+
+# Both accept kwargs that become JSON keys
+# Special keys:
+#   changed - bool (required for idempotency)
+#   failed - bool (set automatically by fail_json)
+#   msg - str (human-readable message)
+```
+
+**Invariant:** Every exit path must call exit_json() or fail_json() - these are NoReturn functions that call sys.exit().
+
+#### run_command() Contract
+```python
+rc, stdout, stderr = module.run_command(
+    args,  # str or list
+    check_rc=True,  # fail if rc != 0
+    encoding='utf-8',  # text output or None for bytes
+    errors='surrogate_or_strict',  # encoding error handler
+    data='stdin text',  # stdin to send
+    cwd='/tmp',  # working directory
+    environ_update={'VAR': 'value'},
+    use_unsafe_shell=False,  # only if unavoidable
+)
+```
+
+**Key invariants:**
+- If args is a string AND use_unsafe_shell=False, shlex.split() is called (must handle ValueError)
+- stdout/stderr are text by default, bytes if encoding=None
+- Invalid encoding will raise UnicodeDecodeError unless errors='surrogate_or_strict' or similar
+- PYTHONPATH is cleaned to remove ansible-modlib.zip
+
+### Parameter Type Validation
+
+All types defined in `common/validation.py`. Key patterns:
+
+```python
+# Type conversion happens automatically
+argument_spec = {
+    'count': {'type': 'int'},  # str "10" → int 10
+    'enabled': {'type': 'bool'},  # yes/no/true/false → True/False
+    'path': {'type': 'path'},  # expands ~ and environment vars
+    'size': {'type': 'str'},  # no conversion
+    'items': {'type': 'list', 'elements': 'str'},  # list of strings
+    'config': {'type': 'dict', 'options': {...}},  # nested validation
+    'raw_data': {'type': 'raw'},  # passed through unchanged
+}
+```
+
+**Validation order:**
+1. Type coercion (str → int, etc.)
+2. Element validation (if list/dict)
+3. Constraint checking (required, mutually_exclusive, etc.)
+4. Deprecation warnings collected
+5. All errors reported together via AnsibleValidationErrorMultiple
+
+### Text Encoding & Conversion
+
+Three core converters in `common/text/converters.py`:
+
+```python
+# to_text: bytes/str → str (text)
+text = to_text(b'bytes', encoding='utf-8', errors='surrogate_or_strict')
+
+# to_bytes: anything → bytes
+data = to_bytes('text', encoding='utf-8')
+
+# to_native: bytes/str → str (always unicode in Py3)
+native = to_native(value)
+```
+
+**Error handlers:**
+- `surrogate_or_strict` - tries surrogateescape, falls back to strict (UnicodeError)
+- `surrogate_or_replace` - tries surrogateescape, falls back to replace (loses data)
+- `surrogate_then_replace` - tries surrogateescape, replaces surrogates, then replace (never fails)
+
+**Critical pattern:** Modules receiving user input should use `surrogate_or_strict` or `surrogate_then_replace` to avoid tracebacks on invalid UTF-8.
+
+### Parsing & Boolean Conversion
+
+```python
+from ansible.module_utils.parsing.convert_bool import boolean, BOOLEANS_TRUE, BOOLEANS_FALSE
+
+# Accepts: y, yes, on, 1, true, t, 1.0, True
+# Rejects: n, no, off, 0, false, f, 0.0, False
+# Raises TypeError for invalid values (unless strict=False)
+
+is_enabled = boolean(user_input, strict=True)
+```
+
+### Human-Readable Size Conversion
+
+```python
+from ansible.module_utils.common.text.formatters import human_to_bytes, bytes_to_human, SIZE_RANGES
+
+# Parse human sizes
+bytes_val = human_to_bytes('4MB')  # 4194304
+bytes_val = human_to_bytes('4Mb', isbits=True)  # 4194304 bits as int
+bytes_val = human_to_bytes('1K', default_unit='M')  # 1048576 (K=kilos, default unit=M)
+
+# Format as human-readable
+human = bytes_to_human(1048576)  # "1.00 MBytes"
+human = bytes_to_human(1048576, isbits=True)  # "1.00 Mbits"
+
+# SIZE_RANGES: {'Y': 1<<80, 'Z': 1<<70, ..., 'K': 1<<10, 'B': 1}
+```
+
+**Validation:** human_to_bytes(arg, isbits=False) validates unit format:
+- bytes: 'KB', 'MB', 'GB', etc. (uppercase B)
+- bits: 'Kb', 'Mb', 'Gb', etc. (lowercase b)
+- Invalid: 'Mb' when isbits=False raises ValueError
+
+### Facts Collection System
+
+`facts/ansible_collector.py` runs system fact collection:
+- Hardware facts (CPU, memory, mounts, etc.)
+- Network facts (interfaces, IPv4/IPv6, etc.)
+- System facts (distribution, kernel, hostname, etc.)
+- Virtual facts (VM type detection)
+
+**Pattern:** Fact collectors are organized by subdirectory (hardware/, network/, system/, virtual/) and inherit from BaseFactCollector. Used by setup module to gather system state.
+
+### Common Pitfalls (from Recent Commits)
+
+**1. human_to_bytes() signature mismatch (commit 13a7393cfe)**
+- Problem: AnsibleModule.human_to_bytes() didn't pass new `default_unit` parameter
+- Symptom: Missing parameter errors when calling with positional args
+- Solution: Use keyword arguments, or ensure wrapper passes all params through
+
+**2. run_command() with invalid shell syntax (commit 8d07ed6318)**
+- Problem: shlex.split() raises ValueError on unmatched quotes
+- Symptom: Module crashes with traceback instead of controlled fail_json
+- Solution: Wrap shlex.split() in try/except ValueError, call fail_json on error
+
+**3. None value handling in str parameters (commit e3c9908679)**
+- Problem: Passing None to str argspec was treated as error before 2.19
+- Symptom: Validation error on optional str params with None value
+- Solution: Now None coalesces to empty string in str validation (backward compatible)
+
+**4. Encoding issues with subprocess output**
+- Problem: run_command() by default decodes with utf-8; invalid UTF-8 causes UnicodeDecodeError
+- Symptom: Module crashes on non-UTF8 output (grep with binary files, etc.)
+- Solution: Use encoding=None for bytes output, or errors='surrogate_or_strict'
+
+**5. PYTHONPATH pollution in run_command()**
+- Problem: Subprocesses can import from ansible_modlib.zip unexpectedly
+- Symptom: Child processes use wrong module versions
+- Solution: run_command() strips ansible_modlib.zip and debug_dir from PYTHONPATH automatically
+
+**6. Parameter validation timing**
+- Problem: Developers expect validation to happen lazily; it's actually in __init__
+- Symptom: Invalid params cause exit before first line of module code
+- Solution: Design modules knowing validation happens immediately in __init__
+
+**7. Check mode + no support**
+- Problem: Module doesn't declare supports_check_mode=True
+- Symptom: Modules run in check mode fail with skipped=True automatically
+- Solution: Set supports_check_mode=True if your module can handle it
+
+### Import Patterns
+
+**Safe imports:**
+```python
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.common.text.converters import to_text, to_bytes, to_native
+from ansible.module_utils.common.validation import check_type_str, check_type_int
+from ansible.module_utils.parsing.convert_bool import boolean
+from ansible.module_utils.common.text.formatters import human_to_bytes
+from ansible.module_utils.facts import ansible_collector
+```
+
+**Dangerous (not shipped to remote):**
+```python
+# ❌ These will fail on target:
+from ansible.plugins import ...
+from ansible.inventory import ...
+from ansible.parsing import ...
+from ansible.executor import ...
+from ansible.cli import ...
+```
+
+### License & Compatibility
+
+- **License:** BSD-2-Clause (more permissive than core's GPLv3)
+- **Python:** 3.9+ (minimum in _PY_MIN at top of basic.py)
+- **Encoding:** Always assume UTF-8 preferred, but handle arbitrary bytes gracefully
+
+---
+
+**Generated from exploration of ansible/devel at commit range 52778e9..13a7393cfe (February 2026)**</result>
+<usage>total_tokens: 72703
+tool_uses: 62
+duration_ms: 145180</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a87901b.output
+
+---
+
+2
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Don't just invoke it in the directories we know need coverage, you're contaminating the test results. We have the TEST THE PLUGIN
+
+---
+
+[Request interrupted by user]
+
+---
+
+run the explorer agent from the root of the directory so it can create child nodes as it deems necessary
+
+---
+
+commit, then run an eval
