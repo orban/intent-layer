@@ -9,6 +9,7 @@ from typing import Any
 
 from lib.task_runner import TaskResult, Condition
 from lib.stats import wilson_score_interval, ci_overlap, mcnemar_test
+from lib.budget import fmt_tokens
 
 
 @dataclass
@@ -17,6 +18,7 @@ class EvalResults:
     timestamp: str
     results: list[dict[str, Any]]
     summary: dict[str, Any]
+    budget: dict[str, Any] | None = None
 
 
 class Reporter:
@@ -24,12 +26,20 @@ class Reporter:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def compile_results(self, results: list[TaskResult]) -> EvalResults:
+    def compile_results(
+        self,
+        results: list[TaskResult],
+        preflight_budget: dict | None = None,
+        postflight_budget: dict | None = None,
+    ) -> EvalResults:
         """Compile task results into structured eval results.
 
         When repetitions > 1, groups multiple runs of the same task+condition
         and reports medians for efficiency metrics alongside success rates.
         Individual runs are preserved in a "runs" array.
+
+        Budget snapshots (preflight/postflight) are passed in from cli.py —
+        this module never shells out to external tools.
         """
         # Group by (task_id, condition) — allows multiple runs per pair
         grouped: dict[str, dict[str, list[TaskResult]]] = {}
@@ -64,11 +74,22 @@ class Reporter:
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         eval_id = datetime.now().strftime("%Y-%m-%d-%H%M%S")
 
+        # Build budget snapshot: total tokens consumed + nightshift before/after
+        total_tokens = sum(r.input_tokens + r.output_tokens for r in results)
+        budget_data: dict[str, Any] | None = None
+        if total_tokens > 0:
+            budget_data = {"total_tokens_consumed": total_tokens}
+            if preflight_budget:
+                budget_data["nightshift_remaining_before"] = preflight_budget.get("remaining_tokens")
+            if postflight_budget:
+                budget_data["nightshift_remaining_after"] = postflight_budget.get("remaining_tokens")
+
         return EvalResults(
             eval_id=eval_id,
             timestamp=timestamp,
             results=compiled,
-            summary=summary
+            summary=summary,
+            budget=budget_data,
         )
 
     def _serialize_single_result(self, r: TaskResult) -> dict:
@@ -619,6 +640,28 @@ class Reporter:
                     f"{data['a_wins']} | {data['b_wins']} | "
                     f"{data['p_value']:.3f} | {sig} |"
                 )
+
+        # Budget Impact section (when budget data is available)
+        if results.budget:
+            try:
+                b = results.budget
+                total = b.get("total_tokens_consumed", 0)
+
+                lines += ["", "", "## Budget Impact", "", f"- **Total tokens consumed:** {fmt_tokens(total)}"]
+
+                before = b.get("nightshift_remaining_before")
+                if isinstance(before, (int, float)):
+                    lines.append(f"- **Nightshift remaining (before run):** {fmt_tokens(before)}")
+
+                after = b.get("nightshift_remaining_after")
+                if isinstance(after, (int, float)):
+                    lines.append(f"- **Nightshift remaining (after run):** {fmt_tokens(after)}")
+
+                if isinstance(before, (int, float)) and before > 0:
+                    pct = total / before * 100
+                    lines.append(f"- **Budget consumed by this run:** {pct:.1f}%")
+            except (TypeError, ValueError, KeyError):
+                pass  # Budget section is advisory — skip on any data issue
 
         with open(path, "w") as f:
             f.write("\n".join(lines))

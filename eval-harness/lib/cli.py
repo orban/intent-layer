@@ -19,6 +19,7 @@ from lib.stats import wilson_score_interval, ci_overlap
 from lib.git_scanner import GitScanner
 from lib.git_ops import clone_repo, checkout_commit
 from lib.index_cache import IndexCache
+from lib.budget import check_budget, get_budget_status, refresh_budget_snapshot, fmt_tokens
 
 
 # Thread-safe print lock for progress output
@@ -425,6 +426,13 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     if verbose:
         click.echo("Verbose mode: showing detailed progress", err=True)
 
+    # Pre-flight budget check (advisory — never blocks the run)
+    # Single get_budget_status() call — reused for check_budget and post-run comparison
+    preflight_budget = get_budget_status()
+    budget_warning = check_budget(len(work_queue), status=preflight_budget)
+    if budget_warning:
+        click.echo(f"\n\u26a0 {budget_warning}\n")
+
     workspaces_dir = Path("workspaces")
     results = []
     progress_callback = _make_progress_callback(verbose)
@@ -507,6 +515,12 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         )
         return runner.run(task, condition, model=model, rep=rep)
 
+    # Mid-run budget tracking state
+    budget_threshold = None
+    if preflight_budget and preflight_budget.get("remaining_tokens"):
+        budget_threshold = int(preflight_budget["remaining_tokens"] * 0.8)
+    budget_warned = False
+
     with ThreadPoolExecutor(max_workers=parallel) as executor:
         futures = {executor.submit(run_single, item): item for item in work_queue}
 
@@ -561,9 +575,22 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     for l in tail:
                         click.echo(f"      {l}", err=True)
 
-    # Generate reports
+            # Mid-run budget checkpoint (one-time warning)
+            if budget_threshold and not budget_warned and preflight_budget:
+                cumulative_tokens = sum(r.input_tokens + r.output_tokens for r in results)
+                if cumulative_tokens > budget_threshold:
+                    rem_fmt = fmt_tokens(preflight_budget.get('remaining_tokens', 0))
+                    cum_fmt = fmt_tokens(cumulative_tokens)
+                    click.echo(f"\n\u26a0 Budget checkpoint: {cum_fmt} tokens consumed so far (est. remaining: {rem_fmt} at start)\n")
+                    refresh_budget_snapshot()
+                    budget_warned = True
+
+    # Generate reports — capture postflight budget in cli (not reporter)
+    postflight_budget = get_budget_status()
     reporter = Reporter(output)
-    eval_results = reporter.compile_results(results)
+    eval_results = reporter.compile_results(
+        results, preflight_budget=preflight_budget, postflight_budget=postflight_budget
+    )
 
     # Merge with prior results if resuming
     if prior_data is not None:
