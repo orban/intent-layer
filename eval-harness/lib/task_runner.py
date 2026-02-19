@@ -3,12 +3,9 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
-import os
 import re
 import subprocess
-import tempfile
 import shutil
-import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -44,6 +41,9 @@ PRE_VALIDATION_TIMEOUT = 180
 # to pre-validation — if tests don't finish in this window, they're broken.
 POST_TEST_TIMEOUT = 180
 TEST_HEARTBEAT_INTERVAL = 20
+
+# Intent Layer plugin root — two levels up from lib/task_runner.py
+PLUGIN_ROOT = str(Path(__file__).resolve().parents[2])
 
 
 class PreValidationCache:
@@ -83,7 +83,10 @@ class PreValidationCache:
 
         if not is_first:
             # Wait for the first caller to finish
-            event.wait(timeout=PRE_VALIDATION_TIMEOUT + 60)
+            if not event.wait(timeout=PRE_VALIDATION_TIMEOUT + 60):
+                raise PreValidationError(
+                    f"Pre-validation timed out waiting for another thread (key={key})"
+                )
             with self._lock:
                 if key in self._errors:
                     orig = self._errors[key]
@@ -131,6 +134,7 @@ class TaskResult:
     tool_calls: int
     lines_changed: int
     files_touched: list[str]
+    rep: int = 0
     skill_generation: SkillGenerationMetrics | None = None
     agents_files_read: list[str] | None = None
     error: str | None = None
@@ -623,7 +627,7 @@ class TaskRunner:
         """Execute a single task under the given condition."""
         cond_str = condition.value
         self._progress(task.id, cond_str, "setup", "creating workspace")
-        workspace = self._setup_workspace(task, condition, rep=rep)
+        workspace = self.setup_workspace(task, condition, rep=rep)
 
         try:
             # Setup: clone and checkout
@@ -751,14 +755,13 @@ class TaskRunner:
             # - SessionStart: injects learnings, pending mistakes, and
             #   resolved project context
             if condition == Condition.INTENT_LAYER:
-                plugin_root = str(Path(__file__).resolve().parents[2])
                 hooks_config = {
                     "hooks": {
                         "PreToolUse": [{
                             "matcher": "Edit|Write|NotebookEdit",
                             "hooks": [{
                                 "type": "command",
-                                "command": f"{plugin_root}/scripts/pre-edit-check.sh",
+                                "command": f"{PLUGIN_ROOT}/scripts/pre-edit-check.sh",
                                 "timeout": 10,
                             }]
                         }],
@@ -766,7 +769,7 @@ class TaskRunner:
                             "matcher": "",
                             "hooks": [{
                                 "type": "command",
-                                "command": f"{plugin_root}/scripts/inject-learnings.sh",
+                                "command": f"{PLUGIN_ROOT}/scripts/inject-learnings.sh",
                                 "timeout": 15,
                             }]
                         }],
@@ -792,7 +795,7 @@ class TaskRunner:
             self._progress(task.id, cond_str, "claude", f"running Claude to fix the bug... (tail -f {fix_log})")
             fix_extra_env = None
             if condition == Condition.INTENT_LAYER:
-                fix_extra_env = {"CLAUDE_PLUGIN_ROOT": str(Path(__file__).resolve().parents[2])}
+                fix_extra_env = {"CLAUDE_PLUGIN_ROOT": PLUGIN_ROOT}
             claude_result = run_claude(workspace, prompt, timeout=self.claude_timeout,
                                        model=model, stderr_log=str(fix_log),
                                        extra_env=fix_extra_env)
@@ -818,6 +821,7 @@ class TaskRunner:
                     tool_calls=0,
                     lines_changed=0,
                     files_touched=[],
+                    rep=rep,
                     error=(
                         f"[empty-run] Claude produced no output "
                         f"(exit_code={claude_result.exit_code}, "
@@ -840,6 +844,7 @@ class TaskRunner:
                     tool_calls=claude_result.tool_calls,
                     lines_changed=0,
                     files_touched=[],
+                    rep=rep,
                     error=(
                         f"[timeout] Claude timed out after "
                         f"{claude_result.wall_clock_seconds:.1f}s"
@@ -898,6 +903,7 @@ class TaskRunner:
                 tool_calls=claude_result.tool_calls,
                 lines_changed=diff_stats.lines_changed,
                 files_touched=diff_stats.files,
+                rep=rep,
                 skill_generation=skill_metrics,
                 agents_files_read=agents_files_read,
                 exit_code=claude_result.exit_code,
@@ -915,6 +921,7 @@ class TaskRunner:
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
+                rep=rep,
                 error=f"[pre-validation] {e}"
             )
         except SkillGenerationError as e:
@@ -930,6 +937,7 @@ class TaskRunner:
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
+                rep=rep,
                 error=f"[skill-generation] {e}"
             )
         except Exception as e:
@@ -945,10 +953,11 @@ class TaskRunner:
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
+                rep=rep,
                 error=f"[infrastructure] {e}"
             )
 
-    def _setup_workspace(self, task: Task, condition: Condition, rep: int = 0) -> str:
+    def setup_workspace(self, task: Task, condition: Condition, rep: int = 0) -> str:
         """Create workspace directory for this run.
 
         Includes rep index in the path to avoid collisions when running

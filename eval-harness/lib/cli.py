@@ -281,6 +281,23 @@ def _make_progress_callback(verbose: bool):
     return callback
 
 
+def _create_reference_clones(
+    repo_urls: set[str], workspaces_dir: Path
+) -> dict[str, str]:
+    """Create one full network clone per unique repo for local hardlink clones."""
+    reference_clones: dict[str, str] = {}
+    reference_dir = workspaces_dir / ".references"
+    for repo_url in repo_urls:
+        repo_name = repo_url.split("/")[-1].replace(".git", "")
+        ref_path = reference_dir / repo_name
+        if not ref_path.exists():
+            click.echo(f"Creating reference clone for {repo_name}...")
+            ref_path.parent.mkdir(parents=True, exist_ok=True)
+            clone_repo(repo_url, str(ref_path), shallow=False)
+        reference_clones[repo_url] = str(ref_path)
+    return reference_clones
+
+
 @click.group()
 def main():
     """A/B/C eval harness for Claude skills."""
@@ -415,17 +432,8 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     # Phase 0: Create reference clones — one full network clone per unique repo.
     # Subsequent clones (warmup + task runs) use --local hardlinks from here,
     # turning ~5-10s network clones into <1s local copies.
-    reference_clones: dict[str, str] = {}
-    reference_dir = workspaces_dir / ".references"
     unique_repos = {repo.url for repo, _task in all_tasks}
-    for repo_url in unique_repos:
-        repo_name = repo_url.split("/")[-1].replace(".git", "")
-        ref_path = reference_dir / repo_name
-        if not ref_path.exists():
-            click.echo(f"Creating reference clone for {repo_name}...")
-            ref_path.parent.mkdir(parents=True, exist_ok=True)
-            clone_repo(repo_url, str(ref_path), shallow=False)
-        reference_clones[repo_url] = str(ref_path)
+    reference_clones = _create_reference_clones(unique_repos, workspaces_dir)
 
     # Shared pre-validation cache — identical Docker test runs across conditions
     # for the same task are deduplicated (saves ~16 Docker runs for 8 tasks x 3 conds).
@@ -521,6 +529,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     tool_calls=0,
                     lines_changed=0,
                     files_touched=[],
+                    rep=rep,
                     error=f"[worker-crash] {e}"
                 )
             results.append(result)
@@ -570,7 +579,6 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
     # Cleanup workspaces but preserve index cache
     if not keep_workspaces and workspaces_dir.exists():
-        import shutil
         cache_path = Path(cache_dir)
         # Move cache out, remove workspaces, move cache back
         tmp_cache = None
@@ -620,17 +628,8 @@ def validate(tasks, parallel, timeout, verbose):
     progress_callback = _make_progress_callback(verbose)
 
     # Create reference clones
-    reference_clones: dict[str, str] = {}
-    reference_dir = workspaces_dir / ".references"
     unique_repos = {repo.url for repo, _task in all_tasks}
-    for repo_url in unique_repos:
-        repo_name = repo_url.split("/")[-1].replace(".git", "")
-        ref_path = reference_dir / repo_name
-        if not ref_path.exists():
-            click.echo(f"Creating reference clone for {repo_name}...")
-            ref_path.parent.mkdir(parents=True, exist_ok=True)
-            clone_repo(repo_url, str(ref_path), shallow=False)
-        reference_clones[repo_url] = str(ref_path)
+    reference_clones = _create_reference_clones(unique_repos, workspaces_dir)
 
     def validate_one(item):
         repo, task = item
@@ -642,7 +641,7 @@ def validate(tasks, parallel, timeout, verbose):
             reference_clone=reference_clones.get(repo.url),
             pre_validation_timeout=timeout,
         )
-        workspace = runner._setup_workspace(task, Condition.NONE, rep=0)
+        workspace = runner.setup_workspace(task, Condition.NONE, rep=0)
         error = None
         test_passes_already = False
         try:

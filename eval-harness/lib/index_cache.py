@@ -1,5 +1,6 @@
 # lib/index_cache.py
 from __future__ import annotations
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 import json
@@ -205,7 +206,6 @@ class IndexCache:
             dst = cache_entry_dir / agents_file
             dst.parent.mkdir(parents=True, exist_ok=True)
             if src.exists():
-                import shutil
                 shutil.copy2(src, dst)
 
         # Update manifest (locked for parallel-warmup safety)
@@ -227,7 +227,6 @@ class IndexCache:
             entry: CacheEntry to restore from
             target_workspace: Path to workspace to restore files into
         """
-        import shutil
         cache_entry_dir = Path(entry.workspace_path)
         target_path = Path(target_workspace)
 
@@ -240,7 +239,6 @@ class IndexCache:
 
     def clear(self):
         """Clear all cached indexes."""
-        import shutil
         for entry in self.manifest.entries.values():
             entry_path = Path(entry.workspace_path)
             if entry_path.exists():

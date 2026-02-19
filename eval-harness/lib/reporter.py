@@ -75,6 +75,7 @@ class Reporter:
         """Serialize a single TaskResult to dict."""
         result = {
             "success": r.success,
+            "rep": r.rep,
             "test_output": r.test_output[:1000],  # Truncate
         }
 
@@ -356,7 +357,7 @@ class Reporter:
         from ordering within each (task_id, condition) group. Excludes
         pairs where either result is an infra error.
         """
-        # Group by (task_id, condition) preserving insertion order as rep index
+        # Group by (task_id, condition), sorted by rep for deterministic pairing
         grouped: dict[str, dict[str, list[TaskResult]]] = {}
         for r in results:
             if r.task_id not in grouped:
@@ -365,6 +366,9 @@ class Reporter:
             if cond not in grouped[r.task_id]:
                 grouped[r.task_id][cond] = []
             grouped[r.task_id][cond].append(r)
+        for conditions in grouped.values():
+            for runs in conditions.values():
+                runs.sort(key=lambda r: r.rep)
 
         comparisons = [
             ("flat_llm", "none"),
