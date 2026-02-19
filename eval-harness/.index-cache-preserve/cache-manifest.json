@@ -52,11 +52,15 @@
       "created_at": "2026-02-17T22:25:00Z",
       "agents_files": [
         "CLAUDE.md",
+        "graphiti_core/AGENTS.md",
         "graphiti_core/driver/AGENTS.md",
         "graphiti_core/llm_client/AGENTS.md",
         "graphiti_core/namespaces/AGENTS.md",
         "graphiti_core/search/AGENTS.md",
-        "server/AGENTS.md"
+        "graphiti_core/utils/AGENTS.md",
+        "mcp_server/AGENTS.md",
+        "server/AGENTS.md",
+        "tests/AGENTS.md"
       ]
     },
     "ansible-intent_layer": {
@@ -66,11 +70,17 @@
       "created_at": "2026-02-17T22:25:00Z",
       "agents_files": [
         "CLAUDE.md",
-        "lib/ansible/modules/AGENTS.md",
-        "lib/ansible/plugins/AGENTS.md",
+        "lib/ansible/_internal/AGENTS.md",
+        "lib/ansible/cli/AGENTS.md",
+        "lib/ansible/config/AGENTS.md",
         "lib/ansible/executor/AGENTS.md",
-        "lib/ansible/playbook/AGENTS.md",
+        "lib/ansible/galaxy/AGENTS.md",
+        "lib/ansible/module_utils/AGENTS.md",
+        "lib/ansible/modules/AGENTS.md",
         "lib/ansible/parsing/AGENTS.md",
+        "lib/ansible/playbook/AGENTS.md",
+        "lib/ansible/plugins/AGENTS.md",
+        "lib/ansible/utils/AGENTS.md",
         "test/AGENTS.md"
       ]
     },

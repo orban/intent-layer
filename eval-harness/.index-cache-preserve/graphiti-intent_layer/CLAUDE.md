@@ -53,8 +53,12 @@ Edges: `EntityEdge`, `EpisodicEdge`, `CommunityEdge`, `HasEpisodeEdge`, `NextEpi
 
 | Area | Node |
 |------|------|
+| Core package | `graphiti_core/AGENTS.md` |
 | Driver system | `graphiti_core/driver/AGENTS.md` |
 | Search pipeline | `graphiti_core/search/AGENTS.md` |
 | LLM client | `graphiti_core/llm_client/AGENTS.md` |
 | Namespaces | `graphiti_core/namespaces/AGENTS.md` |
+| Utils & maintenance | `graphiti_core/utils/AGENTS.md` |
+| MCP server | `mcp_server/AGENTS.md` |
+| Tests | `tests/AGENTS.md` |
 | Server | `server/AGENTS.md` |

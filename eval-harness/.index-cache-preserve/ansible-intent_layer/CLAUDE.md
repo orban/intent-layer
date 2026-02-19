@@ -58,8 +58,14 @@ Modules execute on remote targets. `lib/ansible/modules/` can ONLY import from `
 | Area | Node |
 |------|------|
 | Modules | `lib/ansible/modules/AGENTS.md` |
+| Module Utils | `lib/ansible/module_utils/AGENTS.md` |
 | Plugins | `lib/ansible/plugins/AGENTS.md` |
 | Executor | `lib/ansible/executor/AGENTS.md` |
 | Playbook | `lib/ansible/playbook/AGENTS.md` |
 | Parsing | `lib/ansible/parsing/AGENTS.md` |
+| CLI | `lib/ansible/cli/AGENTS.md` |
+| Config | `lib/ansible/config/AGENTS.md` |
+| Galaxy | `lib/ansible/galaxy/AGENTS.md` |
+| Utils | `lib/ansible/utils/AGENTS.md` |
+| Internals | `lib/ansible/_internal/AGENTS.md` |
 | Tests | `test/AGENTS.md` |
