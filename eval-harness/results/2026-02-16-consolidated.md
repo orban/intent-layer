@@ -302,3 +302,112 @@ and tests. This is a generation quality issue, not a delivery mechanism issue.
 3. **Fix Intent Layer generation** — ensure coverage of high-impact directories like module_utils
 4. **Consider commit_message tasks on complex repos** — this is the sweet spot for context
 5. **Increase to 5+ reps** — 3 reps can't distinguish 67% from 100% with overlapping CIs
+
+---
+
+## Run 6 (2026-02-18): Push-on-read hook on graphiti
+
+**Goal**: Test whether injecting AGENTS.md content during file reads (push-on-read) improves intent_layer over the pull model.
+
+### Setup
+
+- **Hook change**: PreToolUse fires on `Read|Grep|Edit|Write` (was Edit-only). Script `push-on-read-hook.sh` finds covering AGENTS.md, extracts Contracts/Pitfalls/Patterns, injects as `additionalContext`.
+- **Task config**: `graphiti-signal.yaml` — 7 commit_message tasks (strongest signal from Run 3)
+- **Design**: 7 tasks × 3 conditions × 1 rep = 21 items, --parallel 4, --timeout 450
+
+### Results
+
+| Task | none | flat_llm | intent_layer | none_t | flat_t | intent_t |
+|------|------|----------|--------------|--------|--------|----------|
+| fix-datetime-comparison | PASS | FAIL | FAIL | 127s | 450s | 450s |
+| fix-limited-number-of-edges | FAIL | FAIL | FAIL | 450s | 450s | 450s |
+| sanitize-pipe-slash | PASS | FAIL | FAIL | 118s | 450s | 450s |
+| escape-group-ids | PASS | PASS | PASS | 162s | — | — |
+| filter-falsey-values | FAIL | FAIL | **PASS** | 450s | 450s | — |
+| validate-nodes-edges | PASS | FAIL | FAIL | 258s | 450s | 450s |
+| fix-entity-extraction | PASS | PASS | PASS | 134s | — | — |
+
+| Condition | Pass rate |
+|-----------|-----------|
+| none | 5/7 (71%) |
+| flat_llm | 2/7 (28%) |
+| intent_layer | 3/7 (42%) |
+
+Timeouts: 11/21 (52%). All failures are timeouts.
+
+### Key findings
+
+#### 1. Context still hurts on graphiti (consistent with Run 3)
+
+Run 3 (Edit-only): none 89%, flat 50%, intent 67%.
+Run 6 (push-on-read): none 71%, flat 28%, intent 42%.
+Relative ordering preserved: none > intent > flat. Push-on-read didn't fix it.
+
+#### 2. CLAUDE.md's `make test` instruction is a confounding factor
+
+Log analysis revealed the mechanism: CLAUDE.md says `make test` for running tests. In the eval
+Docker environment, `make test` runs the full suite (slow, ~60s+ setup). The `none` condition,
+without this guidance, discovers specific test files and runs targeted tests (fast, ~15s).
+
+- sanitize-pipe-slash (none, 118s): ran `pytest tests/driver/test_falkordb_driver.py` → targeted
+- sanitize-pipe-slash (intent_layer, 450s): ran `make test` → broad, timed out
+
+The context gives Claude a correct-but-slow test strategy. Without context, Claude finds the
+fast path by exploring the test directory structure.
+
+#### 3. One unique intent_layer win: filter-falsey-values
+
+Only intent_layer passed (none and flat_llm both timed out). The intent_layer Claude explored
+more thoroughly (23 turns, $0.81) and eventually found the right multi-file fix. The none
+condition made edits but couldn't get tests to pass within the timeout. This is the kind of
+complex multi-file task where context should help navigation.
+
+#### 4. Push-on-read fires too broadly
+
+The hook fires on every Read/Grep, including reads of CLAUDE.md itself (redundant — already
+auto-loaded). For files in `graphiti_core/utils/maintenance/` (4 of 7 tasks), the hook walks up
+to root CLAUDE.md (no child AGENTS.md covers that path), injecting the same root context
+that's already in Claude's window. Only FalkorDB driver tasks (sanitize-pipe-slash, escape-group-ids)
+have a child AGENTS.md (`driver/AGENTS.md`).
+
+### Confounding factors
+
+1. **`make test` in CLAUDE.md** — both flat_llm and intent_layer see this and use it, burning
+   time on broad test execution. This affects all context conditions equally.
+2. **450s timeout** — many tasks need >450s with context (test setup alone is ~60s in Docker).
+   Increasing to 600s might flip some FAIL→PASS.
+3. **1 rep only** — filter-falsey unique win could be variance. The killed Run 6 attempt
+   (different seed) showed datetime passing for intent_layer.
+4. **AGENTS.md coverage gap** — `graphiti_core/utils/` and `graphiti_core/utils/maintenance/`
+   have no AGENTS.md, so 4/7 tasks only get root context from push-on-read.
+
+### Comparison: Pull (Run 3) vs Push-on-read (Run 6)
+
+| Metric | Run 3 (Edit-only) | Run 6 (push-on-read) |
+|--------|-------------------|---------------------|
+| intent_layer pass rate | 67% (12/18) | 42% (3/7) |
+| none pass rate | 89% (16/18) | 71% (5/7) |
+| intent−none gap | −22pp | −29pp |
+| Timeout rate | ~30% | 52% |
+
+Push-on-read made things slightly worse, though task sets differ (Run 3 had 6 valid tasks,
+Run 6 has 7 including fix-limited-number-of-edges which is very hard).
+
+### Implications for Intent Layer delivery
+
+The push-on-read mechanism is technically sound but exposed a deeper problem: the content
+being pushed isn't matched to the eval environment. Development instructions in CLAUDE.md
+(`make test`, `uv sync`) are optimized for interactive local development, not for the eval's
+Docker environment with 450s timeouts. The context helps when it provides navigation cues
+(filter-falsey-values) but hurts when it provides slow-path instructions.
+
+### Next experiments
+
+1. **Strip development commands**: Create eval-specific CLAUDE.md that removes `make test`
+   and similar instructions, keeping only architecture and navigation info.
+2. **Only push child AGENTS.md**: Skip injection when covering node is root CLAUDE.md
+   (already auto-loaded), only inject when a child AGENTS.md exists.
+3. **Add missing coverage**: Create `graphiti_core/AGENTS.md` and `graphiti_core/utils/AGENTS.md`
+   to cover the 4 tasks currently getting only root context.
+4. **Increase timeout**: 600s to account for Docker test setup overhead.
+5. **3+ reps**: Need multiple reps to separate signal from noise.

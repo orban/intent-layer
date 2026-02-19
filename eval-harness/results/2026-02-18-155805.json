@@ -1,0 +1,503 @@
+{
+  "eval_id": "2026-02-18-155805",
+  "timestamp": "2026-02-18T15:58:05Z",
+  "results": [
+    {
+      "task_id": "fix-datetime-comparison-normalize-utc",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-8.4.1, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini\nplugins: anyio-4.9.0, xdist-3.8.0, langsmith-0.4.4, asyncio-1.0.0\nasyncio: mode=auto, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 136 items / 3 deselected / 133 selected\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [ 12%]\ntests/embedder/test_gemini.py ...............                            [ 24%]\ntests/embedder/test_openai.py ..                                         [ 25%]\ntests/embedder/test_voyage.py ..                                         [ 27%]\ntests/helpers_test.py .                                                  [ 27%]\ntests/llm_client/test_anthropic_client.py ...",
+        "wall_clock_seconds": 127.20185613632202,
+        "input_tokens": 217622,
+        "output_tokens": 2964,
+        "tool_calls": 12,
+        "lines_changed": 14,
+        "files_touched": [
+          "graphiti_core/utils/maintenance/edge_operations.py",
+          "uv.lock"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.02992820739746,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 10,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.02581906318665,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 20,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "-1",
+          "time_percent": "+253.8%",
+          "tokens_percent": "-100.0%",
+          "tool_calls_percent": "-16.7%",
+          "lines_changed_percent": "-100.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "-1",
+          "time_percent": "+253.8%",
+          "tokens_percent": "-100.0%",
+          "tool_calls_percent": "+66.7%",
+          "lines_changed_percent": "-100.0%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-limited-number-of-edges",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.03271198272705,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 48,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.0269100666046,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 18,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.0131208896637,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 20,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-0.0%",
+          "tokens_percent": "+0.0%",
+          "tool_calls_percent": "-62.5%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "-0.0%",
+          "tokens_percent": "+0.0%",
+          "tool_calls_percent": "-58.3%",
+          "lines_changed_percent": "+0.0%"
+        }
+      }
+    },
+    {
+      "task_id": "sanitize-pipe-slash-in-falkordb-fulltext",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)\nplugins: anyio-4.12.1, xdist-3.8.0, langsmith-0.6.2, asyncio-1.3.0\nasyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 208 items\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [  8%]\ntests/embedder/test_gemini.py ...............                            [ 15%]\ntests/embedder/test_openai.py ..                                         [ 16%]\ntests/embedder/test_voyage.py ..                                         [ 17%]\ntests/helpers_test.py .                                                  [ 17%]\ntests/ll",
+        "wall_clock_seconds": 118.36836099624634,
+        "input_tokens": 318467,
+        "output_tokens": 3094,
+        "tool_calls": 12,
+        "lines_changed": 5,
+        "files_touched": [
+          "graphiti_core/driver/falkordb_driver.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.0129511356354,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 14,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 449.99865794181824,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 11,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "-1",
+          "time_percent": "+280.2%",
+          "tokens_percent": "-100.0%",
+          "tool_calls_percent": "+16.7%",
+          "lines_changed_percent": "-100.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "-1",
+          "time_percent": "+280.2%",
+          "tokens_percent": "-100.0%",
+          "tool_calls_percent": "-8.3%",
+          "lines_changed_percent": "-100.0%"
+        }
+      }
+    },
+    {
+      "task_id": "escape-group-ids-in-redisearch-fulltext",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)\nplugins: anyio-4.12.1, xdist-3.8.0, langsmith-0.6.2, asyncio-1.3.0\nasyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 208 items\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [  8%]\ntests/embedder/test_gemini.py ...............                            [ 15%]\ntests/embedder/test_openai.py ..                                         [ 16%]\ntests/embedder/test_voyage.py ..                                         [ 17%]\ntests/helpers_test.py .                                                  [ 17%]\ntests/ll",
+        "wall_clock_seconds": 162.0518879890442,
+        "input_tokens": 571275,
+        "output_tokens": 3095,
+        "tool_calls": 18,
+        "lines_changed": 5,
+        "files_touched": [
+          "graphiti_core/driver/falkordb_driver.py",
+          "uv.lock"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)\nplugins: anyio-4.12.1, xdist-3.8.0, langsmith-0.6.2, asyncio-1.3.0\nasyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 208 items\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [  8%]\ntests/embedder/test_gemini.py ...............                            [ 15%]\ntests/embedder/test_openai.py ..                                         [ 16%]\ntests/embedder/test_voyage.py ..                                         [ 17%]\ntests/helpers_test.py .                                                  [ 17%]\ntests/ll",
+        "fix_only": {
+          "wall_clock_seconds": 158.51321816444397,
+          "input_tokens": 553917,
+          "output_tokens": 3731,
+          "tool_calls": 19,
+          "lines_changed": 4,
+          "files_touched": [
+            "graphiti_core/driver/falkordb_driver.py",
+            "uv.lock"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0010209083557128906,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 158.51423907279968,
+          "input_tokens": 553917,
+          "output_tokens": 3731
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-9.0.2, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)\nplugins: anyio-4.12.1, xdist-3.8.0, langsmith-0.6.2, asyncio-1.3.0\nasyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 208 items\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [  8%]\ntests/embedder/test_gemini.py ...............                            [ 15%]\ntests/embedder/test_openai.py ..                                         [ 16%]\ntests/embedder/test_voyage.py ..                                         [ 17%]\ntests/helpers_test.py .                                                  [ 17%]\ntests/ll",
+        "fix_only": {
+          "wall_clock_seconds": 73.94700217247009,
+          "input_tokens": 406102,
+          "output_tokens": 2759,
+          "tool_calls": 18,
+          "lines_changed": 4,
+          "files_touched": [
+            "graphiti_core/driver/falkordb_driver.py",
+            "uv.lock"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.07228589057922363,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 74.01928806304932,
+          "input_tokens": 406102,
+          "output_tokens": 2759
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "-2.2%",
+          "tokens_percent": "-2.9%",
+          "tool_calls_percent": "+5.6%",
+          "lines_changed_percent": "-20.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "-54.4%",
+          "tokens_percent": "-28.8%",
+          "tool_calls_percent": "+0.0%",
+          "lines_changed_percent": "-20.0%"
+        }
+      }
+    },
+    {
+      "task_id": "filter-falsey-values-before-creating-embeddings",
+      "none": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.0161831378937,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 38,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.0244698524475,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 25,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-8.4.1, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini\nplugins: anyio-4.9.0, xdist-3.8.0, langsmith-0.4.4, asyncio-1.0.0\nasyncio: mode=auto, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 125 items / 3 deselected / 122 selected\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [ 13%]\ntests/embedder/test_gemini.py ...............                            [ 26%]\ntests/embedder/test_openai.py ..                                         [ 27%]\ntests/embedder/test_voyage.py ..                                         [ 29%]\ntests/helpers_test.py .                                                  [ 30%]\ntests/llm_client/test_anthropic_client.py ...",
+        "fix_only": {
+          "wall_clock_seconds": 208.27023005485535,
+          "input_tokens": 705057,
+          "output_tokens": 4400,
+          "tool_calls": 23,
+          "lines_changed": 19,
+          "files_touched": [
+            "graphiti_core/edges.py",
+            "graphiti_core/nodes.py",
+            "uv.lock"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.003549814224243164,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 208.2737798690796,
+          "input_tokens": 705057,
+          "output_tokens": 4400
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "+0.0%",
+          "tokens_percent": "+0.0%",
+          "tool_calls_percent": "-34.2%",
+          "lines_changed_percent": "+0.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+1",
+          "time_percent": "-53.7%",
+          "tokens_percent": "+0.0%",
+          "tool_calls_percent": "-39.5%",
+          "lines_changed_percent": "+0.0%"
+        }
+      }
+    },
+    {
+      "task_id": "validate-nodes-edges-not-falsey",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-8.4.1, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini\nplugins: anyio-4.9.0, xdist-3.8.0, langsmith-0.4.4, asyncio-1.0.0\nasyncio: mode=auto, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 125 items / 3 deselected / 122 selected\n\ntests/cross_encoder/test_gemini_reranker_client.py .................     [ 13%]\ntests/embedder/test_gemini.py ...............                            [ 26%]\ntests/embedder/test_openai.py ..                                         [ 27%]\ntests/embedder/test_voyage.py ..                                         [ 29%]\ntests/helpers_test.py .                                                  [ 30%]\ntests/llm_client/test_anthropic_client.py ...",
+        "wall_clock_seconds": 257.8515627384186,
+        "input_tokens": 707252,
+        "output_tokens": 4048,
+        "tool_calls": 26,
+        "lines_changed": 15,
+        "files_touched": [
+          "graphiti_core/utils/maintenance/edge_operations.py",
+          "graphiti_core/utils/maintenance/node_operations.py",
+          "uv.lock"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.0160081386566,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 16,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "intent_layer": {
+        "success": false,
+        "test_output": "",
+        "wall_clock_seconds": 450.02074790000916,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "tool_calls": 27,
+        "lines_changed": 0,
+        "files_touched": [],
+        "error": "[timeout] Claude timed out after 450.0s",
+        "exit_code": -1,
+        "is_timeout": true
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "-1",
+          "time_percent": "+74.5%",
+          "tokens_percent": "-100.0%",
+          "tool_calls_percent": "-38.5%",
+          "lines_changed_percent": "-100.0%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "-1",
+          "time_percent": "+74.5%",
+          "tokens_percent": "-100.0%",
+          "tool_calls_percent": "+3.8%",
+          "lines_changed_percent": "-100.0%"
+        }
+      }
+    },
+    {
+      "task_id": "fix-entity-extraction-adaptive-chunking",
+      "none": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-8.4.1, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini\nplugins: anyio-4.9.0, xdist-3.8.0, langsmith-0.4.4, asyncio-1.0.0\nasyncio: mode=auto, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 16 items\n\ntests/utils/maintenance/test_entity_extraction.py ................       [100%]\n\n=============================== warnings summary ===============================\n.venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:323\n  /work/.venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 M",
+        "wall_clock_seconds": 133.5829701423645,
+        "input_tokens": 652258,
+        "output_tokens": 8050,
+        "tool_calls": 20,
+        "lines_changed": 216,
+        "files_touched": [
+          "graphiti_core/utils/content_chunking.py",
+          "graphiti_core/utils/maintenance/node_operations.py"
+        ],
+        "exit_code": 0
+      },
+      "flat_llm": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-8.4.1, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini\nplugins: anyio-4.9.0, xdist-3.8.0, langsmith-0.4.4, asyncio-1.0.0\nasyncio: mode=auto, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 16 items\n\ntests/utils/maintenance/test_entity_extraction.py ................       [100%]\n\n=============================== warnings summary ===============================\n.venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:323\n  /work/.venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 M",
+        "fix_only": {
+          "wall_clock_seconds": 159.93925619125366,
+          "input_tokens": 946923,
+          "output_tokens": 9841,
+          "tool_calls": 29,
+          "lines_changed": 238,
+          "files_touched": [
+            "graphiti_core/utils/content_chunking.py",
+            "graphiti_core/utils/maintenance/node_operations.py",
+            "uv.lock"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0010519027709960938,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 159.94030809402466,
+          "input_tokens": 946923,
+          "output_tokens": 9841
+        },
+        "exit_code": 0
+      },
+      "intent_layer": {
+        "success": true,
+        "test_output": "Collecting uv\n  Using cached uv-0.10.4-py3-none-manylinux_2_28_aarch64.whl (22.0 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.10.4\n============================= test session starts ==============================\nplatform linux -- Python 3.10.19, pytest-8.4.1, pluggy-1.6.0\nrootdir: /work\nconfigfile: pytest.ini\nplugins: anyio-4.9.0, xdist-3.8.0, langsmith-0.4.4, asyncio-1.0.0\nasyncio: mode=auto, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 16 items\n\ntests/utils/maintenance/test_entity_extraction.py ................       [100%]\n\n=============================== warnings summary ===============================\n.venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:323\n  /work/.venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 M",
+        "fix_only": {
+          "wall_clock_seconds": 243.1189410686493,
+          "input_tokens": 834482,
+          "output_tokens": 16683,
+          "tool_calls": 24,
+          "lines_changed": 259,
+          "files_touched": [
+            "graphiti_core/utils/content_chunking.py",
+            "graphiti_core/utils/maintenance/node_operations.py",
+            "uv.lock"
+          ]
+        },
+        "skill_generation": {
+          "wall_clock_seconds": 0.0031719207763671875,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_hit": true
+        },
+        "total": {
+          "wall_clock_seconds": 243.12211298942566,
+          "input_tokens": 834482,
+          "output_tokens": 16683
+        },
+        "exit_code": 0
+      },
+      "deltas": {
+        "flat_llm": {
+          "success_rate_delta": "+0",
+          "time_percent": "+19.7%",
+          "tokens_percent": "+44.9%",
+          "tool_calls_percent": "+45.0%",
+          "lines_changed_percent": "+10.2%"
+        },
+        "intent_layer": {
+          "success_rate_delta": "+0",
+          "time_percent": "+82.0%",
+          "tokens_percent": "+28.9%",
+          "tool_calls_percent": "+20.0%",
+          "lines_changed_percent": "+19.9%"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total_tasks": 7,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0.71,
+    "flat_llm_success_rate": 0.29,
+    "intent_layer_success_rate": 0.43,
+    "none_itt_rate": 0.71,
+    "flat_llm_itt_rate": 0.29,
+    "intent_layer_itt_rate": 0.43,
+    "none_median_tokens": 321561,
+    "flat_llm_median_tokens": 0,
+    "intent_layer_median_tokens": 0
+  }
+}
