@@ -3,8 +3,9 @@
   "checkpoint_id": "c32f00df5f1d",
   "strategy": "manual-commit",
   "branch": "fix/eval-harness-run4-prep",
-  "checkpoints_count": 11,
+  "checkpoints_count": 12,
   "files_touched": [
+    "docs/brainstorms/2026-02-18-eval-improvements-brainstorm.md",
     "eval-harness/docs/reference/agentbench-harness",
     "eval-harness/lib/cli.py",
     "eval-harness/lib/docker_runner.py",
@@ -57,13 +58,20 @@
       "context": "/c3/2f00df5f1d/5/context.md",
       "content_hash": "/c3/2f00df5f1d/5/content_hash.txt",
       "prompt": "/c3/2f00df5f1d/5/prompt.txt"
+    },
+    {
+      "metadata": "/c3/2f00df5f1d/6/metadata.json",
+      "transcript": "/c3/2f00df5f1d/6/full.jsonl",
+      "context": "/c3/2f00df5f1d/6/context.md",
+      "content_hash": "/c3/2f00df5f1d/6/content_hash.txt",
+      "prompt": "/c3/2f00df5f1d/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 230,
-    "cache_creation_tokens": 673838,
-    "cache_read_tokens": 15909715,
-    "output_tokens": 4199,
-    "api_call_count": 164
+    "input_tokens": 1201,
+    "cache_creation_tokens": 792966,
+    "cache_read_tokens": 18970148,
+    "output_tokens": 14065,
+    "api_call_count": 199
   }
 }
