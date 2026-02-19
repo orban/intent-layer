@@ -18,3 +18,5 @@ CODEX_REVIEW.md
 
 # Tool configs
 .serena/
+# Nightshift plan artifacts (keep out of version control)
+.nightshift-plan
