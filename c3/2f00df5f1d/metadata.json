@@ -2,24 +2,10 @@
   "cli_version": "0.4.4",
   "checkpoint_id": "c32f00df5f1d",
   "strategy": "manual-commit",
-  "branch": "fix/eval-harness-run4-prep",
-  "checkpoints_count": 17,
+  "branch": "main",
+  "checkpoints_count": 13,
   "files_touched": [
     "docs/brainstorms/2026-02-18-eval-improvements-brainstorm.md",
-    "docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md",
-    "docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md",
-    "docs/plans/2026-02-19-feat-agent-optimized-section-schema-plan.md",
-    "eval-harness/.index-cache-preserve/ansible-intent_layer/lib/ansible/_internal/AGENTS.md",
-    "eval-harness/.index-cache-preserve/ansible-intent_layer/lib/ansible/cli/AGENTS.md",
-    "eval-harness/.index-cache-preserve/ansible-intent_layer/lib/ansible/config/AGENTS.md",
-    "eval-harness/.index-cache-preserve/ansible-intent_layer/lib/ansible/galaxy/AGENTS.md",
-    "eval-harness/.index-cache-preserve/ansible-intent_layer/lib/ansible/module_utils/AGENTS.md",
-    "eval-harness/.index-cache-preserve/ansible-intent_layer/lib/ansible/utils/AGENTS.md",
-    "eval-harness/.index-cache-preserve/cache-manifest.json",
-    "eval-harness/.index-cache-preserve/graphiti-intent_layer/graphiti_core/AGENTS.md",
-    "eval-harness/.index-cache-preserve/graphiti-intent_layer/graphiti_core/utils/AGENTS.md",
-    "eval-harness/.index-cache-preserve/graphiti-intent_layer/mcp_server/AGENTS.md",
-    "eval-harness/.index-cache-preserve/graphiti-intent_layer/tests/AGENTS.md",
     "eval-harness/docs/reference/agentbench-harness",
     "eval-harness/lib/cli.py",
     "eval-harness/lib/docker_runner.py",
@@ -28,8 +14,7 @@
     "eval-harness/results/2026-02-16-consolidated.md",
     "eval-harness/scripts/push-on-read-hook.sh",
     "eval-harness/scripts/tail-logs.py",
-    "eval-harness/tests/test_resume.py",
-    "eval-harness/tests/test_task_runner.py"
+    "eval-harness/tests/test_resume.py"
   ],
   "sessions": [
     {
@@ -90,10 +75,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1258,
-    "cache_creation_tokens": 855544,
-    "cache_read_tokens": 23870444,
-    "output_tokens": 14625,
-    "api_call_count": 236
+    "input_tokens": 1214,
+    "cache_creation_tokens": 805294,
+    "cache_read_tokens": 20759064,
+    "output_tokens": 14182,
+    "api_call_count": 210
   }
 }

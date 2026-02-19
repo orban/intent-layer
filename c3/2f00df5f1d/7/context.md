@@ -273,3 +273,7 @@ run the explorer agent from the root of the directory so it can create child nod
 
 commit, then run an eval
 
+### Prompt 31
+
+@scripts/tail-logs.py
+
