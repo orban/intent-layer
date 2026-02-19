@@ -159,6 +159,7 @@ class TaskRunner:
         reference_clone: str | None = None,
         pre_val_cache: PreValidationCache | None = None,
         claude_timeout: int = 300,
+        skip_pre_validation_for: frozenset[str] = frozenset(),
     ):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
@@ -168,6 +169,7 @@ class TaskRunner:
         self.reference_clone = reference_clone
         self.pre_val_cache = pre_val_cache
         self.claude_timeout = claude_timeout
+        self._skip_pre_validation_for = skip_pre_validation_for
 
     def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
         """Report progress if callback is set."""
@@ -651,8 +653,12 @@ class TaskRunner:
             # Pre-validate: confirm test infra works and test actually fails.
             # Pre-validation is identical across conditions for the same task
             # (same commit, same code, same test), so we cache the result.
-            precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
-            if self.pre_val_cache is not None:
+            # On resume, tasks that already passed pre-validation are skipped.
+            if task.id in self._skip_pre_validation_for:
+                self._progress(task.id, cond_str, "pre_validate", "skipped (passed in prior run)")
+                pre_validate_output = None
+            elif self.pre_val_cache is not None:
+                precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
                 self._progress(
                     task.id,
                     cond_str,
@@ -669,7 +675,9 @@ class TaskRunner:
                         stream_log=precheck_log,
                     ),
                 )
+                self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
             else:
+                precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
                 self._progress(
                     task.id,
                     cond_str,
@@ -683,7 +691,7 @@ class TaskRunner:
                     condition=cond_str,
                     stream_log=precheck_log,
                 )
-            self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
+                self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
             skill_metrics = None

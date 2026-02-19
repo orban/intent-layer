@@ -28,6 +28,7 @@ class IndexCache:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.manifest_path = self.cache_dir / "cache-manifest.json"
+        self._lock = threading.Lock()
         self.manifest = self._load_manifest()
 
     def _load_manifest(self) -> CacheManifest:
@@ -207,7 +208,7 @@ class IndexCache:
                 import shutil
                 shutil.copy2(src, dst)
 
-        # Update manifest
+        # Update manifest (locked for parallel-warmup safety)
         entry = CacheEntry(
             repo=repo,
             commit=commit,
@@ -215,8 +216,9 @@ class IndexCache:
             created_at=datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
             agents_files=agents_files
         )
-        self.manifest.entries[cache_key] = entry
-        self._save_manifest()
+        with self._lock:
+            self.manifest.entries[cache_key] = entry
+            self._save_manifest()
 
     def restore(self, entry: CacheEntry, target_workspace: str):
         """Restore cached AGENTS.md files to target workspace.

@@ -16,12 +16,14 @@ class DiffStats:
 def clone_repo(url: str, dest: str, shallow: bool = True, reference: str | None = None) -> None:
     """Clone a repository.
 
-    If reference is provided, creates a local hardlink clone from the
-    reference directory instead of fetching over the network. This is
-    nearly instant and shares object storage via hardlinks.
+    If reference is provided, creates a shared clone (git alternates)
+    from the reference directory instead of fetching over the network.
+    Nearly instant since no objects are copied. The clone depends on
+    the reference directory for its lifetime — safe for ephemeral
+    workspaces where the reference outlives all clones.
     """
     if reference:
-        cmd = ["git", "clone", "--local", "--no-checkout", reference, dest]
+        cmd = ["git", "clone", "--shared", "--no-checkout", reference, dest]
     else:
         cmd = ["git", "clone"]
         if shallow:

@@ -1,6 +1,6 @@
 # Curated eval tasks for ansible
 # Generated from: https://github.com/ansible/ansible
-# Tasks: 5 (all failing_test with unit tests in test/units/)
+# Tasks: 4 (all failing_test with unit tests in test/units/)
 #
 # NOTE: Ansible requires Python 3.12+. The unit test suite runs via pytest.
 # Many ansible PRs only have integration tests (ansible-playbook based),
@@ -10,6 +10,7 @@
 # Dropped tasks:
 #   fix-iptables-match-extension-bug — integration tests only, SystemExit
 #   fix-local-connection-become-bytearray — test passes at pre_fix_commit
+#   fix-clearlinux-gentoo-os-release-parsing — test passes at pre_fix_commit (validated 2026-02-18)
 #   callback-filter-ansible-prefix-in-debug — integration tests only
 #   action-make-tmp-path-fix-error-message — no unit test changes
 #   config-lookup-fallback-to-existing-constants — integration tests only
@@ -30,21 +31,6 @@ repo:
   - .cursor/
   - .codex/
 tasks:
-
-- id: fix-clearlinux-gentoo-os-release-parsing
-  category: simple_fix
-  difficulty: medium
-  pre_fix_commit: 28927a70b43a43ecd99d5926ef7860cd6a35d12e
-  fix_commit: 869088b959408b72ea04905f40c2e284bd232d56
-  prompt_source: failing_test
-  _commit_message: 'Fixes Parsing for ClearLinux exposed by Gentoo (#86384)'
-  _lines_changed: 55
-  _files_changed: 3
-  test_file: test/units/module_utils/facts/system/distribution/test_parse_distribution_file_ClearLinux.py
-  issue_number: 86384
-  # Fix: ClearLinux parser returned partial data for non-ClearLinux distros.
-  # Added else: return False when NAME regex doesn't match, plus strip both quote types.
-  # New unit test fixture: gentoo.json
 
 - id: fix-get-url-regex-for-gnu-digest-line
   category: targeted_refactor

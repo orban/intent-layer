@@ -1,6 +1,7 @@
 # lib/cli.py
 from __future__ import annotations
 import json
+import shutil
 import sys
 import tempfile
 import threading
@@ -16,7 +17,8 @@ from lib.task_runner import TaskRunner, TaskResult, Condition, PreValidationCach
 from lib.reporter import Reporter, EvalResults
 from lib.stats import wilson_score_interval, ci_overlap
 from lib.git_scanner import GitScanner
-from lib.git_ops import clone_repo
+from lib.git_ops import clone_repo, checkout_commit
+from lib.index_cache import IndexCache
 
 
 # Thread-safe print lock for progress output
@@ -241,6 +243,29 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
     return summary
 
 
+def _load_pre_validated_tasks(prior_data: dict) -> frozenset[str]:
+    """Identify tasks that passed pre-validation in a prior run.
+
+    A task passed pre-validation if any condition's error does NOT start
+    with "[pre-validation]" — meaning Claude ran, tests ran, or it
+    succeeded, all of which happen after pre-validation.
+    """
+    validated = set()
+    for task in prior_data.get("results", []):
+        task_id = task.get("task_id")
+        if not task_id:
+            continue
+        for cond_key in ("none", "flat_llm", "intent_layer"):
+            cond = task.get(cond_key)
+            if cond is None:
+                continue
+            error = cond.get("error", "")
+            if not error.startswith("[pre-validation]"):
+                validated.add(task_id)
+                break
+    return frozenset(validated)
+
+
 def _make_progress_callback(verbose: bool):
     """Create a progress callback that prints to stderr if verbose is enabled."""
     if not verbose:
@@ -304,7 +329,7 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--output", "-o", default="results", help="Output directory")
 @click.option("--keep-workspaces", is_flag=True, help="Don't cleanup workspaces")
 @click.option("--dry-run", is_flag=True, help="Show what would run")
-@click.option("--timeout", default=450, help="Per-task timeout in seconds")
+@click.option("--timeout", default=1800, help="Per-task timeout in seconds")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed progress for each step")
 @click.option("--clear-cache", is_flag=True, help="Clear index cache before running")
 @click.option("--no-cache", is_flag=True, help="Disable index caching entirely")
@@ -338,7 +363,6 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
     # Handle cache management (do this before dry-run check)
     if clear_cache and not no_cache:
-        from lib.index_cache import IndexCache
         cache = IndexCache(cache_dir)
         cache.clear()
         click.echo(f"Cleared index cache at {cache_dir}")
@@ -359,11 +383,15 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     # Filter out passed pairs from prior run
     passed_pairs = set()
     prior_data = None
+    pre_validated_tasks: frozenset[str] = frozenset()
     if resume:
         passed_pairs, prior_data = _load_prior_results(resume)
+        pre_validated_tasks = _load_pre_validated_tasks(prior_data)
         original_len = len(work_queue)
         work_queue = [item for item in work_queue if (item[1].id, item[2].value) not in passed_pairs]
         click.echo(f"Resume: {len(passed_pairs)} passed pairs carried forward, {len(work_queue)}/{original_len} to re-run")
+        if pre_validated_tasks:
+            click.echo(f"Resume: {len(pre_validated_tasks)} task(s) will skip pre-validation")
 
     if dry_run:
         click.echo("\nDry run - would execute:")
@@ -420,8 +448,13 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     warmup_items[key] = repo
 
         if warmup_items:
-            click.echo(f"Pre-warming cache for {len(warmup_items)} repo/condition pair(s)...")
-            for (repo_url, cond_str), repo_config in warmup_items.items():
+            click.echo(f"Pre-warming cache for {len(warmup_items)} repo/condition pair(s) in parallel...")
+            # Single shared IndexCache so the threading.Lock serializes
+            # concurrent save() calls across warmup threads.
+            shared_cache = IndexCache(cache_dir)
+
+            def _warmup_one(item):
+                (repo_url, cond_str), repo_config = item
                 cond = Condition(cond_str)
                 runner = TaskRunner(
                     repo_config,
@@ -431,15 +464,25 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     use_cache=True,
                     reference_clone=reference_clones.get(repo_url),
                 )
-                try:
-                    metrics = runner.warm_cache(repo_url, cond, model=model)
-                    if metrics and not metrics.cache_hit:
-                        click.echo(f"  {cond_str}: generated {len(metrics.files_created)} file(s) in {metrics.wall_clock_seconds:.1f}s")
-                    else:
-                        click.echo(f"  {cond_str}: already cached")
-                except Exception as e:
-                    click.echo(f"  {cond_str}: warmup failed - {e}", err=True)
-                    click.echo(f"    (task runs will retry with their own timeout)", err=True)
+                runner.index_cache = shared_cache
+                return runner.warm_cache(repo_url, cond, model=model)
+
+            with ThreadPoolExecutor(max_workers=len(warmup_items)) as warmup_executor:
+                warmup_futures = {
+                    warmup_executor.submit(_warmup_one, item): item
+                    for item in warmup_items.items()
+                }
+                for future in as_completed(warmup_futures):
+                    (repo_url, cond_str), _ = warmup_futures[future]
+                    try:
+                        metrics = future.result()
+                        if metrics and not metrics.cache_hit:
+                            click.echo(f"  {cond_str}: generated {len(metrics.files_created)} file(s) in {metrics.wall_clock_seconds:.1f}s")
+                        else:
+                            click.echo(f"  {cond_str}: already cached")
+                    except Exception as e:
+                        click.echo(f"  {cond_str}: warmup failed - {e}", err=True)
+                        click.echo(f"    (task runs will retry with their own timeout)", err=True)
 
     def run_single(item):
         repo, task, condition, rep = item
@@ -452,6 +495,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             reference_clone=reference_clones.get(repo.url),
             pre_val_cache=pre_val_cache,
             claude_timeout=timeout,
+            skip_pre_validation_for=pre_validated_tasks,
         )
         return runner.run(task, condition, model=model, rep=rep)
 
@@ -540,6 +584,113 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(tmp_cache), str(cache_path))
         click.echo("Cleaned up workspaces")
+
+
+@main.command()
+@click.option("--tasks", "-t", multiple=True, required=True, help="Task YAML files")
+@click.option("--parallel", "-p", default=2, help="Number of parallel workers")
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed progress")
+def validate(tasks, parallel, verbose):
+    """Validate task configs without spending Claude API tokens.
+
+    For each task: clones the repo, checks out pre_fix_commit, strips context
+    files, injects test from fix_commit if applicable, and runs Docker
+    pre-validation. Reports which tasks pass/fail and why.
+
+    Use this to catch bad configs before burning API budget on a full run.
+    """
+    # Load all tasks
+    all_tasks = []
+    for task_path in tasks:
+        if not Path(task_path).exists():
+            raise click.ClickException(f"Task file does not exist: {task_path}")
+        task_file = TaskFile.from_yaml(Path(task_path))
+        for task in task_file.tasks:
+            all_tasks.append((task_file.repo, task))
+
+    click.echo(f"Validating {len(all_tasks)} tasks from {len(tasks)} file(s)")
+
+    workspaces_dir = Path("workspaces")
+    progress_callback = _make_progress_callback(verbose)
+
+    # Create reference clones
+    reference_clones: dict[str, str] = {}
+    reference_dir = workspaces_dir / ".references"
+    unique_repos = {repo.url for repo, _task in all_tasks}
+    for repo_url in unique_repos:
+        repo_name = repo_url.split("/")[-1].replace(".git", "")
+        ref_path = reference_dir / repo_name
+        if not ref_path.exists():
+            click.echo(f"Creating reference clone for {repo_name}...")
+            ref_path.parent.mkdir(parents=True, exist_ok=True)
+            clone_repo(repo_url, str(ref_path), shallow=False)
+        reference_clones[repo_url] = str(ref_path)
+
+    def validate_one(item):
+        repo, task = item
+        runner = TaskRunner(
+            repo,
+            str(workspaces_dir),
+            progress_callback=progress_callback,
+            use_cache=False,
+            reference_clone=reference_clones.get(repo.url),
+        )
+        workspace = runner._setup_workspace(task, Condition.NONE, rep=0)
+        error = None
+        test_passes_already = False
+        try:
+            clone_repo(repo.url, workspace, shallow=False, reference=reference_clones.get(repo.url))
+            checkout_commit(workspace, task.pre_fix_commit)
+            runner._strip_context_files(workspace, repo.strip_extra or None)
+            if task.prompt_source == "failing_test" and task.test_file:
+                runner._inject_test_from_fix(task, workspace)
+            runner._pre_validate(task, workspace, task_id=task.id, condition="validate")
+        except Exception as e:
+            error = str(e)
+            if "already passes at pre_fix_commit" in error:
+                test_passes_already = True
+        finally:
+            if Path(workspace).exists():
+                shutil.rmtree(workspace)
+        return task.id, error, test_passes_already
+
+    results = []
+    with ThreadPoolExecutor(max_workers=parallel) as executor:
+        futures = {executor.submit(validate_one, item): item for item in all_tasks}
+        for future in as_completed(futures):
+            repo, task = futures[future]
+            try:
+                task_id, error, test_passes = future.result()
+            except Exception as e:
+                task_id = task.id
+                error = f"[worker-crash] {e}"
+                test_passes = False
+            results.append((task_id, error, test_passes))
+            status = "PASS" if not error else "FAIL"
+            line = f"  {task_id}: {status}"
+            if error:
+                line += f" - {error[:100]}"
+            click.echo(line)
+
+    # Summary
+    results.sort(key=lambda r: r[0])
+    passed = [r for r in results if not r[1]]
+    failed = [r for r in results if r[1]]
+    passes_already = [r for r in results if r[2]]
+
+    click.echo(f"\n{'='*60}")
+    click.echo(f"Results: {len(passed)}/{len(results)} tasks valid")
+    if passes_already:
+        click.echo(f"\nTest already passes ({len(passes_already)}) — DROP these tasks:")
+        for task_id, _, _ in passes_already:
+            click.echo(f"  - {task_id}")
+    other_failures = [r for r in failed if not r[2]]
+    if other_failures:
+        click.echo(f"\nOther failures ({len(other_failures)}) — FIX config or drop:")
+        for task_id, error, _ in other_failures:
+            click.echo(f"  - {task_id}: {error}")
+    if not failed:
+        click.echo("\nAll tasks valid!")
 
 
 if __name__ == "__main__":

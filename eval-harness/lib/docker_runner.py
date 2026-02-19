@@ -23,7 +23,7 @@ def run_in_docker(
     command: str,
     timeout: int = 120,
     memory: str = "4g",
-    cpus: str = "2",
+    cpus: str = "1",
     cache_volume: str | None = "eval-harness-pipcache",
     stream_log: str | Path | None = None,
     heartbeat_interval: int = 20,
