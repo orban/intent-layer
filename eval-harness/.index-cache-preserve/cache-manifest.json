@@ -1,0 +1,102 @@
+{
+  "entries": {
+    "pdm-flat_llm": {
+      "repo": "https://github.com/pdm-project/pdm",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/pdm-flat_llm",
+      "created_at": "2026-02-17T20:27:26Z",
+      "agents_files": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ]
+    },
+    "pdm-intent_layer": {
+      "repo": "https://github.com/pdm-project/pdm",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/pdm-intent_layer",
+      "created_at": "2026-02-17T20:38:01Z",
+      "agents_files": [
+        "CLAUDE.md",
+        "src/pdm/cli/AGENTS.md",
+        "src/pdm/formats/AGENTS.md",
+        "src/pdm/installers/AGENTS.md",
+        "src/pdm/models/AGENTS.md",
+        "src/pdm/project/AGENTS.md",
+        "src/pdm/resolver/AGENTS.md"
+      ]
+    },
+    "graphiti-flat_llm": {
+      "repo": "https://github.com/getzep/graphiti",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/graphiti-flat_llm",
+      "created_at": "2026-02-17T22:13:53Z",
+      "agents_files": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ]
+    },
+    "ansible-flat_llm": {
+      "repo": "https://github.com/ansible/ansible",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/ansible-flat_llm",
+      "created_at": "2026-02-17T22:18:47Z",
+      "agents_files": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ]
+    },
+    "graphiti-intent_layer": {
+      "repo": "https://github.com/getzep/graphiti",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/graphiti-intent_layer",
+      "created_at": "2026-02-17T22:25:00Z",
+      "agents_files": [
+        "CLAUDE.md",
+        "graphiti_core/driver/AGENTS.md",
+        "graphiti_core/llm_client/AGENTS.md",
+        "graphiti_core/namespaces/AGENTS.md",
+        "graphiti_core/search/AGENTS.md",
+        "server/AGENTS.md"
+      ]
+    },
+    "ansible-intent_layer": {
+      "repo": "https://github.com/ansible/ansible",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/ansible-intent_layer",
+      "created_at": "2026-02-17T22:25:00Z",
+      "agents_files": [
+        "CLAUDE.md",
+        "lib/ansible/modules/AGENTS.md",
+        "lib/ansible/plugins/AGENTS.md",
+        "lib/ansible/executor/AGENTS.md",
+        "lib/ansible/playbook/AGENTS.md",
+        "lib/ansible/parsing/AGENTS.md",
+        "test/AGENTS.md"
+      ]
+    },
+    "fastmcp-flat_llm": {
+      "repo": "https://github.com/jlowin/fastmcp",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/fastmcp-flat_llm",
+      "created_at": "2026-02-18T13:03:12Z",
+      "agents_files": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ]
+    },
+    "fastmcp-intent_layer": {
+      "repo": "https://github.com/jlowin/fastmcp",
+      "commit": "latest",
+      "workspace_path": "workspaces/.index-cache/fastmcp-intent_layer",
+      "created_at": "2026-02-18T13:10:59Z",
+      "agents_files": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/fastmcp/client/AGENTS.md",
+        "src/fastmcp/server/AGENTS.md",
+        "src/fastmcp/tools/AGENTS.md",
+        "tests/AGENTS.md"
+      ]
+    }
+  }
+}
