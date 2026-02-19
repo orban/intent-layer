@@ -1,0 +1,1808 @@
+# Brainstorm a Feature or Improvement
+
+**Note: The current year is 2026.** Use this when dating brainstorm documents.
+
+Brainstorming helps answer **WHAT** to build through collaborative dialogue. It precedes `/workflows:plan`, which answers **HOW** to build it.
+
+**Process knowledge:** Load the `brainstorming` skill for detailed question techniques, approach exploration patterns, and YAGNI principles.
+
+## Feature Description
+
+<feature_description> #improvements to the intent layer based on recent results </feature_description>
+
+**If the feature description above is empty, ask the user:** "What would you like to explore? Please describe the feature, problem, or improvement you're thinking about."
+
+Do not proceed until you have a feature description from the user.
+
+## Execution Flow
+
+### Phase 0: Assess Requirements Clarity
+
+Evaluate whether brainstorming is needed based on the feature description.
+
+**Clear requirements indicators:**
+- Specific acceptance criteria provided
+- Referenced existing patterns to follow
+- Described exact expected behavior
+- Constrained, well-defined scope
+
+**If requirements are already clear:**
+Use **AskUserQuestion tool** to suggest: "Your requirements seem detailed enough to proceed directly to planning. Should I run `/workflows:plan` instead, or would you like to explore the idea further?"
+
+### Phase 1: Understand the Idea
+
+#### 1.1 Repository Research (Lightweight)
+
+Run a quick repo scan to understand existing patterns:
+
+- Task repo-research-analyst("Understand existing patterns related to: <feature_description>")
+
+Focus on: similar features, established patterns, CLAUDE.md guidance.
+
+#### 1.2 Collaborative Dialogue
+
+Use the **AskUserQuestion tool** to ask questions **one at a time**.
+
+**Guidelines (see `brainstorming` skill for detailed techniques):**
+- Prefer multiple choice when natural options exist
+- Start broad (purpose, users) then narrow (constraints, edge cases)
+- Validate assumptions explicitly
+- Ask about success criteria
+
+**Exit condition:** Continue until the idea is clear OR user says "proceed"
+
+### Phase 2: Explore Approaches
+
+Propose **2-3 concrete approaches** based on research and conversation.
+
+For each approach, provide:
+- Brief description (2-3 sentences)
+- Pros and cons
+- When it's best suited
+
+Lead with your recommendation and explain why. Apply YAGNI—prefer simpler solutions.
+
+Use **AskUserQuestion tool** to ask which approach the user prefers.
+
+### Phase 3: Capture the Design
+
+Write a brainstorm document to `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`.
+
+**Document structure:** See the `brainstorming` skill for the template format. Key sections: What We're Building, Why This Approach, Key Decisions, Open Questions.
+
+Ensure `docs/brainstorms/` directory exists before writing.
+
+### Phase 4: Handoff
+
+Use **AskUserQuestion tool** to present next steps:
+
+**Question:** "Brainstorm captured. What would you like to do next?"
+
+**Options:**
+1. **Proceed to planning** - Run `/workflows:plan` (will auto-detect this brainstorm)
+2. **Refine design further** - Continue exploring
+3. **Done for now** - Return later
+
+## Output Summary
+
+When complete, display:
+
+```
+Brainstorm complete!
+
+Document: docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md
+
+Key decisions:
+- [Decision 1]
+- [Decision 2]
+
+Next: Run `/workflows:plan` when ready to implement.
+```
+
+## Important Guidelines
+
+- **Stay focused on WHAT, not HOW** - Implementation details belong in the plan
+- **Ask one question at a time** - Don't overwhelm
+- **Apply YAGNI** - Prefer simpler approaches
+- **Keep outputs concise** - 200-300 words per section max
+
+NEVER CODE! Just explore and document decisions.
+
+---
+
+Base directory for this skill: /Users/ryo/.claude/plugins/cache/every-marketplace/compound-engineering/2.30.0/skills/brainstorming
+
+# Brainstorming
+
+This skill provides detailed process knowledge for effective brainstorming sessions that clarify **WHAT** to build before diving into **HOW** to build it.
+
+## When to Use This Skill
+
+Brainstorming is valuable when:
+- Requirements are unclear or ambiguous
+- Multiple approaches could solve the problem
+- Trade-offs need to be explored with the user
+- The user hasn't fully articulated what they want
+- The feature scope needs refinement
+
+Brainstorming can be skipped when:
+- Requirements are explicit and detailed
+- The user knows exactly what they want
+- The task is a straightforward bug fix or well-defined change
+
+## Core Process
+
+### Phase 0: Assess Requirement Clarity
+
+Before diving into questions, assess whether brainstorming is needed.
+
+**Signals that requirements are clear:**
+- User provided specific acceptance criteria
+- User referenced existing patterns to follow
+- User described exact behavior expected
+- Scope is constrained and well-defined
+
+**Signals that brainstorming is needed:**
+- User used vague terms ("make it better", "add something like")
+- Multiple reasonable interpretations exist
+- Trade-offs haven't been discussed
+- User seems unsure about the approach
+
+If requirements are clear, suggest: "Your requirements seem clear. Consider proceeding directly to planning or implementation."
+
+### Phase 1: Understand the Idea
+
+Ask questions **one at a time** to understand the user's intent. Avoid overwhelming with multiple questions.
+
+**Question Techniques:**
+
+1. **Prefer multiple choice when natural options exist**
+   - Good: "Should the notification be: (a) email only, (b) in-app only, or (c) both?"
+   - Avoid: "How should users be notified?"
+
+2. **Start broad, then narrow**
+   - First: What is the core purpose?
+   - Then: Who are the users?
+   - Finally: What constraints exist?
+
+3. **Validate assumptions explicitly**
+   - "I'm assuming users will be logged in. Is that correct?"
+
+4. **Ask about success criteria early**
+   - "How will you know this feature is working well?"
+
+**Key Topics to Explore:**
+
+| Topic | Example Questions |
+|-------|-------------------|
+| Purpose | What problem does this solve? What's the motivation? |
+| Users | Who uses this? What's their context? |
+| Constraints | Any technical limitations? Timeline? Dependencies? |
+| Success | How will you measure success? What's the happy path? |
+| Edge Cases | What shouldn't happen? Any error states to consider? |
+| Existing Patterns | Are there similar features in the codebase to follow? |
+
+**Exit Condition:** Continue until the idea is clear OR user says "proceed" or "let's move on"
+
+### Phase 2: Explore Approaches
+
+After understanding the idea, propose 2-3 concrete approaches.
+
+**Structure for Each Approach:**
+
+```markdown
+### Approach A: [Name]
+
+[2-3 sentence description]
+
+**Pros:**
+- [Benefit 1]
+- [Benefit 2]
+
+**Cons:**
+- [Drawback 1]
+- [Drawback 2]
+
+**Best when:** [Circumstances where this approach shines]
+```
+
+**Guidelines:**
+- Lead with a recommendation and explain why
+- Be honest about trade-offs
+- Consider YAGNI—simpler is usually better
+- Reference codebase patterns when relevant
+
+### Phase 3: Capture the Design
+
+Summarize key decisions in a structured format.
+
+**Design Doc Structure:**
+
+```markdown
+---
+date: YYYY-MM-DD
+topic: <kebab-case-topic>
+---
+
+# <Topic Title>
+
+## What We're Building
+[Concise description—1-2 paragraphs max]
+
+## Why This Approach
+[Brief explanation of approaches considered and why this one was chosen]
+
+## Key Decisions
+- [Decision 1]: [Rationale]
+- [Decision 2]: [Rationale]
+
+## Open Questions
+- [Any unresolved questions for the planning phase]
+
+## Next Steps
+→ `/workflows:plan` for implementation details
+```
+
+**Output Location:** `docs/brainstorms/YYYY-MM-DD-<topic>-brainstorm.md`
+
+### Phase 4: Handoff
+
+Present clear options for what to do next:
+
+1. **Proceed to planning** → Run `/workflows:plan`
+2. **Refine further** → Continue exploring the design
+3. **Done for now** → User will return later
+
+## YAGNI Principles
+
+During brainstorming, actively resist complexity:
+
+- **Don't design for hypothetical future requirements**
+- **Choose the simplest approach that solves the stated problem**
+- **Prefer boring, proven patterns over clever solutions**
+- **Ask "Do we really need this?" when complexity emerges**
+- **Defer decisions that don't need to be made now**
+
+## Incremental Validation
+
+Keep sections short—200-300 words maximum. After each section of output, pause to validate understanding:
+
+- "Does this match what you had in mind?"
+- "Any adjustments before we continue?"
+- "Is this the direction you want to go?"
+
+This prevents wasted effort on misaligned designs.
+
+## Anti-Patterns to Avoid
+
+| Anti-Pattern | Better Approach |
+|--------------|-----------------|
+| Asking 5 questions at once | Ask one at a time |
+| Jumping to implementation details | Stay focused on WHAT, not HOW |
+| Proposing overly complex solutions | Start simple, add complexity only if needed |
+| Ignoring existing codebase patterns | Research what exists first |
+| Making assumptions without validating | State assumptions explicitly and confirm |
+| Creating lengthy design documents | Keep it concise—details go in the plan |
+
+## Integration with Planning
+
+Brainstorming answers **WHAT** to build:
+- Requirements and acceptance criteria
+- Chosen approach and rationale
+- Key decisions and trade-offs
+
+Planning answers **HOW** to build it:
+- Implementation steps and file changes
+- Technical details and code patterns
+- Testing strategy and verification
+
+When brainstorm output exists, `/workflows:plan` should detect it and use it as input, skipping its own idea refinement phase.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: The user invoked `/compound-engineering:workflows:brainstorm` with the argument "improvements to the intent layer based on recent results". This triggered a brainstorming workflow.
+
+2. **Phase 1 - Context Gathering**: I loaded the brainstorming skill, then launched an Explore agent to scan eval results and existing brainstorm documents. I also read the existing brainstorm doc at `docs/brainstorms/2026-02-18-eval-improvements-brainstorm.md` which already covered Phase 1 (fix plumbing) and Phase 2 (preamble injection) improvements.
+
+3. **Phase 1 - Understanding Scope**: I asked the user what aspect to focus on. They chose "All of the above" (product, eval methodology, delivery mechanism).
+
+4. **Phase 1 - Root Cause**: I asked about the primary bottleneck. User said "They're entangled" - content quality and delivery are interdependent.
+
+5. **Phase 1 - Content Fixes**: User chose "All three + rethink generation" - strip harmful instructions, fill coverage gaps, tighten section focus, AND rethink how generation works for agent consumption.
+
+6. **Phase 2 - Generation Model**: User chose "Purely agent-optimized" - drop narrative entirely, make AGENTS.md a list of rules/constraints/patterns.
+
+7. **Phase 2 - Format**: User chose "Structured rules" (YAML-like format) with the preview showing scope, rules, import_boundaries, common_bugs sections.
+
+8. **Phase 2 - Smart Delivery**: User said "Over-engineering" - keep AGENTS.md as plain files, don't add YAML parsing and rule matching.
+
+9. **Phase 2 - Eval Budget**: User chose "Paired design" - use same seed/prompt for each condition, paired comparison reduces variance.
+
+10. **Phase 2 - Delivery**: User chose "Both: preamble + selective push" - belt and suspenders approach.
+
+11. **Phase 2 - Approach Check**: User gave TWO important corrections:
+    - "we need to make sure we're conformant to the AGENTS.md spec: https://agents.md/"
+    - "focus on fixing generation rather than patching eval AGENTS.md directly"
+
+12. **I fetched the AGENTS.md spec** from agents.md/ - found it's very minimal (just standard markdown, no required sections).
+
+13. **Phase 2 - Generation Format**: User chose "Agent-optimized markdown" over keeping current format. The preview showed Boundaries, Contracts, Rules, Ownership sections.
+
+14. **Phase 2 - Rollout**: User chose "Replace default" - all new AGENTS.md files use agent-optimized format.
+
+15. **I wrote the initial brainstorm doc** to `docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md`.
+
+16. **Phase 3 - Section Count**: User chose "Merge Entry Points into Ownership" and also provided a note: "Compare to what is included in the flat prompt used by the paper" and shared the link https://github.com/eth-sri/agentbench.
+
+17. **I explored the paper's repo** (eth-sri/agentbench). Found `init_planner.py` with exact generation prompts for Claude, Codex, Qwen, Gemini. Key discovery: the paper duplicates the SAME content to both AGENTS.md AND CLAUDE.md. It never tests hierarchical context.
+
+18. **Phase 3 - Framing**: User chose "Yes, distinct hypothesis" - frame as "paper tested onboarding context, we test operational context."
+
+19. **I sketched the new generation prompt** with 5 sections (Boundaries, Contracts, Rules, Ownership, Downlinks) and constraints/good/bad examples.
+
+20. **Prompt Review**: User selected TWO adjustments:
+    - "Too restrictive on commands" - allow targeted test commands but not broad ones
+    - "Needs negative examples" - show what NOT to generate
+
+21. **I refined the generation prompt** to allow targeted test commands and added GOOD/BAD example sections.
+
+22. **I updated the brainstorm doc** with all findings including the paper comparison, distinct hypothesis framing, generation prompt, and section mapping.
+
+23. **Phase 4 - Next Steps**: User chose "Refine design further" instead of proceeding to planning.
+
+24. **Refine Area**: User chose "McNemar's on existing data" - re-analyze Run 3 data with paired comparisons.
+
+25. **McNemar's Analysis**:
+    - First attempt had wrong infra error filter (scipy `binom_test` was deprecated, used `binomtest` instead)
+    - Found that `success=True` runs with `wall_clock=0, tool_calls=0` were being filtered as infra errors when they were actually valid (cache hits/pre-validation passes)
+    - Corrected analysis showed:
+      - Flat LLM significantly hurts (p=0.049, none wins 13/17 discordant pairs)
+      - Intent Layer not significant vs none (p=0.332, none wins 11/17)
+      - On graphiti: flat hurts significantly (p=0.039), IL recovers some damage
+      - On ansible: IL wins 4/4 discordant pairs but p=0.125 (not enough pairs)
+      - 55% of all runs had zero work (134/243), massive data quality issue
+
+26. **User chose "Yes, add to brainstorm"** - add McNemar's results to the brainstorm doc.
+
+27. **Then the summary request came** before I could update the brainstorm doc.
+
+Key files:
+- `docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md` - the main brainstorm doc I wrote and updated
+- `docs/brainstorms/2026-02-18-eval-improvements-brainstorm.md` - the pre-existing brainstorm doc covering Phase 1/2
+- `eval-harness/results/INVALID-2026-02-18-041001.json` - Run 3 raw data used for McNemar's analysis
+- `eval-harness/results/2026-02-16-consolidated.md` - consolidated results from all runs
+- `eth-sri/agentbench` repo - paper's official codebase (init_planner.py, human_planner.py)
+
+Pending: Add McNemar's analysis results to the brainstorm document.
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/compound-engineering:workflows:brainstorm` with "improvements to the intent layer based on recent results." The goal is to brainstorm improvements to the Intent Layer plugin (and its eval harness) based on findings from Runs 1-6 of the AGENTbench replication study. The user wants to explore all three areas: the Intent Layer product itself, eval methodology, and the delivery mechanism. Key user corrections: (1) ensure conformance to the AGENTS.md spec at https://agents.md/, and (2) focus on fixing generation rather than patching individual eval AGENTS.md files.
+
+2. Key Technical Concepts:
+   - **AGENTbench replication**: Replicating paper arxiv 2602.11988v1 which claims context files hurt agent performance
+   - **McNemar's test**: Paired statistical test for binary outcomes - tests whether discordant pairs favor one condition
+   - **Wilson score CIs**: Confidence intervals correct at any N (replacing CLT-based CIs that are too tight for small samples)
+   - **Onboarding context vs operational context**: Paper tests onboarding (commands, architecture, style); our proposal tests operational (rules, boundaries, contracts)
+   - **Agent-optimized AGENTS.md format**: 5 sections (Boundaries, Contracts, Rules, Ownership, Downlinks) replacing 11 current sections
+   - **Preamble injection + selective push-on-read**: Belt-and-suspenders delivery mechanism
+   - **Paired experimental design**: Analyzing eval data as paired comparisons (same task/rep across conditions) rather than independent samples
+   - **Paper's init_planner.py**: Duplicates same flat content to both AGENTS.md AND CLAUDE.md - never tests hierarchical context
+   - **Zero-work runs**: 55% of Run 3 data has wall_clock=0, tool_calls=0 - massive data quality issue
+
+3. Files and Code Sections:
+   - **`docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md`** (CREATED and UPDATED)
+     - Main output of the brainstorm session
+     - Contains: hypothesis framing (onboarding vs operational context), 5-section format (Boundaries, Contracts, Rules, Ownership, Downlinks), new generation prompt with GOOD/BAD examples, delivery mechanism design, eval methodology (McNemar's), paper comparison from eth-sri/agentbench
+     - Full generation prompt included:
+     ```
+     Analyze [DIRECTORY] for an agent-facing AGENTS.md. Return ONLY:
+
+     ## Boundaries
+     - What this module imports from (allowed dependencies)
+     - What must NOT import from this module
+     - Any isolation rules
+
+     ## Contracts
+     - Invariants not enforced by the type system
+     - Pre/post conditions on key functions
+     - Data format assumptions
+
+     ## Rules
+     - One imperative sentence per line
+     - Sourced from: git history (fix/revert commits), known failure modes
+     - MAY include targeted test commands (e.g., "test with: pytest tests/unit/test_foo.py")
+     - MUST NOT include broad commands (e.g., "make test", "pytest", "npm test")
+
+     ## Ownership
+     - Map files/directories to responsibilities
+     - Include "start here for [task]" entries
+     - Only non-obvious mappings
+
+     ## Downlinks
+     - Child AGENTS.md files below this directory
+
+     Constraints:
+     - Maximum 1500 tokens
+     - Every line must pass: "Would an agent fixing a bug here need this?"
+
+     GOOD output: "Normalize datetimes to UTC before comparison", targeted pytest commands
+     BAD output: "This module handles utility functions" (obvious), "make test" (broad), "Follow PEP 8" (linters handle)
+     ```
+     - **PENDING UPDATE**: McNemar's analysis results need to be added
+
+   - **`docs/brainstorms/2026-02-18-eval-improvements-brainstorm.md`** (READ, pre-existing)
+     - Earlier brainstorm covering Phase 1 (fix plumbing) and Phase 2 (preamble injection)
+     - Already deepened with research agents on 2026-02-19
+     - Contains resolved open questions about preamble position, cache strategy, repo scope, rep count
+
+   - **`eval-harness/results/INVALID-2026-02-18-041001.json`** (READ for McNemar's analysis)
+     - Run 3 raw data: 27 tasks × 3 conditions × 3 reps = 243 items
+     - Structure: `{results: [{task_id, none: {runs: [...]}, flat_llm: {runs: [...]}, intent_layer: {runs: [...]}}]}`
+
+   - **`eval-harness/results/2026-02-16-consolidated.md`** (READ)
+     - Consolidated results from Runs 1-6 with per-repo analysis
+
+   - **`eth-sri/agentbench` repo** (READ via GitHub MCP)
+     - `src/agentbench/planners/init_planner.py`: Contains exact generation prompts (`_CLAUDE_CODE_INIT_PROMPT`, `_CODEX_INIT_PROMPT`, `_QWEN_INIT_PROMPT`, `_GEMINI_INIT_PROMPT`). Key discovery: paper writes same content to both AGENTS.md AND CLAUDE.md.
+     - `src/agentbench/planners/human_planner.py`: Finds existing AGENTS.md/CLAUDE.md from git history for "human" condition.
+
+   - **Current generation prompt** (from explorer agent research)
+     - Located in `skills/intent-layer/SKILL.md` lines 347-394
+     - Current mandatory sections: Purpose, Entry Points, Contracts
+     - Current conditional sections: Design Rationale, Code Map, Public API, Patterns, Pitfalls, Boundaries, Checks, Downlinks
+     - Also: `references/section-schema.md`, `references/templates/generic/`
+
+4. Errors and Fixes:
+   - **McNemar's infra error filter bug**: Initial analysis used `wall_clock_seconds == 0 AND tool_calls == 0` to detect infrastructure errors. This incorrectly filtered out runs where `success=True` but with zero work (cache hits/pre-validation passes). Result: only 19 valid pairs instead of 81, showing 9/9 none wins (wrong).
+     - Fix: Removed the filter, trusted the `success` field directly. Corrected analysis showed 81 pairs with 17 discordant (11 none wins, 6 IL wins).
+   - **scipy import error**: `binom_test` was deprecated in newer scipy. Fixed by using `binomtest` instead.
+   - **Initial brainstorm had only 3 sections**: User feedback expanded to 5 sections (keeping Contracts separate from Rules, keeping Entry Points merged into Ownership, keeping Downlinks).
+
+5. Problem Solving:
+   - **Identified distinct hypothesis**: Paper tests onboarding context (commands, architecture, style). We propose testing operational context (rules, boundaries, contracts). This reframes the entire research question.
+   - **McNemar's reveals hidden signal**: Flat context significantly hurts (p=0.049 overall, p=0.039 on graphiti) - replicates the paper's finding with statistical significance using paired test on small data. Unpaired analysis missed this due to overlapping CIs.
+   - **Zero-work data quality**: 55% of Run 3 runs (134/243) had zero work. Of those, 66 marked success, 68 marked fail. This massively inflates denominators and hides signal.
+   - **Section mapping**: Collapsed 11 current sections into 5 proposed sections with clear rationale for each merge/drop.
+
+6. All User Messages:
+   - (Brainstorm command): "improvements to the intent layer based on recent results"
+   - Focus area: "All of the above" (product, eval, delivery)
+   - Root cause: "They're entangled" (content and delivery)
+   - Content fixes: "All three + rethink generation"
+   - Generation model: "Purely agent-optimized"
+   - Format: "Structured rules" (YAML-like, selected preview)
+   - Smart delivery: "Over-engineering" (keep it simple)
+   - Eval budget: "Paired design"
+   - Delivery: "Both: preamble + selective push"
+   - Approach check: "Two things. First, we need to make sure we're conformant to the AGENTS.md spec: https://agents.md/ Second, focus on fixing generation rather than patching eval AGENTS.md directly"
+   - Generation format: "Agent-optimized markdown" (selected preview with Boundaries/Contracts/Rules/Ownership)
+   - Rollout: "Replace default"
+   - Section count: "Merge Entry Points into Ownership" + note: "Compare to what is included in the flat prompt used by the paper"
+   - (Shared link): "https://github.com/eth-sri/agentbench"
+   - Framing: "Yes, distinct hypothesis"
+   - Prompt review: "Too restrictive on commands" AND "Needs negative examples" (multi-select)
+   - Final check: "Yes, update the brainstorm"
+   - Next steps: "Refine design further"
+   - Refine area: "McNemar's on existing data"
+   - Capture findings: "Yes, add to brainstorm"
+
+7. Pending Tasks:
+   - **Add McNemar's analysis results to the brainstorm doc** (`docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md`) - user said "Yes, add to brainstorm" right before the summary request
+   - After brainstorm refinement is complete: run `/workflows:plan` for implementation across all three workstreams
+
+8. Current Work:
+   I had just completed the McNemar's paired analysis on Run 3 data and presented the results to the user. The key findings were:
+   - Flat LLM significantly hurts (p=0.049, none wins 13/17 discordant pairs)
+   - Intent Layer vs None not significant (p=0.332, 11 none wins vs 6 IL wins out of 17 discordant)
+   - On graphiti: flat hurts significantly (p=0.039)
+   - On ansible: IL wins 4/4 discordant pairs but p=0.125
+   - 55% zero-work runs (data quality issue)
+   
+   The user chose "Yes, add to brainstorm" and I was about to update the brainstorm document with these McNemar's results when the summary request came.
+
+9. Optional Next Step:
+   Add the McNemar's paired analysis results to `docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md`. The user's last substantive response was choosing "Yes, add to brainstorm" in response to: "The paired analysis reveals that flat context significantly hurts (p=0.049), confirming the paper. But intent_layer is not significant yet — we have 17 discordant pairs, need ~25+ for power. Should I add this analysis to the brainstorm doc and note what it means for our next eval run?"
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/feb9e237-3ee9-400e-b404-2e27f664a68a.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+# Create a plan for a new feature or bug fix
+
+## Introduction
+
+**Note: The current year is 2026.** Use this when dating plans and searching for recent documentation.
+
+Transform feature descriptions, bug reports, or improvement ideas into well-structured markdown files issues that follow project conventions and best practices. This command provides flexible detail levels to match your needs.
+
+## Feature Description
+
+<feature_description> # </feature_description>
+
+**If the feature description above is empty, ask the user:** "What would you like to plan? Please describe the feature, bug fix, or improvement you have in mind."
+
+Do not proceed until you have a clear feature description from the user.
+
+### 0. Idea Refinement
+
+**Check for brainstorm output first:**
+
+Before asking questions, look for recent brainstorm documents in `docs/brainstorms/` that match this feature:
+
+```bash
+ls -la docs/brainstorms/*.md 2>/dev/null | head -10
+```
+
+**Relevance criteria:** A brainstorm is relevant if:
+- The topic (from filename or YAML frontmatter) semantically matches the feature description
+- Created within the last 14 days
+- If multiple candidates match, use the most recent one
+
+**If a relevant brainstorm exists:**
+1. Read the brainstorm document
+2. Announce: "Found brainstorm from [date]: [topic]. Using as context for planning."
+3. Extract key decisions, chosen approach, and open questions
+4. **Skip the idea refinement questions below** - the brainstorm already answered WHAT to build
+5. Use brainstorm decisions as input to the research phase
+
+**If multiple brainstorms could match:**
+Use **AskUserQuestion tool** to ask which brainstorm to use, or whether to proceed without one.
+
+**If no brainstorm found (or not relevant), run idea refinement:**
+
+Refine the idea through collaborative dialogue using the **AskUserQuestion tool**:
+
+- Ask questions one at a time to understand the idea fully
+- Prefer multiple choice questions when natural options exist
+- Focus on understanding: purpose, constraints and success criteria
+- Continue until the idea is clear OR user says "proceed"
+
+**Gather signals for research decision.** During refinement, note:
+
+- **User's familiarity**: Do they know the codebase patterns? Are they pointing to examples?
+- **User's intent**: Speed vs thoroughness? Exploration vs execution?
+- **Topic risk**: Security, payments, external APIs warrant more caution
+- **Uncertainty level**: Is the approach clear or open-ended?
+
+**Skip option:** If the feature description is already detailed, offer:
+"Your description is clear. Should I proceed with research, or would you like to refine it further?"
+
+## Main Tasks
+
+### 1. Local Research (Always Runs - Parallel)
+
+<thinking>
+First, I need to understand the project's conventions, existing patterns, and any documented learnings. This is fast and local - it informs whether external research is needed.
+</thinking>
+
+Run these agents **in parallel** to gather local context:
+
+- Task repo-research-analyst(feature_description)
+- Task learnings-researcher(feature_description)
+
+**What to look for:**
+- **Repo research:** existing patterns, CLAUDE.md guidance, technology familiarity, pattern consistency
+- **Learnings:** documented solutions in `docs/solutions/` that might apply (gotchas, patterns, lessons learned)
+
+These findings inform the next step.
+
+### 1.5. Research Decision
+
+Based on signals from Step 0 and findings from Step 1, decide on external research.
+
+**High-risk topics → always research.** Security, payments, external APIs, data privacy. The cost of missing something is too high. This takes precedence over speed signals.
+
+**Strong local context → skip external research.** Codebase has good patterns, CLAUDE.md has guidance, user knows what they want. External research adds little value.
+
+**Uncertainty or unfamiliar territory → research.** User is exploring, codebase has no examples, new technology. External perspective is valuable.
+
+**Announce the decision and proceed.** Brief explanation, then continue. User can redirect if needed.
+
+Examples:
+- "Your codebase has solid patterns for this. Proceeding without external research."
+- "This involves payment processing, so I'll research current best practices first."
+
+### 1.5b. External Research (Conditional)
+
+**Only run if Step 1.5 indicates external research is valuable.**
+
+Run these agents in parallel:
+
+- Task best-practices-researcher(feature_description)
+- Task framework-docs-researcher(feature_description)
+
+### 1.6. Consolidate Research
+
+After all research steps complete, consolidate findings:
+
+- Document relevant file paths from repo research (e.g., `app/services/example_service.rb:42`)
+- **Include relevant institutional learnings** from `docs/solutions/` (key insights, gotchas to avoid)
+- Note external documentation URLs and best practices (if external research was done)
+- List related issues or PRs discovered
+- Capture CLAUDE.md conventions
+
+**Optional validation:** Briefly summarize findings and ask if anything looks off or missing before proceeding to planning.
+
+### 2. Issue Planning & Structure
+
+<thinking>
+Think like a product manager - what would make this issue clear and actionable? Consider multiple perspectives
+</thinking>
+
+**Title & Categorization:**
+
+- [ ] Draft clear, searchable issue title using conventional format (e.g., `feat: Add user authentication`, `fix: Cart total calculation`)
+- [ ] Determine issue type: enhancement, bug, refactor
+- [ ] Convert title to filename: add today's date prefix, strip prefix colon, kebab-case, add `-plan` suffix
+  - Example: `feat: Add User Authentication` → `2026-01-21-feat-add-user-authentication-plan.md`
+  - Keep it descriptive (3-5 words after prefix) so plans are findable by context
+
+**Stakeholder Analysis:**
+
+- [ ] Identify who will be affected by this issue (end users, developers, operations)
+- [ ] Consider implementation complexity and required expertise
+
+**Content Planning:**
+
+- [ ] Choose appropriate detail level based on issue complexity and audience
+- [ ] List all necessary sections for the chosen template
+- [ ] Gather supporting materials (error logs, screenshots, design mockups)
+- [ ] Prepare code examples or reproduction steps if applicable, name the mock filenames in the lists
+
+### 3. SpecFlow Analysis
+
+After planning the issue structure, run SpecFlow Analyzer to validate and refine the feature specification:
+
+- Task spec-flow-analyzer(feature_description, research_findings)
+
+**SpecFlow Analyzer Output:**
+
+- [ ] Review SpecFlow analysis results
+- [ ] Incorporate any identified gaps or edge cases into the issue
+- [ ] Update acceptance criteria based on SpecFlow findings
+
+### 4. Choose Implementation Detail Level
+
+Select how comprehensive you want the issue to be, simpler is mostly better.
+
+#### 📄 MINIMAL (Quick Issue)
+
+**Best for:** Simple bugs, small improvements, clear features
+
+**Includes:**
+
+- Problem statement or feature description
+- Basic acceptance criteria
+- Essential context only
+
+**Structure:**
+
+````markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+[Brief problem/feature description]
+
+## Acceptance Criteria
+
+- [ ] Core requirement 1
+- [ ] Core requirement 2
+
+## Context
+
+[Any critical information]
+
+## MVP
+
+### test.rb
+
+```ruby
+class Test
+  def initialize
+    @name = "test"
+  end
+end
+```
+
+## References
+
+- Related issue: #[issue_number]
+- Documentation: [relevant_docs_url]
+````
+
+#### 📋 MORE (Standard Issue)
+
+**Best for:** Most features, complex bugs, team collaboration
+
+**Includes everything from MINIMAL plus:**
+
+- Detailed background and motivation
+- Technical considerations
+- Success metrics
+- Dependencies and risks
+- Basic implementation suggestions
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Comprehensive description]
+
+## Problem Statement / Motivation
+
+[Why this matters]
+
+## Proposed Solution
+
+[High-level approach]
+
+## Technical Considerations
+
+- Architecture impacts
+- Performance implications
+- Security considerations
+
+## Acceptance Criteria
+
+- [ ] Detailed requirement 1
+- [ ] Detailed requirement 2
+- [ ] Testing requirements
+
+## Success Metrics
+
+[How we measure success]
+
+## Dependencies & Risks
+
+[What could block or complicate this]
+
+## References & Research
+
+- Similar implementations: [file_path:line_number]
+- Best practices: [documentation_url]
+- Related PRs: #[pr_number]
+```
+
+#### 📚 A LOT (Comprehensive Issue)
+
+**Best for:** Major features, architectural changes, complex integrations
+
+**Includes everything from MORE plus:**
+
+- Detailed implementation plan with phases
+- Alternative approaches considered
+- Extensive technical specifications
+- Resource requirements and timeline
+- Future considerations and extensibility
+- Risk mitigation strategies
+- Documentation requirements
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Executive summary]
+
+## Problem Statement
+
+[Detailed problem analysis]
+
+## Proposed Solution
+
+[Comprehensive solution design]
+
+## Technical Approach
+
+### Architecture
+
+[Detailed technical design]
+
+### Implementation Phases
+
+#### Phase 1: [Foundation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 2: [Core Implementation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 3: [Polish & Optimization]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+## Alternative Approaches Considered
+
+[Other solutions evaluated and why rejected]
+
+## Acceptance Criteria
+
+### Functional Requirements
+
+- [ ] Detailed functional criteria
+
+### Non-Functional Requirements
+
+- [ ] Performance targets
+- [ ] Security requirements
+- [ ] Accessibility standards
+
+### Quality Gates
+
+- [ ] Test coverage requirements
+- [ ] Documentation completeness
+- [ ] Code review approval
+
+## Success Metrics
+
+[Detailed KPIs and measurement methods]
+
+## Dependencies & Prerequisites
+
+[Detailed dependency analysis]
+
+## Risk Analysis & Mitigation
+
+[Comprehensive risk assessment]
+
+## Resource Requirements
+
+[Team, time, infrastructure needs]
+
+## Future Considerations
+
+[Extensibility and long-term vision]
+
+## Documentation Plan
+
+[What docs need updating]
+
+## References & Research
+
+### Internal References
+
+- Architecture decisions: [file_path:line_number]
+- Similar features: [file_path:line_number]
+- Configuration: [file_path:line_number]
+
+### External References
+
+- Framework documentation: [url]
+- Best practices guide: [url]
+- Industry standards: [url]
+
+### Related Work
+
+- Previous PRs: #[pr_numbers]
+- Related issues: #[issue_numbers]
+- Design documents: [links]
+```
+
+### 5. Issue Creation & Formatting
+
+<thinking>
+Apply best practices for clarity and actionability, making the issue easy to scan and understand
+</thinking>
+
+**Content Formatting:**
+
+- [ ] Use clear, descriptive headings with proper hierarchy (##, ###)
+- [ ] Include code examples in triple backticks with language syntax highlighting
+- [ ] Add screenshots/mockups if UI-related (drag & drop or use image hosting)
+- [ ] Use task lists (- [ ]) for trackable items that can be checked off
+- [ ] Add collapsible sections for lengthy logs or optional details using `<details>` tags
+- [ ] Apply appropriate emoji for visual scanning (🐛 bug, ✨ feature, 📚 docs, ♻️ refactor)
+
+**Cross-Referencing:**
+
+- [ ] Link to related issues/PRs using #number format
+- [ ] Reference specific commits with SHA hashes when relevant
+- [ ] Link to code using GitHub's permalink feature (press 'y' for permanent link)
+- [ ] Mention relevant team members with @username if needed
+- [ ] Add links to external resources with descriptive text
+
+**Code & Examples:**
+
+````markdown
+# Good example with syntax highlighting and line references
+
+
+```ruby
+# app/services/user_service.rb:42
+def process_user(user)
+
+# Implementation here
+
+end
+```
+
+# Collapsible error logs
+
+<details>
+<summary>Full error stacktrace</summary>
+
+`Error details here...`
+
+</details>
+````
+
+**AI-Era Considerations:**
+
+- [ ] Account for accelerated development with AI pair programming
+- [ ] Include prompts or instructions that worked well during research
+- [ ] Note which AI tools were used for initial exploration (Claude, Copilot, etc.)
+- [ ] Emphasize comprehensive testing given rapid implementation
+- [ ] Document any AI-generated code that needs human review
+
+### 6. Final Review & Submission
+
+**Pre-submission Checklist:**
+
+- [ ] Title is searchable and descriptive
+- [ ] Labels accurately categorize the issue
+- [ ] All template sections are complete
+- [ ] Links and references are working
+- [ ] Acceptance criteria are measurable
+- [ ] Add names of files in pseudo code examples and todo lists
+- [ ] Add an ERD mermaid diagram if applicable for new model changes
+
+## Output Format
+
+**Filename:** Use the date and kebab-case filename from Step 2 Title & Categorization.
+
+```
+docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md
+```
+
+Examples:
+- ✅ `docs/plans/2026-01-15-feat-user-authentication-flow-plan.md`
+- ✅ `docs/plans/2026-02-03-fix-checkout-race-condition-plan.md`
+- ✅ `docs/plans/2026-03-10-refactor-api-client-extraction-plan.md`
+- ❌ `docs/plans/2026-01-15-feat-thing-plan.md` (not descriptive - what "thing"?)
+- ❌ `docs/plans/2026-01-15-feat-new-feature-plan.md` (too vague - what feature?)
+- ❌ `docs/plans/2026-01-15-feat: user auth-plan.md` (invalid characters - colon and space)
+- ❌ `docs/plans/feat-user-auth-plan.md` (missing date prefix)
+
+## Post-Generation Options
+
+After writing the plan file, use the **AskUserQuestion tool** to present these options:
+
+**Question:** "Plan ready at `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`. What would you like to do next?"
+
+**Options:**
+1. **Open plan in editor** - Open the plan file for review
+2. **Run `/deepen-plan`** - Enhance each section with parallel research agents (best practices, performance, UI)
+3. **Run `/plan_review`** - Get feedback from reviewers (DHH, Kieran, Simplicity)
+4. **Start `/workflows:work`** - Begin implementing this plan locally
+5. **Start `/workflows:work` on remote** - Begin implementing in Claude Code on the web (use `&` to run in background)
+6. **Create Issue** - Create issue in project tracker (GitHub/Linear)
+7. **Simplify** - Reduce detail level
+
+Based on selection:
+- **Open plan in editor** → Run `open docs/plans/<plan_filename>.md` to open the file in the user's default editor
+- **`/deepen-plan`** → Call the /deepen-plan command with the plan file path to enhance with research
+- **`/plan_review`** → Call the /plan_review command with the plan file path
+- **`/workflows:work`** → Call the /workflows:work command with the plan file path
+- **`/workflows:work` on remote** → Run `/workflows:work docs/plans/<plan_filename>.md &` to start work in background for Claude Code web
+- **Create Issue** → See "Issue Creation" section below
+- **Simplify** → Ask "What should I simplify?" then regenerate simpler version
+- **Other** (automatically provided) → Accept free text for rework or specific changes
+
+**Note:** If running `/workflows:plan` with ultrathink enabled, automatically run `/deepen-plan` after plan creation for maximum depth and grounding.
+
+Loop back to options after Simplify or Other changes until user selects `/workflows:work` or `/plan_review`.
+
+## Issue Creation
+
+When user selects "Create Issue", detect their project tracker from CLAUDE.md:
+
+1. **Check for tracker preference** in user's CLAUDE.md (global or project):
+   - Look for `project_tracker: github` or `project_tracker: linear`
+   - Or look for mentions of "GitHub Issues" or "Linear" in their workflow section
+
+2. **If GitHub:**
+
+   Use the title and type from Step 2 (already in context - no need to re-read the file):
+
+   ```bash
+   gh issue create --title "<type>: <title>" --body-file <plan_path>
+   ```
+
+3. **If Linear:**
+
+   ```bash
+   linear issue create --title "<title>" --description "$(cat <plan_path>)"
+   ```
+
+4. **If no tracker configured:**
+   Ask user: "Which project tracker do you use? (GitHub/Linear/Other)"
+   - Suggest adding `project_tracker: github` or `project_tracker: linear` to their CLAUDE.md
+
+5. **After creation:**
+   - Display the issue URL
+   - Ask if they want to proceed to `/workflows:work` or `/plan_review`
+
+NEVER CODE! Just research and write the plan.
+
+---
+
+Have @agent-dhh-rails-reviewer @agent-kieran-rails-reviewer @agent-code-simplicity-reviewer review this plan in parallel.
+
+
+ARGUMENTS: docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md
+
+---
+
+[Request interrupted by user]
+
+---
+
+No what I mean is that we haven't actually *tested* the intent layer as it's meant to be used as a workflow/skill within the agent itself. Approximating it is not the same.
+
+---
+
+yes, test the actual plugin!
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session start**: This is a continuation of a previous conversation. The prior session covered a brainstorming workflow about Intent Layer improvements based on eval results. Key brainstorm docs were already created.
+
+2. **User invoked `/compound-engineering:workflows:plan`**: To create an implementation plan based on the brainstorm documents.
+
+3. **I found the brainstorm documents** and launched three parallel research agents (generation system, delivery mechanism, eval harness stats) plus checked for docs/plans directory.
+
+4. **Research agents returned** with detailed findings about:
+   - Generation system: SKILL.md lines 347-394, section-schema.md, templates, explorer.md
+   - Delivery mechanism: pre-edit-check.sh, walk_ancestors.sh, push-on-read-hook.sh, prompt_builder.py, task_runner.py
+   - Eval stats: stats.py (Wilson CIs), reporter.py, cli.py
+
+5. **SpecFlow analysis** ran and identified critical gaps: section name mismatch, validation incompatibility, generation prompt drift, preamble target resolution, etc.
+
+6. **I wrote the initial plan** to `docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md` with 5 phases.
+
+7. **User feedback: "We're not worried about backwards compatibility"** - All AGENTS.md files will be regenerated. I removed dual-format support from validate_node.sh and hook fallback logic.
+
+8. **User feedback: "why are we creating a new testing condition?"** - Questioning the 4th condition (intent_layer_preamble). I explained the rationale and asked. User chose "3 conditions (simpler)" - just upgrade intent_layer to use preamble injection.
+
+9. **I updated the plan** to remove the 4th condition, simplify Phase 4, update acceptance criteria, files table, etc.
+
+10. **User chose "Run /plan_review"** - I launched three parallel review agents (DHH-style, Kieran-style, Simplicity).
+
+11. **All three reviewers converged** on key issues:
+    - Cut Fisher's exact test (not used)
+    - Too many changes at once
+    - Split plugin-side from eval-side (only 2 eval files matter)
+    - Preamble injection adds confounding variable
+    - Specific bugs: "4 conditions" in acceptance criteria, "dual-format" in files table, prompt ordering inconsistency, no Phase 4 tests, collect_preamble_content() location
+
+12. **User chose "Other"** and asked: "Is the entire intent layer plugin running during evals, or just the scripts we copied over?"
+
+13. **I investigated** - found the eval runs its own custom scripts (push-on-read-hook.sh, prompt_builder.py), NOT the actual plugin. The plugin is never installed in the eval workspace.
+
+14. **User's key insight: "No what I mean is that we haven't actually *tested* the intent layer as it's meant to be used as a workflow/skill within the agent itself. Approximating it is not the same."**
+
+15. **I acknowledged** this fundamental critique - the eval tests a simulation, not the real product.
+
+16. **User: "yes, test the actual plugin!"**
+
+17. **I asked about generation and hooks**:
+    - User chose: "Run /intent-layer skill" (most authentic, cache result)
+    - User chose: "PreToolUse + SessionStart" (inject learnings + inject context before edits)
+
+18. **I rewrote the entire plan** from scratch to reflect testing the actual plugin:
+    - Phase 4 now installs actual plugin hooks instead of custom eval hooks
+    - Generation uses actual /intent-layer skill instead of custom prompt
+    - Custom push-on-read-hook.sh gets deleted
+    - custom build_skill_generation_prompt() removed from prompt_builder.py
+
+Key files in the final plan:
+- `eval-harness/lib/task_runner.py` - hook config changes to point to actual plugin scripts
+- `scripts/pre-edit-check.sh` - the actual plugin hook that will now run in evals
+- `scripts/inject-learnings.sh` - SessionStart hook
+- `eval-harness/scripts/push-on-read-hook.sh` - to be DELETED (replaced by actual plugin)
+- `eval-harness/lib/prompt_builder.py` - remove build_skill_generation_prompt()
+
+The plan was just written and hasn't been reviewed by the user yet.
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/compound-engineering:workflows:plan` to create an implementation plan for Intent Layer improvements based on two brainstorm documents from 2026-02-18. The plan went through multiple revisions based on user feedback and a three-reviewer review cycle. The critical user insight was that **the eval harness doesn't test the actual Intent Layer plugin** — it tests a reimplementation with different generation prompts and custom hooks. The user's final, firm direction: test the actual plugin by installing its real hooks and running the real `/intent-layer` skill for generation, not approximations.
+
+2. Key Technical Concepts:
+   - **McNemar's test**: Paired binary comparison using exact binomial (no scipy). Tests whether discordant (task, rep) pairs favor one condition.
+   - **Agent-optimized AGENTS.md format**: 5 sections (Boundaries, Contracts, Rules, Ownership, Downlinks) replacing 11 narrative-heavy sections.
+   - **Actual plugin vs eval approximation**: The eval harness reimplements context generation (`prompt_builder.py:build_skill_generation_prompt()`) and delivery (`eval-harness/scripts/push-on-read-hook.sh`) separately from the real plugin. These differ in prompt content, section extraction, hook matcher patterns, and timing.
+   - **Plugin hook installation in eval**: Set `CLAUDE_PLUGIN_ROOT` env var and write `.claude/settings.local.json` pointing to actual plugin scripts (`scripts/pre-edit-check.sh`, `scripts/inject-learnings.sh`).
+   - **PreToolUse matcher difference**: Real plugin fires on `Edit|Write|NotebookEdit` (writes only); eval's custom hook fired on `Read|Grep|Edit|Write|NotebookEdit` (reads + writes). Testing the real plugin means testing authentic behavior.
+   - **Generation via /intent-layer skill**: Run once per repo, cache results. Authentic generation using explorer agent, mine_git_history.sh, etc.
+
+3. Files and Code Sections:
+   - **`docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md`** (CREATED, then REWRITTEN)
+     - The main output. Final version has 5 phases: Eval Stats, Plugin Generation Quality, Data Quality, Actual Plugin in Eval, Clean Eval Run.
+     - Completely rewritten after user's "test the actual plugin!" directive.
+
+   - **`docs/brainstorms/2026-02-18-intent-layer-improvements-brainstorm.md`** (READ, updated in prior session)
+     - Input brainstorm with hypothesis framing, 5-section format, generation prompt, McNemar's analysis results.
+     - McNemar's analysis was added at the start of this session (pending from prior session).
+
+   - **`docs/brainstorms/2026-02-18-eval-improvements-brainstorm.md`** (READ)
+     - Companion brainstorm covering Phase 1/2 improvements, preamble injection specifics, statistical methodology.
+
+   - **`eval-harness/lib/task_runner.py`** (READ lines 750-779)
+     - Lines 753-773: Current hook installation for eval — writes `.claude/settings.local.json` pointing to `eval-harness/scripts/push-on-read-hook.sh`.
+     - This is where the actual plugin hooks will be installed instead:
+     ```python
+     if condition == Condition.INTENT_LAYER:
+         plugin_root = str(Path(__file__).resolve().parents[2])
+         hooks_config = {
+             "hooks": {
+                 "PreToolUse": [{
+                     "matcher": "Edit|Write|NotebookEdit",
+                     "hooks": [{"type": "command", "command": f"{plugin_root}/scripts/pre-edit-check.sh", "timeout": 10}]
+                 }],
+                 "SessionStart": [{
+                     "matcher": "",
+                     "hooks": [{"type": "command", "command": f"{plugin_root}/scripts/inject-learnings.sh", "timeout": 15}]
+                 }],
+             }
+         }
+         env["CLAUDE_PLUGIN_ROOT"] = plugin_root
+     ```
+
+   - **`eval-harness/scripts/push-on-read-hook.sh`** (identified for DELETION)
+     - Custom reimplementation that will be replaced by the actual plugin's `scripts/pre-edit-check.sh`.
+
+   - **`eval-harness/lib/prompt_builder.py`** (READ via research agent)
+     - Lines 5-17: FLAT_PREAMBLE and INTENT_LAYER_PREAMBLE constants (keep these).
+     - Lines 81-149: `build_skill_generation_prompt()` — custom eval generation prompt (to be REMOVED, replaced by running actual `/intent-layer` skill).
+
+   - **`scripts/pre-edit-check.sh`** (identified for modification)
+     - Lines 94-105: Currently extracts Pitfalls, Checks, Patterns, Context sections.
+     - Will be updated to extract Rules, Contracts, Boundaries (new 5-section format).
+
+   - **`eval-harness/lib/stats.py`** (identified for extension)
+     - Add `mcnemar_test(b, c)` function (~30 lines). No Fisher's exact test (cut per reviewer feedback).
+
+   - **`skills/intent-layer/SKILL.md`** (identified for modification)
+     - Lines 347-394: Current 10-section generation prompt to be replaced with 5-section agent-optimized prompt.
+
+   - **`references/section-schema.md`**, **`references/templates/`**, **`agents/explorer.md`**, **`scripts/validate_node.sh`** (all identified for modification to new 5-section schema)
+
+4. Errors and fixes:
+   - **Acceptance criteria said "4 conditions"** but plan implemented 3: Fixed by updating to "3 conditions".
+   - **Files table said "dual-format detection"** but plan said no dual-format: Fixed by removing the reference.
+   - **Backward compatibility complexity**: User said "We're not worried about backwards compatibility, all of the intent layer files will be regenerated." Removed dual-format detection from validate_node.sh and fallback section extraction from hooks.
+   - **4th condition over-engineering**: User asked "why are we creating a new testing condition?" — simplified to 3 conditions by upgrading intent_layer to include preamble injection.
+   - **Preamble injection later cut entirely**: When the plan shifted to using the actual plugin, preamble injection in prompt_builder.py became unnecessary — the plugin's hooks handle delivery.
+   - **Fundamental eval validity issue**: User pointed out the eval doesn't test the actual plugin. Entire plan was rewritten to install and run the actual plugin instead of approximations.
+
+5. Problem Solving:
+   - **Brainstorm → Plan transition**: Successfully found and used two brainstorm documents as input, skipping idea refinement phase.
+   - **Three parallel research agents** explored generation system, delivery mechanism, and eval stats simultaneously.
+   - **SpecFlow analysis** identified critical gaps (section name mismatch, validation incompatibility, prompt ordering, etc.).
+   - **Three-reviewer parallel review** (DHH, Kieran, Simplicity) converged on key issues: scope too broad, split plugin/eval sides, cut Fisher's.
+   - **User's fundamental insight** about testing the actual plugin vs approximation drove a complete plan rewrite that is cleaner and more authentic.
+
+6. All user messages:
+   - (Invoked `/compound-engineering:workflows:plan` with empty feature description — context from brainstorm)
+   - "We're not worried about backwards compatibility, all of the intent layer files will be regenerated."
+   - "why are we creating a new testing condition?"
+   - Chose "3 conditions (simpler)" for conditions approach
+   - Chose "Run /plan_review" for next step
+   - "Is the entire intent layer plugin running during evals, or just the scripts we copied over?"
+   - "but we already know from the existing data that the current generation isn't helpful"
+   - "No what I mean is that we haven't actually *tested* the intent layer as it's meant to be used as a workflow/skill within the agent itself. Approximating it is not the same."
+   - "yes, test the actual plugin!"
+   - Chose "Run /intent-layer skill" for generation approach
+   - Chose "PreToolUse + SessionStart" for hooks approach
+
+7. Pending Tasks:
+   - The plan at `docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md` has been fully rewritten but the user hasn't yet reviewed/approved the final version or chosen next steps.
+   - No implementation work has started.
+
+8. Current Work:
+   I just finished rewriting the entire plan at `docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md` to reflect the user's direction of testing the actual Intent Layer plugin rather than an approximation. The plan now has 5 phases:
+   - Phase 1: McNemar's test (eval stats)
+   - Phase 2: Plugin generation quality (update actual plugin's SKILL.md, section-schema, templates, hooks to new 5-section format)
+   - Phase 3: Data quality (fix task configs, strip dev commands)
+   - Phase 4: Eval harness integration (install actual plugin hooks, run actual /intent-layer skill for generation, delete custom eval reimplementations)
+   - Phase 5: Clean eval run (3 conditions, 5 reps, 240 task runs)
+
+9. Optional Next Step:
+   Present the rewritten plan to the user for review and ask what they want to do next (same post-generation options: start work, run review, refine further). The user's most recent explicit direction was "yes, test the actual plugin!" and I've rewritten the plan accordingly. The plan file has been written but I haven't yet presented a summary or asked for next steps.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/feb9e237-3ee9-400e-b404-2e27f664a68a.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Have @agent-dhh-rails-reviewer @agent-kieran-rails-reviewer @agent-code-simplicity-reviewer review this plan in parallel.
+
+
+ARGUMENTS: docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md
+
+---
+
+update
+
+---
+
+Swarm-enabled LFG. Run these steps in order, parallelizing where indicated.
+
+## Sequential Phase
+
+1. `/ralph-wiggum:ralph-loop "finish all slash commands" --completion-promise "DONE"`
+2. `/workflows:plan `
+3. `/compound-engineering:deepen-plan`
+4. `/workflows:work` — **Use swarm mode**: Make a Task list and launch an army of agent swarm subagents to build the plan
+
+## Parallel Phase
+
+After work completes, launch steps 5 and 6 as **parallel swarm agents** (both only need code to be written):
+
+5. `/workflows:review` — spawn as background Task agent
+6. `/compound-engineering:test-browser` — spawn as background Task agent
+
+Wait for both to complete before continuing.
+
+## Finalize Phase
+
+7. `/compound-engineering:resolve_todo_parallel` — resolve any findings from the review
+8. `/compound-engineering:feature-video` — record the final walkthrough and add to PR
+9. Output `<promise>DONE</promise>` when video is in PR
+
+Start with step 1 now.
+
+---
+
+<teammate-message teammate_id="pr2-mcnemar" color="green" summary="PR2 McNemar's test complete, all 48 tests pass">
+PR 2 (McNemar's Test) implementation is complete. All 48 tests pass (including 7 new ones).
+
+**Task 4 - stats.py**: Added `mcnemar_test(b, c)` function using exact binomial test (no scipy). Returns `{p_value, n_discordant, a_wins, b_wins}`.
+
+**Task 5 - reporter.py**: 
+- Added `_compute_mcnemar()` method that pairs results by (task_id, rep_index) where rep_index is derived from ordering within each (task_id, condition) group (since TaskResult has no rep field)
+- Excludes pairs where either result is an infra error
+- Computes all 3 pairwise comparisons: flat_llm vs none, intent_layer vs none, intent_layer vs flat_llm
+- Stores results under `summary["mcnemar"]`
+- Added "Paired Analysis (McNemar's Test)" markdown section with table showing Comparison, Discordant count, A wins, B wins, p-value, Significance
+
+**Task 6 - Tests**:
+- test_stats.py: 4 tests (perfect_split, even_split, no_discordant, single_pair)
+- test_reporter.py: 3 tests (mcnemar_in_summary with known b/c counts, mcnemar_excludes_infra_errors, mcnemar_markdown_output)
+
+Files modified:
+- `/Users/ryo/dev/intent-layer/eval-harness/lib/stats.py`
+- `/Users/ryo/dev/intent-layer/eval-harness/lib/reporter.py`
+- `/Users/ryo/dev/intent-layer/eval-harness/tests/test_stats.py`
+- `/Users/ryo/dev/intent-layer/eval-harness/tests/test_reporter.py`
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="pr2-mcnemar" color="green">
+{"type":"idle_notification","from":"pr2-mcnemar","timestamp":"2026-02-19T03:08:22.195Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr2-mcnemar" color="green">
+{"type":"idle_notification","from":"pr2-mcnemar","timestamp":"2026-02-19T03:08:28.980Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr1-data-quality" color="blue" summary="PR1 tasks complete: CLAUDE.md dev commands stripped">
+PR 1 tasks (1, 2, 3) are done. Here's what I found and changed:
+
+**Task 1 (graphiti.yaml)** — Already fixed in prior commits. `--ignore=mcp_server/tests` is present on line 34, and `preserve-all-signatures` was already dropped (listed in "Dropped tasks" comment on line 6). No changes needed.
+
+**Task 2 (ansible.yaml)** — Already fixed in prior commits. `fix-local-connection` and `fix-clearlinux` are both removed (listed in "Dropped tasks" comments). Only 4 valid tasks remain, all with specific `test_file` entries. The test_command scoping happens automatically at runtime — `task_runner.py:275` appends `task.test_file` to the base `test_command`. No changes needed.
+
+**Task 3 (Strip dev commands from eval CLAUDE.md)** — This was the one that needed work. I edited 4 files in `eval-harness/.index-cache-preserve/`:
+
+1. **`graphiti-flat_llm/CLAUDE.md`** — Replaced the full "Development commands" section (uv sync, make format, make lint, make test, make check, server/MCP server dev commands) with a focused "Testing" section directing the agent to run only specific test files. Also removed the `make test` mention from the second Testing section. Added env var guidance for DISABLE_* vars.
+
+2. **`graphiti-intent_layer/CLAUDE.md`** — Same treatment: replaced "Development" section (uv sync, make format/lint/test/check, docker-compose) with targeted testing instructions.
+
+3. **`ansible-flat_llm/CLAUDE.md`** — Replaced "Development setup" (pip install -e ., ansible-test commands, full test suite commands) with targeted pytest guidance pointing to `test/units/`.
+
+4. **`ansible-intent_layer/CLAUDE.md`** — Same: replaced "Development" and "Testing" sections (pip install -e ., ansible-test commands) with targeted pytest guidance.
+
+All four now say: "Run only the specific test file relevant to the bug, not the full test suite." with example pytest commands. The `make test` confound that caused the 29pp penalty on graphiti should be eliminated.
+</teammate-message>
+
+<teammate-message teammate_id="pr2-mcnemar" color="green">
+{"type":"idle_notification","from":"pr2-mcnemar","timestamp":"2026-02-19T03:08:32.077Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr1-data-quality" color="blue">
+{"type":"idle_notification","from":"pr1-data-quality","timestamp":"2026-02-19T03:08:34.790Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr2-mcnemar" color="green">
+{"type":"idle_notification","from":"pr2-mcnemar","timestamp":"2026-02-19T03:08:35.442Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="pr1-data-quality" color="blue">
+{"type":"idle_notification","from":"pr1-data-quality","timestamp":"2026-02-19T03:08:41.222Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr1-data-quality" color="blue">
+{"type":"idle_notification","from":"pr1-data-quality","timestamp":"2026-02-19T03:08:44.483Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"pr1-data-quality has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"pr2-mcnemar has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="pr1-data-quality" color="blue">
+{"type":"shutdown_approved","requestId":"shutdown-1771470548608@pr1-data-quality","from":"pr1-data-quality","timestamp":"2026-02-19T03:09:11.884Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+<teammate-message teammate_id="pr2-mcnemar" color="green">
+{"type":"shutdown_approved","requestId":"shutdown-1771470549261@pr2-mcnemar","from":"pr2-mcnemar","timestamp":"2026-02-19T03:09:13.207Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="pr3-plugin-hooks" color="yellow" summary="Tasks 7+8 done: plugin hooks in eval + tests">
+Tasks 7 and 8 (PR 3: Actual Plugin in Eval) are complete. Here's what changed:
+
+**Task 7: Updated task_runner.py to use actual plugin hooks**
+
+File: `eval-harness/lib/task_runner.py`
+
+1. Replaced the custom `push-on-read-hook.sh` hook config with two actual plugin hooks:
+   - **PreToolUse** (`scripts/pre-edit-check.sh`): fires on `Edit|Write|NotebookEdit` (narrower than before — no longer fires on `Read|Grep`). Injects covering AGENTS.md sections (Pitfalls, Checks, Patterns, Context).
+   - **SessionStart** (`scripts/inject-learnings.sh`): injects learnings, pending mistakes, and resolved project context at session start.
+
+2. Added `CLAUDE_PLUGIN_ROOT` env var to the `run_claude` call for the fix phase when condition is `intent_layer`. This is needed because both hook scripts use `$CLAUDE_PLUGIN_ROOT` to find their dependencies (lib/common.sh, lib/find_covering_node.sh, etc.).
+
+3. `push-on-read-hook.sh` and `build_skill_generation_prompt()` are preserved as-is (not deleted).
+
+**Task 8: Added 6 new tests for plugin integration**
+
+File: `eval-harness/tests/test_task_runner.py` (43 total tests, all passing)
+
+New tests:
+- `test_plugin_root_resolves_to_repo_root` — verifies the 2-parents-up path calculation finds the repo root with expected scripts
+- `test_plugin_hooks_env_for_intent_layer` — end-to-end: runs `TaskRunner.run()` with mocked externals, asserts `CLAUDE_PLUGIN_ROOT` is passed to `run_claude`
+- `test_no_plugin_env_for_none_condition` — verifies `none` condition does NOT set `extra_env`
+- `test_no_plugin_hooks_for_flat_llm` — verifies `flat_llm` does NOT write hooks config or set `CLAUDE_PLUGIN_ROOT`
+- `test_intent_layer_writes_hooks_to_workspace` — verifies `.claude/settings.local.json` is written with correct hook paths (PreToolUse + SessionStart) and that the referenced scripts exist on disk
+- `test_pre_edit_check_runs_against_sample_agents_md` — integration smoke test: actually runs `pre-edit-check.sh` against a temp AGENTS.md with a Pitfalls section, verifies it exits 0 and produces output
+
+Also updated the existing `test_intent_layer_hooks_config_written` test to match the new hook config (was checking for `push-on-read-hook.sh`, now checks for `pre-edit-check.sh` + `inject-learnings.sh`).
+</teammate-message>
+
+<teammate-message teammate_id="pr3-plugin-hooks" color="yellow">
+{"type":"idle_notification","from":"pr3-plugin-hooks","timestamp":"2026-02-19T03:10:55.926Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr3-plugin-hooks" color="yellow">
+{"type":"idle_notification","from":"pr3-plugin-hooks","timestamp":"2026-02-19T03:11:01.545Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="pr3-plugin-hooks" color="yellow">
+{"type":"idle_notification","from":"pr3-plugin-hooks","timestamp":"2026-02-19T03:11:04.720Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"pr3-plugin-hooks has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="pr3-plugin-hooks" color="yellow">
+{"type":"shutdown_approved","requestId":"shutdown-1771470672490@pr3-plugin-hooks","from":"pr3-plugin-hooks","timestamp":"2026-02-19T03:11:16.712Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<task-notification>
+<task-id>a3411f9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Review all changes from swarm" completed</summary>
+<result>Now I have a thorough picture. Here's my review.
+
+---
+
+## Code Review: Eval Harness Changes (PR 2 + PR 3 combined)
+
+### 1. McNemar's Test (`eval-harness/lib/stats.py`)
+
+**Correctness: Good.** The implementation matches the plan. I verified the math:
+- `mcnemar_test(0, 10)` gives p ~0.002 (correct for 10 discordant all in one direction)
+- `mcnemar_test(5, 5)` gives p = 1.0 (correct -- one-tail probability already >= 0.5, doubled and clamped)
+- `mcnemar_test(0, 1)` gives p = 1.0 (correct -- Binomial(1,0.5) >= 1 is 0.5, times 2 = 1.0)
+- No scipy dependency, uses `math.comb`
+
+**No issues found.**
+
+---
+
+### 2. Reporter McNemar Integration (`eval-harness/lib/reporter.py`)
+
+**Correctness: Mostly good, one concern.**
+
+The `_compute_mcnemar` method pairs results by insertion order within each `(task_id, condition)` group. The pairing logic is correct for the test data and for the common case.
+
+**Concern -- nondeterministic rep pairing with parallel workers:** In production, results arrive from `ThreadPoolExecutor` via `as_completed()` (in `cli.py` line 505). This means if `none/task-1/rep-0` finishes last but `intent_layer/task-1/rep-0` finishes first, the "rep 0" of each condition won't actually correspond to the same underlying rep. Since reps are i.i.d. random draws, pairing arbitrary-order results from different conditions is still statistically valid for McNemar's test (it's just shuffling which independent observations get paired). But this is worth documenting, and if you later add a `rep` field to `TaskResult`, you should pair by it.
+
+**The `b` and `c` variable naming is confusing.** The function signature says `b = pairs where A passes, B fails` (A wins) and `c = pairs where A fails, B passes` (B wins). But in `_compute_mcnemar`, the code uses `b += 1` when `ra.success and not rb.success` -- where `ra` is condition A and `rb` is condition B. So `b` counts "A wins" and `c` counts "B wins". This matches the dict keys `a_wins: b` and `b_wins: c` in `mcnemar_test()`. The naming is internally consistent but the variable name `b` meaning "a_wins" is a standard McNemar convention (it's cell `b` in the 2x2 table). Fine, just a bit confusing.
+
+**Markdown output: condition on `n_discordant > 0`.** The section only appears if at least one comparison has discordant pairs. If all comparisons have 0 discordant pairs, the section is silently omitted. This is reasonable behavior.
+
+**No bugs found.**
+
+---
+
+### 3. Task Runner Plugin Hooks (`eval-harness/lib/task_runner.py`)
+
+**Correctness: Good.** The changes match the plan closely:
+- PreToolUse matcher changed from `Read|Grep|Edit|Write|NotebookEdit` to `Edit|Write|NotebookEdit` (authentic plugin behavior)
+- SessionStart hook added with `inject-learnings.sh`
+- `CLAUDE_PLUGIN_ROOT` set via `extra_env` for the `run_claude` call
+- `plugin_root` computed as `Path(__file__).resolve().parents[2]` (correct: goes from `eval-harness/lib/task_runner.py` -> `eval-harness/lib/` -> `eval-harness/` -> repo root)
+
+**Minor issue -- redundant `plugin_root` computation.** On line 754, `plugin_root` is computed for hook config writing. On line 795, it's computed again for `fix_extra_env`. This is within the same `if condition == Condition.INTENT_LAYER:` block, so the first assignment is in scope. The second computation is unnecessary. Not a bug, just wasted work.
+
+**`old code kept as fallback` -- confirmed.** The plan says don't delete `push-on-read-hook.sh` or `build_skill_generation_prompt()`. I checked: `push-on-read-hook.sh` is not deleted, `build_skill_generation_prompt` is still imported in `test_task_runner.py`. Good.
+
+---
+
+### 4. Tests (`eval-harness/tests/test_stats.py`)
+
+**4 tests, all correct.** The tests match the plan's specifications exactly:
+- `test_mcnemar_perfect_split`: b=0, c=10 -> p<0.01. Passes.
+- `test_mcnemar_even_split`: b=5, c=5 -> p=1.0. Passes.
+- `test_mcnemar_no_discordant`: b=0, c=0 -> p=1.0. Passes.
+- `test_mcnemar_single_pair`: b=0, c=1 -> p=1.0. Passes.
+
+**No issues found.**
+
+---
+
+### 5. Tests (`eval-harness/tests/test_reporter.py`)
+
+**3 tests, all correct.** I manually verified the expected `b/c` counts in `_make_mcnemar_results()` against the docstring and the assertions. The counts are right:
+- `flat_llm vs none`: b=2, c=1
+- `intent_layer vs none`: b=3, c=1
+
+The infra error exclusion test correctly creates an infra error result (error string starting with `[infrastructure]`) and verifies only 1 pair is counted.
+
+The markdown output test checks for section presence. It's not asserting specific p-values in the markdown, which is fine for a structural test.
+
+**No issues found.**
+
+---
+
+### 6. Tests (`eval-harness/tests/test_task_runner.py`)
+
+**6 new tests, all pass.** Coverage is thorough:
+- `test_plugin_root_resolves_to_repo_root`: Verifies the `parents[2]` path calculation actually points to the repo root with real files
+- `test_plugin_hooks_env_for_intent_layer`: Full monkeypatch integration test confirming `CLAUDE_PLUGIN_ROOT` is passed via `extra_env`
+- `test_no_plugin_env_for_none_condition`: Confirms `extra_env` is `None` for `none`
+- `test_no_plugin_hooks_for_flat_llm`: Confirms no hooks written and `extra_env` is `None` for `flat_llm`
+- `test_intent_layer_writes_hooks_to_workspace`: Captures `.claude/settings.local.json` at the moment `run_claude` is called, verifying hooks are in place before Claude runs
+- `test_pre_edit_check_runs_against_sample_agents_md`: True integration smoke test -- runs the actual `pre-edit-check.sh` script against a temp workspace
+
+**Concern about the smoke test assertion.** Lines 1269-1273:
+
+```python
+assert result.returncode == 0
+if result.stdout.strip():
+    output = _json.loads(result.stdout)
+    assert "additionalContext" in output or "Pitfalls" in result.stdout
+```
+
+The `if` means that if `result.stdout` is empty, the test still passes. The `pre-edit-check.sh` script exits 0 with no output when it can't find covering nodes or sections. Since the test creates `AGENTS.md` in the same directory as `main.py`, and the AGENTS.md has a `## Pitfalls` section, the hook should find it and produce output. But if something goes wrong (e.g., `find_covering_node.sh` fails silently), the test would pass vacuously. The test should probably assert that `result.stdout.strip()` is non-empty, or at minimum fail if it's empty:
+
+```python
+assert result.returncode == 0
+assert result.stdout.strip(), "pre-edit-check.sh produced no output"
+output = _json.loads(result.stdout)
+assert "additionalContext" in output
+```
+
+**Test duplication.** The four monkeypatch integration tests (`test_plugin_hooks_env_for_intent_layer`, `test_no_plugin_env_for_none_condition`, `test_no_plugin_hooks_for_flat_llm`, `test_intent_layer_writes_hooks_to_workspace`) repeat very similar fake functions. A shared helper or fixture would reduce this from ~250 lines to ~100 lines. Not a correctness issue, but it's a lot of boilerplate.
+
+---
+
+### 7. Other Changes in the Diff
+
+**`eval-harness/lib/cli.py`:**
+- Added `--timeout` option to `validate` command with default 300 (up from hardcoded 180). Passed through to `TaskRunner(pre_validation_timeout=timeout)`. Clean change.
+- Added task ID deduplication (`seen_ids` set). Good -- prevents duplicate validation when overlapping YAML files share task IDs.
+
+**`eval-harness/lib/git_ops.py`:**
+- `clone_repo` now tries `--shared` first, falls back to `--local` if it fails. The `shutil.rmtree` cleanup before retry is correct. The `subprocess.run(cmd, check=True)` on the non-reference branch was moved inside the `else` block (from after the `if/else`). This is correct -- previously the `check=True` line would have run for both reference and non-reference cases, but the reference path didn't use `check=True`. Now each path has its own `check=True` call in the right place.
+
+**Task YAML files (`express.yaml`, `ragas.yaml`, `transformers.yaml`, `tinygrad.yaml`):**
+- Dropped invalid tasks where tests pass at `pre_fix_commit`. Added `test_pattern: copysign` to two tinygrad tasks. These are data quality fixes, straightforward.
+
+**`.intent-layer/hooks/injections.log`:**
+- New log entries from working sessions. This file should probably not be committed (it's a local artifact). But it's listed in `.gitignore` or not -- either way, it's just log data, not code.
+
+---
+
+### Summary of Findings
+
+**No blocking bugs found.** The implementation matches the plan, the math is correct, and all tests pass.
+
+**Actionable items (ordered by importance):**
+
+1. **Weak assertion in smoke test** (`/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py`, line 1270): The `if result.stdout.strip():` guard means the test passes vacuously if the hook produces no output. Change to an unconditional assertion:
+   ```python
+   assert result.stdout.strip(), "pre-edit-check.sh produced no output"
+   ```
+
+2. **Redundant `plugin_root` computation** (`/Users/ryo/dev/intent-layer/eval-harness/lib/task_runner.py`, line 795): `plugin_root` is already assigned on line 754 within the same `if condition == Condition.INTENT_LAYER:` block. The second computation is unnecessary.
+
+3. **No `rep` field on `TaskResult`** (design observation): McNemar pairing uses insertion order as a proxy for rep index. This works because reps are i.i.d., but adding a `rep` field would make the pairing explicit and deterministic. Not urgent.
+
+4. **Test boilerplate** (`/Users/ryo/dev/intent-layer/eval-harness/tests/test_task_runner.py`): The four monkeypatch integration tests repeat ~60 lines of fake function definitions each. A shared fixture would cut this significantly. Style issue only.
+
+5. **`injections.log` in diff**: The `.intent-layer/hooks/injections.log` changes are local working state, not intentional code changes. Consider excluding it when you stage.</result>
+<usage>total_tokens: 104763
+tool_uses: 37
+duration_ms: 215866</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ryo-dev-intent-layer/tasks/a3411f9.output
+
+---
+
+yes, then do the generation
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me trace through the conversation chronologically:
+
+1. **Session start**: This is a continuation from a previous conversation. The prior session created brainstorm documents and a plan for Intent Layer improvements based on eval results. The plan went through multiple revisions based on user feedback and a three-reviewer review cycle.
+
+2. **Plan review continuation**: I read the current plan at `docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md` and presented it to the user with options for next steps.
+
+3. **User chose "Run /plan_review"**: I launched three parallel review agents (DHH-style, Kieran-style, Simplicity).
+
+4. **All three reviewers converged** on key issues:
+   - Phase 2 (section schema rewrite) should be deferred - it's a product change, not eval prep
+   - Phase 4.1 (automate generation in eval) should be manual generation + cache
+   - Phase 3 should go first alone
+   - Don't delete old code yet (Phase 4.3)
+   - SessionStart hook adds a confound (inject-learnings.sh calls resolve_context.sh)
+   - Drop chi2 from McNemar's return
+   - Minimum viable plan is 3 focused PRs
+
+5. **User said "update"**: I rewrote the entire plan to reflect reviewer feedback - 3 PRs instead of 5 phases, deferred section schema rewrite.
+
+6. **User invoked `/compound-engineering:slfg`**: The swarm-enabled LFG workflow. Since the plan was already written and reviewed, I skipped to step 4 (implementation with swarm mode).
+
+7. **User said "put the deferred plugin improvements into its own plan file so we don't lose it"**: I created `docs/plans/2026-02-19-feat-agent-optimized-section-schema-plan.md`.
+
+8. **Swarm execution**: Created team "eval-plugin-integration" with 3 agents:
+   - pr1-data-quality: Tasks 1-3 (YAML fixes, CLAUDE.md stripping)
+   - pr2-mcnemar: Tasks 4-6 (stats.py, reporter.py, tests)
+   - pr3-plugin-hooks: Tasks 7-8 (task_runner.py, integration tests)
+
+9. **Agent results**:
+   - PR1: Tasks 1+2 were already fixed in prior commits. Task 3 (stripping dev commands from CLAUDE.md) was completed - modified 4 files in `.index-cache-preserve/`.
+   - PR2: All complete - mcnemar_test() added, reporter updated with paired analysis, 7 new tests, all 48 tests passing.
+   - PR3: All complete - task_runner.py updated with actual plugin hooks, 6 new tests, 43 tests passing.
+
+10. **Review agent**: Found two actionable issues:
+    - Weak assertion in smoke test (vacuous pass if stdout empty)
+    - Redundant plugin_root computation
+
+11. **Fix attempts and errors**:
+    - Fixed missing `json` and `Path` imports in test_task_runner.py
+    - First fix of smoke test assertion: changed to unconditional assert but used wrong key (`"additionalContext" in output` instead of checking `hookSpecificOutput` wrapper)
+    - Removed redundant plugin_root computation, but Pyright flagged `plugin_root` as possibly unbound
+    - Second fix: Updated assertion to check `hookSpecificOutput` wrapper, restored inline plugin_root computation
+    - Final result: 91 tests passing
+
+12. **User said "yes, then do the generation"**: Committed changes in two commits, then started investigating the AGENTS.md generation for eval repos.
+
+13. **Current state**: Just read the graphiti.yaml and ansible.yaml task configs to understand which directories need AGENTS.md coverage. The cache already has AGENTS.md files from previous runs but may have coverage gaps.
+
+Key files modified:
+- eval-harness/lib/stats.py - added mcnemar_test()
+- eval-harness/lib/reporter.py - added paired McNemar's analysis
+- eval-harness/lib/task_runner.py - replaced custom hooks with actual plugin hooks
+- eval-harness/tests/test_stats.py - 4 new tests
+- eval-harness/tests/test_reporter.py - 3 new tests
+- eval-harness/tests/test_task_runner.py - 6 new tests
+- 4 CLAUDE.md files in .index-cache-preserve/ - stripped dev commands
+- docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md - rewritten
+- docs/plans/2026-02-19-feat-agent-optimized-section-schema-plan.md - created
+
+Two commits made:
+1. `061fae4` - "add McNemar's test, actual plugin hooks in eval, data quality fixes"
+2. `aaffbf3` - "strip dev commands from eval CLAUDE.md cache files"
+
+Summary:
+1. Primary Request and Intent:
+   The user is implementing an eval harness that tests whether the actual Intent Layer plugin helps agents fix bugs. The session covered: (a) reviewing the implementation plan via 3 parallel reviewers, (b) updating the plan based on reviewer feedback (defer section schema rewrite, simplify to 3 PRs), (c) executing the plan via swarm mode with 3 parallel agents, (d) reviewing and fixing the agents' output, (e) committing changes, and (f) starting AGENTS.md generation for eval repos. The user's most recent explicit request was "yes, then do the generation" — commit the changes and then generate AGENTS.md files for the eval repos (graphiti + ansible) using the actual `/intent-layer` skill.
+
+2. Key Technical Concepts:
+   - **McNemar's test**: Paired binary comparison using exact binomial (no scipy). Tests discordant (task, rep) pairs between conditions. Implementation: `mcnemar_test(b, c)` returns `{p_value, n_discordant, a_wins, b_wins}`.
+   - **Actual plugin hooks in eval**: Replace custom `push-on-read-hook.sh` with real plugin scripts (`pre-edit-check.sh` for PreToolUse, `inject-learnings.sh` for SessionStart). Key difference: PreToolUse matcher changes from `Read|Grep|Edit|Write|NotebookEdit` to `Edit|Write|NotebookEdit` (writes only).
+   - **CLAUDE_PLUGIN_ROOT**: Environment variable that plugin hook scripts use to find `lib/common.sh`, `lib/find_covering_node.sh`, etc. Must be passed via `extra_env` to `run_claude()`.
+   - **Hook output structure**: `pre-edit-check.sh` outputs `{"hookSpecificOutput": {"additionalContext": "..."}}`, not flat `{"additionalContext": "..."}`.
+   - **SessionStart confound**: `inject-learnings.sh` calls `resolve_context.sh`, injecting root context at session start. Previous eval only had push-on-read. This is authentic plugin behavior but a new variable when comparing to previous runs.
+   - **Deferred section schema rewrite**: 11 sections → 5 (Boundaries, Contracts, Rules, Ownership, Downlinks). Saved to separate plan file for post-eval implementation.
+   - **Eval cache structure**: `.index-cache-preserve/` contains per-repo per-condition directories with CLAUDE.md and AGENTS.md files.
+
+3. Files and Code Sections:
+
+   - **`docs/plans/2026-02-18-feat-intent-layer-improvements-plan.md`** (REWRITTEN)
+     - The main implementation plan, rewritten based on 3-reviewer feedback
+     - Changed from 5 entangled phases to 3 independent PRs + clean eval run + deferred follow-up
+     - Key structure: PR1 (data quality), PR2 (McNemar's), PR3 (actual plugin hooks), Clean eval run, Deferred section schema
+
+   - **`docs/plans/2026-02-19-feat-agent-optimized-section-schema-plan.md`** (CREATED)
+     - Extracted the deferred section schema rewrite into its own plan file
+     - Contains full 5-section spec, generation prompt, format example, files to modify
+     - Has `prereq` link back to the eval plan
+
+   - **`eval-harness/lib/stats.py`** (EXTENDED by pr2-mcnemar agent)
+     - Added `mcnemar_test(b, c)` function using exact binomial
+     ```python
+     def mcnemar_test(b: int, c: int) -> dict:
+         n = b + c
+         if n == 0:
+             return {"p_value": 1.0, "n_discordant": 0, "a_wins": b, "b_wins": c}
+         k = max(b, c)
+         p_value = 0.0
+         for i in range(k, n + 1):
+             p_value += math.comb(n, i) * 0.5**n
+         p_value = min(p_value * 2, 1.0)  # two-sided
+         return {"p_value": p_value, "n_discordant": n, "a_wins": b, "b_wins": c}
+     ```
+
+   - **`eval-harness/lib/reporter.py`** (MODIFIED by pr2-mcnemar agent)
+     - Added `_compute_mcnemar()` method that pairs results by (task_id, rep_index)
+     - Rep index derived from ordering within each (task_id, condition) group (TaskResult has no rep field)
+     - Excludes infra errors from pairing
+     - Added "Paired Analysis (McNemar's Test)" markdown section
+
+   - **`eval-harness/lib/task_runner.py`** (MODIFIED by pr3-plugin-hooks agent + my fixes)
+     - Lines ~753-773: Replaced custom `push-on-read-hook.sh` with actual plugin hooks:
+     ```python
+     if condition == Condition.INTENT_LAYER:
+         plugin_root = str(Path(__file__).resolve().parents[2])
+         hooks_config = {
+             "hooks": {
+                 "PreToolUse": [{
+                     "matcher": "Edit|Write|NotebookEdit",
+                     "hooks": [{"type": "command", "command": f"{plugin_root}/scripts/pre-edit-check.sh", "timeout": 10}]
+                 }],
+                 "SessionStart": [{
+                     "matcher": "",
+                     "hooks": [{"type": "command", "command": f"{plugin_root}/scripts/inject-learnings.sh", "timeout": 15}]
+                 }],
+             }
+         }
+         env["CLAUDE_PLUGIN_ROOT"] = plugin_root
+     ```
+     - Lines ~793-795: Added CLAUDE_PLUGIN_ROOT to fix phase run_claude call:
+     ```python
+     fix_extra_env = None
+     if condition == Condition.INTENT_LAYER:
+         fix_extra_env = {"CLAUDE_PLUGIN_ROOT": str(Path(__file__).resolve().parents[2])}
+     ```
+
+   - **`eval-harness/tests/test_task_runner.py`** (EXTENDED by pr3-plugin-hooks agent + my fixes)
+     - Added `import json` and `from pathlib import Path` (were missing, caused Pyright errors)
+     - 6 new tests: plugin_root_resolves_to_repo_root, plugin_hooks_env_for_intent_layer, no_plugin_env_for_none_condition, no_plugin_hooks_for_flat_llm, intent_layer_writes_hooks_to_workspace, pre_edit_check_runs_against_sample_agents_md
+     - Smoke test assertion fixed to check `hookSpecificOutput` wrapper:
+     ```python
+     assert result.stdout.strip(), "pre-edit-check.sh produced no output"
+     output = _json.loads(result.stdout)
+     hook_output = output.get("hookSpecificOutput", output)
+     assert "additionalContext" in hook_output
+     assert "Pitfalls" in hook_output["additionalContext"]
+     ```
+
+   - **`eval-harness/tests/test_stats.py`** (EXTENDED by pr2-mcnemar agent)
+     - 4 new tests: mcnemar_perfect_split, mcnemar_even_split, mcnemar_no_discordant, mcnemar_single_pair
+
+   - **`eval-harness/tests/test_reporter.py`** (EXTENDED by pr2-mcnemar agent)
+     - 3 new tests: mcnemar_in_summary, mcnemar_excludes_infra_errors, mcnemar_markdown_output
+
+   - **`eval-harness/.index-cache-preserve/`** (MODIFIED by pr1-data-quality agent)
+     - 4 CLAUDE.md files modified to strip dev commands (make test, uv sync, pip install -e .)
+     - Files: graphiti-flat_llm/CLAUDE.md, graphiti-intent_layer/CLAUDE.md, ansible-flat_llm/CLAUDE.md, ansible-intent_layer/CLAUDE.md
+     - Replaced with targeted test guidance: "Run only the specific test file relevant to the bug"
+
+   - **`eval-harness/tasks/graphiti.yaml`** and **`eval-harness/tasks/ansible.yaml`** (READ)
+     - graphiti: 9 tasks, test files in tests/llm_client/, tests/utils/maintenance/, tests/ root
+     - ansible: 4 tasks, test files in test/units/modules/, test/units/module_utils/, test/units/inventory/, test/units/galaxy/
+     - Existing cached AGENTS.md files for graphiti: graphiti_core/{driver,llm_client,search,namespaces}/AGENTS.md, server/AGENTS.md
+     - Existing cached AGENTS.md files for ansible: lib/ansible/{executor,modules,parsing,playbook,plugins}/AGENTS.md, test/AGENTS.md
+     - Coverage gaps noted in brainstorm: graphiti missing graphiti_core/AGENTS.md and graphiti_core/utils/AGENTS.md; ansible missing lib/ansible/module_utils/AGENTS.md
+
+4. Errors and fixes:
+   - **Missing imports in test_task_runner.py**: PR3 agent used `json` and `Path` without importing them. Fixed by adding `import json` and `from pathlib import Path` at top of file.
+   - **Smoke test vacuous pass**: Original assertion `if result.stdout.strip(): ...` would pass even if hook produced no output. Fixed by changing to unconditional assertion `assert result.stdout.strip(), "pre-edit-check.sh produced no output"`.
+   - **Wrong hook output key**: First fix asserted `"additionalContext" in output` but the actual hook output wraps in `{"hookSpecificOutput": {"additionalContext": "..."}}`. Test failed with `assert 'additionalContext' in {'hookSpecificOutput': {...}}`. Fixed by extracting `hook_output = output.get("hookSpecificOutput", output)` first.
+   - **Pyright "possibly unbound" for plugin_root**: Removed redundant `plugin_root` computation at line 795 (already computed at line 754 in same condition block), but Pyright couldn't prove both `if` blocks always evaluate the same. Fixed by restoring the inline computation `str(Path(__file__).resolve().parents[2])` at line 795.
+   - **gitignore blocking docs/plans/**: `git add` failed for plan files. Fixed by using `-f` flag to force-add.
+
+5. Problem Solving:
+   - **Plan review cycle**: Three parallel reviewers identified that the plan was over-engineered. Core insight: test the current plugin before rewriting it. Simplified from 5 entangled phases to 3 independent PRs.
+   - **Swarm execution**: Successfully parallelized work across 3 agents. PR1 agent discovered tasks 1+2 were already fixed (avoided double-applying). All agents completed their work and were shut down cleanly.
+   - **Review findings resolved**: Two actionable items from the review agent (weak assertion, redundant computation) were fixed and verified with 91 passing tests.
+
+6. All user messages:
+   - Selected "Run /plan_review" when asked about next steps for the plan
+   - "update" — instructing me to update the plan based on reviewer feedback
+   - "put the deferred plugin improvements into its own plan file so we don't lose it"
+   - Invoked `/compound-engineering:slfg` — the swarm-enabled LFG workflow to start implementation
+   - "yes, then do the generation" — commit the changes and generate AGENTS.md files for eval repos
+
+7. Pending Tasks:
+   - **Generate AGENTS.md files for eval repos**: Run the actual `/intent-layer` skill on graphiti and ansible repos to generate AGENTS.md files, then commit them to the eval cache. This is the remaining PR3 work item from the plan.
+   - **Coverage gaps to fill**: graphiti missing `graphiti_core/AGENTS.md` and `graphiti_core/utils/AGENTS.md`; ansible missing `lib/ansible/module_utils/AGENTS.md` (the star result task lives here).
+
+8. Current Work:
+   I had just committed all implementation changes (two commits: `061fae4` and `aaffbf3`) and was starting the AGENTS.md generation for eval repos. I read both `graphiti.yaml` and `ansible.yaml` to understand task coverage, and listed the existing cached AGENTS.md files:
+   - graphiti: 5 AGENTS.md files in graphiti_core/{driver,llm_client,search,namespaces}/ and server/
+   - ansible: 6 AGENTS.md files in lib/ansible/{executor,modules,parsing,playbook,plugins}/ and test/
+   
+   The next step is to actually generate the AGENTS.md files. This requires cloning the repos and running `/intent-layer` on them, or generating the files manually by exploring the codebases.
+
+9. Optional Next Step:
+   Generate AGENTS.md files for graphiti and ansible eval repos. The user said "yes, then do the generation." This means cloning the graphiti and ansible repos, running the `/intent-layer` skill (or manually creating AGENTS.md files using the current plugin format), and committing the results to the eval cache at `eval-harness/.index-cache-preserve/`. Key coverage gaps to address: `graphiti_core/AGENTS.md`, `graphiti_core/utils/AGENTS.md`, and `lib/ansible/module_utils/AGENTS.md`. I had just finished reading both YAML task configs and listing the cached files when this summary was requested.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ryo/.claude/projects/-Users-ryo-dev-intent-layer/feb9e237-3ee9-400e-b404-2e27f664a68a.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
