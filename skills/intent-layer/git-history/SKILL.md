@@ -248,7 +248,7 @@ Use git-history during initial setup to pre-populate nodes:
 3. Pre-fill Pitfalls and Architecture Decisions from history
 4. Human reviews and refines
 
-### With intent-layer-maintenance (audits)
+### With intent-layer:maintain (audits)
 
 Use git-history to find undocumented changes:
 
@@ -257,7 +257,7 @@ Use git-history to find undocumented changes:
 3. Check if new pitfalls/contracts emerged since last audit
 4. Propose updates based on commit analysis
 
-### With intent-layer-query
+### With intent-layer:query
 
 When query returns "uncertain" confidence:
 

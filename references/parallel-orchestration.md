@@ -461,7 +461,7 @@ Formula: `batch_size = min(available_agents, resource_limit, task_count)`
 4. Present to user
 ```
 
-### /intent-layer-maintenance
+### /intent-layer:maintain
 
 ```
 1. detect_staleness.sh → List flagged nodes

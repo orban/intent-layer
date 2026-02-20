@@ -1,5 +1,5 @@
 ---
-name: intent-layer-query
+name: intent-layer:query
 description: >
   Query the Intent Layer to answer questions about the codebase.
   Use when asking "what owns X?", "where should I put Y?", "what constraints apply to Z?",
@@ -321,7 +321,7 @@ Fall back to code analysis, but flag uncertainty:
 
 ### 3. Trigger Maintenance
 
-If multiple gaps found, suggest running `intent-layer-maintenance` skill.
+If multiple gaps found, suggest running `intent-layer:maintain` skill.
 
 ---
 

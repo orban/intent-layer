@@ -50,6 +50,26 @@ fi
 
 NODE_PATH=$("$FIND_NODE" "$FILE_PATH" 2>/dev/null || true)
 
+# --- Session deduplication ---
+# Skip injection if the same node was injected <5 min ago in this session.
+# Session key: CLAUDE_SESSION_ID (primary) or CLAUDE_PROJECT_DIR (fallback).
+DEDUP_KEY="${CLAUDE_SESSION_ID:-${CLAUDE_PROJECT_DIR:-default}}"
+# Sanitize key for filesystem use (replace non-alnum with dashes)
+# Note: uses sed instead of tr — macOS tr mangles character classes under non-C locales
+DEDUP_KEY=$(printf '%s' "$DEDUP_KEY" | sed 's/[^A-Za-z0-9_-]/-/g')
+DEDUP_FILE="${TMPDIR:-/tmp}/intent-layer-dedup-${DEDUP_KEY}"
+DEDUP_TTL=300  # 5 minutes in seconds
+
+if [[ -n "$NODE_PATH" && -f "$DEDUP_FILE" ]]; then
+    NOW=$(date +%s)
+    # Check if this node was injected recently
+    LAST_INJECT=$(awk -F'\t' -v node="$NODE_PATH" '$1 == node { print $2 }' "$DEDUP_FILE" 2>/dev/null | tail -1)
+    if [[ -n "$LAST_INJECT" ]] && [[ $((NOW - LAST_INJECT)) -lt $DEDUP_TTL ]]; then
+        # Node injected recently — skip silently
+        exit 0
+    fi
+fi
+
 # If no covering node found, warn about uncovered directory
 if [[ -z "$NODE_PATH" ]]; then
     # Only warn for source files, not configs/docs
@@ -62,7 +82,7 @@ if [[ -z "$NODE_PATH" ]]; then
 
 This directory isn't documented in the Intent Layer. Consider:
 - Adding an AGENTS.md if this is a key module
-- Running \`/intent-layer-maintenance\` to review coverage"
+- Running \`/intent-layer:maintain\` to review coverage"
             output_context "PreToolUse" "$CONTEXT"
             ;;
     esac
@@ -171,6 +191,11 @@ $LEARNINGS"
 fi
 
 output_context "PreToolUse" "$CONTEXT"
+
+# Record injection in dedup file
+if [[ -n "$NODE_PATH" ]]; then
+    printf '%s\t%s\n' "$NODE_PATH" "$(date +%s)" >> "$DEDUP_FILE" 2>/dev/null || true
+fi
 
 # Injection audit log (feedback data trail)
 LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.intent-layer/hooks"

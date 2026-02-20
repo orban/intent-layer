@@ -22,6 +22,7 @@ OPTIONS:
     --from-git              Auto-fill from recent git activity
     --non-interactive       Fail if prompts needed (for scripting)
     --agent-id ID           Identifier for the reporting agent
+    --confidence LEVEL      Confidence level: high, medium, low
 
 LEARNING TYPES:
     pitfall    Something that went wrong / gotcha to avoid
@@ -62,6 +63,7 @@ ROOT_CAUSE=""
 FROM_GIT=false
 NON_INTERACTIVE=false
 AGENT_ID=""
+CONFIDENCE=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -99,6 +101,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --agent-id)
             AGENT_ID="$2"
+            shift 2
+            ;;
+        --confidence)
+            CONFIDENCE="$2"
             shift 2
             ;;
         -*)
@@ -212,6 +218,12 @@ case "$LEARNING_TYPE" in
         echo "Warning: Unknown learning type '$LEARNING_TYPE', defaulting to 'pitfall'" >&2
         LEARNING_TYPE="pitfall"
         ;;
+esac
+
+# Validate confidence (default to medium for unrecognized values)
+case "$CONFIDENCE" in
+    high|medium|low|"") ;;
+    *) CONFIDENCE="medium" ;;
 esac
 
 # Directory
@@ -359,6 +371,8 @@ esac
 # Write report
 AGENT_LINE=""
 [[ -n "$AGENT_ID" ]] && AGENT_LINE=$'\n'"**Agent**: $AGENT_ID"
+CONFIDENCE_LINE=""
+[[ -n "$CONFIDENCE" ]] && CONFIDENCE_LINE=$'\n'"**Confidence**: $CONFIDENCE"
 
 cat > "$REPORT_FILE" << EOF
 ## Learning Report
@@ -367,7 +381,7 @@ cat > "$REPORT_FILE" << EOF
 **Type**: $LEARNING_TYPE
 **Timestamp**: $TIMESTAMP
 **Directory**: $TARGET_DIR
-**Operation**: $OPERATION${AGENT_LINE}
+**Operation**: $OPERATION${AGENT_LINE}${CONFIDENCE_LINE}
 
 ### $SECTION_TITLE
 $WHAT_HAPPENED

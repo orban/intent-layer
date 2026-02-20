@@ -40,13 +40,12 @@ intent-layer-plugin/
 ├── .claude-plugin/
 │   └── plugin.json          # Plugin manifest (name, version, author)
 ├── skills/                   # Slash-command skills (/intent-layer, etc.)
-│   ├── intent-layer/         # Main setup skill + sub-skills (git-history, pr-review, pr-review-mining)
-│   ├── intent-layer-maintenance/
-│   ├── intent-layer-onboarding/
-│   ├── intent-layer-query/
-│   ├── intent-layer-compound/ # End-of-session learning capture
-│   ├── intent-layer-health/   # Quick health check
-│   └── review-mistakes/       # Interactive mistake triage
+│   ├── intent-layer/         # Smart router + sub-skills (git-history, pr-review, pr-review-mining)
+│   │   └── workflows/        # Reference docs for setup, maintain, onboard flows
+│   ├── intent-layer-maintain/ # Ongoing maintenance (state = complete)
+│   ├── intent-layer-review/   # Batch triage of pending learnings
+│   ├── intent-layer-query/    # Query Intent Layer for answers
+│   └── intent-layer-health/   # Quick health check
 ├── agents/                   # Specialized subagents
 │   ├── explorer.md           # Analyzes directories, proposes nodes
 │   ├── validator.md          # Deep validation against codebase
@@ -67,7 +66,7 @@ intent-layer-plugin/
 
 | Component | Purpose | Invocation |
 |-----------|---------|------------|
-| **Skills** | Interactive workflows for setup/maintenance | `/intent-layer`, `/intent-layer-maintenance` |
+| **Skills** | Interactive workflows for setup/maintenance | `/intent-layer`, `/intent-layer:maintain`, `/intent-layer:review` |
 | **Agents** | Specialized analysis tasks | Auto-invoked by Claude when relevant |
 | **Hooks** | Learning loop: auto-capture, pitfall injection, staleness check | 5 hooks: SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, Stop |
 
@@ -97,7 +96,7 @@ intent-layer-plugin/
 | `capture_mistake.sh` | Record mistakes for learning loop (manual) |
 | `review_mistakes.sh` | Interactive triage of pending mistake reports |
 | `post-edit-check.sh` | Hook script for edit tracking |
-| `stop-learning-check.sh` | Stop hook: two-tier learning classifier (heuristic + Haiku) |
+| `stop-learning-check.sh` | Stop hook: three-tier learning classifier (heuristic + Haiku classify + Haiku extract) |
 | `inject-learnings.sh` | SessionStart hook: inject recent learnings |
 | `pre-edit-check.sh` | PreToolUse hook: inject covering AGENTS.md sections |
 | `capture-tool-failure.sh` | PostToolUseFailure hook: create skeleton reports |
@@ -127,14 +126,11 @@ Internal scripts used by hooks and other scripts:
 
 ### Skill Relationships
 
-- `intent-layer` → Initial setup (state = none/partial)
-- `intent-layer-maintenance` → Ongoing updates (state = complete)
-- `intent-layer-onboarding` → Orientation for new developers
-- `intent-layer-query` → Answer questions using Intent Layer
-- `intent-layer:clean` → Remove Intent Layer from a repo
-- `intent-layer-compound` → End-of-session learning capture and triage
-- `intent-layer-health` → Quick health check (validation + staleness + coverage)
-- `review-mistakes` → Interactive triage of pending mistake reports
+- `/intent-layer` → Smart router: detects state, counts pending, routes to appropriate action
+- `/intent-layer:maintain` → Ongoing updates (state = complete)
+- `/intent-layer:review` → Batch triage of pending learnings (auto-captured by stop hook)
+- `/intent-layer:query` → Answer questions using Intent Layer
+- `/intent-layer:health` → Quick health check (validation + staleness + coverage)
 
 All skills share scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/`.
 

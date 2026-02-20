@@ -188,5 +188,5 @@ elif [ "$HAS_INTENT_SECTION" = false ]; then
     echo "action: Add Intent Layer section to $ROOT_FILE"
 else
     echo "state: complete"
-    echo "action: Run intent-layer-maintenance skill for audits"
+    echo "action: Run intent-layer:maintain skill for audits"
 fi

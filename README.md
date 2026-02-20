@@ -58,11 +58,11 @@ Interactive workflows invoked via slash commands:
 
 | Skill | Purpose | Command |
 |-------|---------|---------|
-| `intent-layer` | Set up new Intent Layer infrastructure | `/intent-layer` |
-| `intent-layer-maintenance` | Maintain existing Intent Layers | `/intent-layer-maintenance` |
-| `intent-layer-onboarding` | Orient new developers using Intent Layer | `/intent-layer-onboarding` |
-| `intent-layer-query` | Query Intent Layer for answers | `/intent-layer-query` |
-| `review-mistakes` | Interactive review of pending mistake reports | `/review-mistakes` |
+| `intent-layer` | Smart router: detects state, routes to setup/maintain/review | `/intent-layer` |
+| `intent-layer:maintain` | Maintain existing Intent Layers | `/intent-layer:maintain` |
+| `intent-layer:review` | Batch triage of pending learnings | `/intent-layer:review` |
+| `intent-layer:query` | Query Intent Layer for answers | `/intent-layer:query` |
+| `intent-layer:health` | Quick health check (validation + staleness + coverage) | `/intent-layer:health` |
 
 ### Agents
 
@@ -98,7 +98,7 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
                       Stop hook evaluates: enrich or discard?
                               ↓
                       Next session: Agent offers interactive review
-                      or user runs /review-mistakes
+                      or user runs /intent-layer:review
                               ↓
                       User decides: Accept / Reject / Discard
                               ↓ (on accept)
@@ -110,7 +110,7 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
                       PreToolUse injects relevant pitfalls before edits
 ```
 
-**Interactive review**: When pending reports exist, the agent offers to walk you through them conversationally. You can also explicitly run `/review-mistakes` to start a review session.
+**Interactive review**: When pending reports exist, the agent offers to walk you through them conversationally. You can also explicitly run `/intent-layer:review` to start a review session.
 
 **Supporting scripts:**
 
@@ -145,7 +145,7 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
 ./scripts/capture_pain_points.sh pain_points.md
 
 # Run maintenance workflow
-# In Claude Code: /intent-layer-maintenance /path/to/project
+# In Claude Code: /intent-layer:maintain /path/to/project
 ```
 
 ### Onboarding
@@ -154,8 +154,8 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
 # Generate orientation overview
 ./scripts/generate_orientation.sh /path/to/project
 
-# Or use the skill interactively
-# In Claude Code: /intent-layer-onboarding /path/to/project
+# Or use the router which includes onboarding as an option
+# In Claude Code: /intent-layer /path/to/project
 ```
 
 ## Plugin Structure
@@ -165,17 +165,21 @@ intent-layer-plugin/
 ├── .claude-plugin/
 │   └── plugin.json          # Plugin manifest
 ├── skills/                   # Slash-command skills
-│   ├── intent-layer/
-│   ├── intent-layer-maintenance/
-│   ├── intent-layer-onboarding/
-│   └── intent-layer-query/
+│   ├── intent-layer/         # Smart router + sub-skills
+│   │   └── workflows/        # Reference docs for flows
+│   ├── intent-layer-maintain/
+│   ├── intent-layer-review/
+│   ├── intent-layer-query/
+│   └── intent-layer-health/
 ├── agents/                   # Specialized subagents
 │   ├── explorer.md
 │   ├── validator.md
-│   └── auditor.md
+│   ├── auditor.md
+│   └── change-tracker.md
 ├── hooks/
-│   └── hooks.json            # PostToolUse hook config
+│   └── hooks.json            # 5 hook slots
 ├── scripts/                  # Shared bash scripts
+├── lib/                      # Internal library scripts
 └── references/               # Templates and guides
 ```
 
@@ -203,7 +207,7 @@ All scripts support:
 - Projects that change so rapidly the docs would be stale immediately
 - Codebases you won't use AI agents on
 
-### intent-layer-maintenance
+### intent-layer:maintain
 
 **Good for:**
 - Quarterly reviews of existing Intent Layers
@@ -212,7 +216,7 @@ All scripts support:
 - When agents consistently get confused about something
 
 **Not good for:**
-- Initial setup (use `intent-layer` first)
+- Initial setup (use `/intent-layer` first — it routes automatically)
 - Minor cosmetic changes that don't affect behavior
 
 ## CI Integration

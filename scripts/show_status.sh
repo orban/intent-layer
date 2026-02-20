@@ -65,6 +65,16 @@ done
 
 TARGET_PATH="${TARGET_PATH:-.}"
 
+# Source common.sh for setup_colors
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/../lib/common.sh" ]]; then
+    # shellcheck source=../lib/common.sh
+    source "$SCRIPT_DIR/../lib/common.sh"
+    setup_colors
+else
+    RED=''; GREEN=''; YELLOW=''; BOLD=''; DIM=''; RESET=''
+fi
+
 # Validate path exists
 if [ ! -d "$TARGET_PATH" ]; then
     echo "❌ Error: Directory not found: $TARGET_PATH" >&2
@@ -108,15 +118,19 @@ fi
 # Determine state
 STATE="none"
 STATE_EMOJI="🔴"
+STATE_COLOR="$RED"
 if [ -z "$ROOT_FILE" ]; then
     STATE="none"
     STATE_EMOJI="🔴"
+    STATE_COLOR="$RED"
 elif [ "$HAS_INTENT_SECTION" = false ]; then
     STATE="partial"
     STATE_EMOJI="🟡"
+    STATE_COLOR="$YELLOW"
 else
     STATE="complete"
     STATE_EMOJI="🟢"
+    STATE_COLOR="$GREEN"
 fi
 
 # Find all nodes
@@ -282,40 +296,58 @@ EOF
 fi
 
 # Output dashboard
-cat << 'EOF'
-╔════════════════════════════════════════╗
-║     INTENT LAYER STATUS DASHBOARD      ║
-╚════════════════════════════════════════╝
-
-EOF
-
-echo "## State: $STATE_EMOJI $(echo "$STATE" | tr '[:lower:]' '[:upper:]')"
+echo "${BOLD}╔════════════════════════════════════════╗${RESET}"
+echo "${BOLD}║     INTENT LAYER STATUS DASHBOARD      ║${RESET}"
+echo "${BOLD}╚════════════════════════════════════════╝${RESET}"
 echo ""
 
-echo "## Summary"
-echo "| Metric | Value |"
-echo "|--------|-------|"
-echo "| Root File | ${ROOT_FILE:-none} |"
-echo "| Total Nodes | ${#NODES[@]} |"
-echo "| Total Tokens | $TOTAL_TOKENS_FMT |"
-echo "| Errors | $TOTAL_ERRORS |"
-echo "| Warnings | $TOTAL_WARNINGS |"
+echo "${BOLD}State:${RESET} $STATE_EMOJI ${STATE_COLOR}$(echo "$STATE" | tr '[:lower:]' '[:upper:]')${RESET}"
+echo ""
+
+echo "${BOLD}Summary${RESET}"
+echo "  Root File:    ${ROOT_FILE:-none}"
+echo "  Total Nodes:  ${#NODES[@]}"
+echo "  Total Tokens: $TOTAL_TOKENS_FMT"
+if [ "$TOTAL_ERRORS" -gt 0 ]; then
+    echo "  Errors:       ${RED}${TOTAL_ERRORS}${RESET}"
+else
+    echo "  Errors:       ${GREEN}${TOTAL_ERRORS}${RESET}"
+fi
+if [ "$TOTAL_WARNINGS" -gt 0 ]; then
+    echo "  Warnings:     ${YELLOW}${TOTAL_WARNINGS}${RESET}"
+else
+    echo "  Warnings:     ${TOTAL_WARNINGS}"
+fi
 echo ""
 
 if [ ${#NODES[@]} -gt 0 ]; then
-    echo "## Node Health"
-    echo "| Node | Tokens | Budget | Status | Age |"
-    echo "|------|--------|--------|--------|-----|"
+    echo "${BOLD}Node Health${RESET}"
+    printf "  ${DIM}%-40s %-8s %-8s %-8s %s${RESET}\n" "Node" "Tokens" "Budget" "Status" "Age"
     for data in ${NODE_DATA[@]+"${NODE_DATA[@]}"}; do
         IFS='|' read -r path tokens budget status age <<< "$data"
         tokens_fmt=$(format_tokens $tokens)
-        echo "| $path | $tokens_fmt | ${budget}% | $status | ${age}d |"
+        # Color the status indicator
+        case "$status" in
+            "✓") colored_status="${GREEN}✓${RESET}" ;;
+            "⚠") colored_status="${YELLOW}⚠${RESET}" ;;
+            "✗") colored_status="${RED}✗${RESET}" ;;
+            *) colored_status="$status" ;;
+        esac
+        # Color the budget percentage
+        if [ "$budget" -gt 100 ]; then
+            colored_budget="${RED}${budget}%${RESET}"
+        elif [ "$budget" -gt 75 ]; then
+            colored_budget="${YELLOW}${budget}%${RESET}"
+        else
+            colored_budget="${GREEN}${budget}%${RESET}"
+        fi
+        printf "  %-40s %-8s %-8b %-8b %s\n" "$path" "$tokens_fmt" "$colored_budget" "$colored_status" "${DIM}${age}d${RESET}"
     done
     echo ""
 fi
 
-echo "## Recommended Actions"
+echo "${BOLD}Recommended Actions${RESET}"
 for rec in ${RECOMMENDATIONS[@]+"${RECOMMENDATIONS[@]}"}; do
-    echo "- $rec"
+    echo "  - $rec"
 done
 echo ""

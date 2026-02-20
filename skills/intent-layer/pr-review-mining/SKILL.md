@@ -208,7 +208,7 @@ Use both for complete coverage:
 - git-history catches changes without PR discussion
 - pr-review-mining provides deeper rationale
 
-### With intent-layer-maintenance (audits)
+### With intent-layer:maintain (audits)
 
 After significant merges:
 

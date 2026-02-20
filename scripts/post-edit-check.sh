@@ -108,9 +108,12 @@ fi
 NODE_DIR=$(dirname "$COVERING_NODE")
 RELATIVE_PATH="${FILE_PATH#$NODE_DIR/}"
 
-# Output reminder (this is what Claude sees)
-echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
-echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+# Only emit reminder if the file's basename appears in the covering node
+# Case-insensitive match reduces noise for files not mentioned in AGENTS.md
+if grep -qi "$FILE_NAME" "$COVERING_NODE" 2>/dev/null; then
+    echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
+    echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+fi
 
 # --- New Directory Detection ---
 # Check if this file was written to a new directory that may need AGENTS.md
@@ -163,7 +166,7 @@ if [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
    parent_has_coverage "$FILE_DIR"; then
     echo ""
     echo "📁 New directory \`$DIR_NAME\` created - may need AGENTS.md coverage as it grows."
-    echo "   Run \`/intent-layer-maintenance\` when ready to extend the hierarchy."
+    echo "   Run \`/intent-layer:maintain\` when ready to extend the hierarchy."
 fi
 
 # --- Outcome Telemetry ---

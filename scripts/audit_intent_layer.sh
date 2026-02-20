@@ -43,6 +43,15 @@ EOF
 # Script directory for calling sibling scripts
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Source common.sh for setup_colors
+if [[ -f "$SCRIPT_DIR/../lib/common.sh" ]]; then
+    # shellcheck source=../lib/common.sh
+    source "$SCRIPT_DIR/../lib/common.sh"
+    setup_colors
+else
+    RED=''; GREEN=''; YELLOW=''; BOLD=''; DIM=''; RESET=''
+fi
+
 # Defaults
 TARGET_PATH="."
 JSON_OUTPUT=false
@@ -595,16 +604,22 @@ EOF
 fi
 
 # Text output
-cat << EOF
-Intent Layer Audit Report
-=========================
+echo "${BOLD}Intent Layer Audit Report${RESET}"
+echo "${BOLD}=========================${RESET}"
+echo ""
 
-EOF
-
-echo "VALIDATION ($NODE_COUNT nodes checked)"
-echo "  ✓ PASS: $VAL_PASS nodes"
-echo "  ⚠ WARN: $VAL_WARN nodes"
-echo "  ✗ FAIL: $VAL_FAIL nodes"
+echo "${BOLD}VALIDATION${RESET} ($NODE_COUNT nodes checked)"
+echo "  ${GREEN}✓${RESET} PASS: $VAL_PASS nodes"
+if [ "$VAL_WARN" -gt 0 ]; then
+    echo "  ${YELLOW}⚠${RESET} WARN: ${YELLOW}$VAL_WARN${RESET} nodes"
+else
+    echo "  ${GREEN}⚠${RESET} WARN: $VAL_WARN nodes"
+fi
+if [ "$VAL_FAIL" -gt 0 ]; then
+    echo "  ${RED}✗${RESET} FAIL: ${RED}$VAL_FAIL${RESET} nodes"
+else
+    echo "  ${GREEN}✗${RESET} FAIL: $VAL_FAIL nodes"
+fi
 
 if [ -n "$VAL_ISSUES" ]; then
     IFS=';' read -ra issue_arr <<< "$VAL_ISSUES"
@@ -613,17 +628,25 @@ if [ -n "$VAL_ISSUES" ]; then
         IFS='|' read -r level path desc <<< "$entry"
         [ -z "$level" ] && continue
         case $level in
-            FAIL) echo "    ✗ $path - $desc" ;;
-            WARN) echo "    ⚠ $path - $desc" ;;
+            FAIL) echo "    ${RED}✗${RESET} $path - $desc" ;;
+            WARN) echo "    ${YELLOW}⚠${RESET} $path - $desc" ;;
         esac
     done
 fi
 echo ""
 
-echo "STALENESS"
-echo "  Fresh (<30 days): $STALE_FRESH nodes"
-echo "  Aging (30-90 days): $STALE_AGING nodes"
-echo "  Stale (>90 days): $STALE_STALE node(s)"
+echo "${BOLD}STALENESS${RESET}"
+echo "  ${GREEN}Fresh${RESET} (<30 days): $STALE_FRESH nodes"
+if [ "$STALE_AGING" -gt 0 ]; then
+    echo "  ${YELLOW}Aging${RESET} (30-90 days): ${YELLOW}$STALE_AGING${RESET} nodes"
+else
+    echo "  Aging (30-90 days): $STALE_AGING nodes"
+fi
+if [ "$STALE_STALE" -gt 0 ]; then
+    echo "  ${RED}Stale${RESET} (>90 days): ${RED}$STALE_STALE${RESET} node(s)"
+else
+    echo "  Stale (>90 days): $STALE_STALE node(s)"
+fi
 
 if [ -n "$STALE_NODES" ]; then
     IFS=';' read -ra stale_arr <<< "$STALE_NODES"
@@ -631,13 +654,21 @@ if [ -n "$STALE_NODES" ]; then
         [ -z "$entry" ] && continue
         IFS='|' read -r path days <<< "$entry"
         [ -z "$path" ] && continue
-        echo "    - $path ($days days)"
+        echo "    ${DIM}-${RESET} $path ${DIM}($days days)${RESET}"
     done
 fi
 echo ""
 
-echo "COVERAGE"
-echo "  Documented: $COV_PCT% ($COV_COVERED/$COV_TOTAL directories)"
+echo "${BOLD}COVERAGE${RESET}"
+# Color the coverage percentage
+if [ "$COV_PCT" -ge 80 ]; then
+    COV_COLOR="$GREEN"
+elif [ "$COV_PCT" -ge 50 ]; then
+    COV_COLOR="$YELLOW"
+else
+    COV_COLOR="$RED"
+fi
+echo "  Documented: ${COV_COLOR}${COV_PCT}%${RESET} ($COV_COVERED/$COV_TOTAL directories)"
 
 if [ -n "$COV_GAPS" ]; then
     echo "  Gaps:"
@@ -647,17 +678,31 @@ if [ -n "$COV_GAPS" ]; then
         IFS='|' read -r tokens path <<< "$entry"
         [ -z "$tokens" ] && continue
         tokens_fmt=$(format_tokens "$tokens")
-        echo "    - $path (${tokens_fmt} tokens)"
+        echo "    ${YELLOW}-${RESET} $path ${DIM}(${tokens_fmt} tokens)${RESET}"
     done
 fi
 echo ""
 
 if [ "$QUICK_MODE" = false ] && [ "$CONS_TOTAL" -gt 0 ]; then
-    echo "CONSISTENCY"
-    echo "  Section alignment: $CONS_PCT% ($CONS_ALIGNED/$CONS_TOTAL sibling nodes)"
+    echo "${BOLD}CONSISTENCY${RESET}"
+    if [ "$CONS_PCT" -ge 80 ]; then
+        CONS_COLOR="$GREEN"
+    elif [ "$CONS_PCT" -ge 50 ]; then
+        CONS_COLOR="$YELLOW"
+    else
+        CONS_COLOR="$RED"
+    fi
+    echo "  Section alignment: ${CONS_COLOR}${CONS_PCT}%${RESET} ($CONS_ALIGNED/$CONS_TOTAL sibling nodes)"
     echo ""
 fi
 
-echo "OVERALL: $OVERALL_STATUS ($ISSUE_COUNT issue(s))"
+# Color the overall status
+case "$OVERALL_STATUS" in
+    HEALTHY) STATUS_COLOR="$GREEN" ;;
+    NEEDS_ATTENTION) STATUS_COLOR="$YELLOW" ;;
+    CRITICAL) STATUS_COLOR="$RED" ;;
+    *) STATUS_COLOR="" ;;
+esac
+echo "${BOLD}OVERALL:${RESET} ${STATUS_COLOR}${OVERALL_STATUS}${RESET} ($ISSUE_COUNT issue(s))"
 
 exit $EXIT_CODE
