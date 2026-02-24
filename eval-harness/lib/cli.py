@@ -643,83 +643,182 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         "task_files": [str(Path(t).resolve()) for t in tasks],
     }
 
-    with ThreadPoolExecutor(max_workers=parallel) as executor:
-        futures = {executor.submit(run_single, item): item for item in work_queue}
+    def _run_batch(batch: list, workers: int) -> list[TaskResult]:
+        """Run a batch of work items and return results."""
+        nonlocal budget_warned
+        batch_results: list[TaskResult] = []
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(run_single, item): item for item in batch}
 
-        for future in as_completed(futures):
-            item = futures[future]
-            _repo, _task, _cond, rep = item
+            for future in as_completed(futures):
+                item = futures[future]
+                _repo, _task, _cond, rep = item
+                try:
+                    result = future.result()
+                except Exception as e:
+                    # Worker crashed (e.g., cache race, OOM) — record as infra error
+                    click.echo(f"  {_task.id} ({_cond.value}): CRASH - {e}", err=True)
+                    result = TaskResult(
+                        task_id=_task.id,
+                        condition=_cond,
+                        success=False,
+                        test_output="",
+                        wall_clock_seconds=0,
+                        input_tokens=0,
+                        output_tokens=0,
+                        tool_calls=0,
+                        lines_changed=0,
+                        files_touched=[],
+                        rep=rep,
+                        error=f"[worker-crash] {e}"
+                    )
+                batch_results.append(result)
+                results.append(result)  # also accumulate globally for checkpoint
+                status = "PASS" if result.success else "FAIL"
+                # Build the status line with error info if failed
+                rep_tag = f" [rep {rep+1}/{repetitions}]" if repetitions > 1 else ""
+                line = f"  {result.task_id} ({result.condition.value}){rep_tag}: {status}"
+                if not result.success:
+                    if result.error:
+                        error_line = result.error.split('\n')[0][:80]
+                        line += f" - {error_line}"
+                    elif result.test_output:
+                        output_lines = [l.strip() for l in result.test_output.strip().split('\n') if l.strip()]
+                        if output_lines:
+                            last_line = output_lines[-1][:80]
+                            line += f" - {last_line}"
+                click.echo(line)
+                if verbose and not result.success:
+                    if result.error:
+                        click.echo(f"    Error: {result.error}", err=True)
+                    elif result.test_output:
+                        output_lines = result.test_output.strip().split('\n')
+                        tail = output_lines[-10:] if len(output_lines) > 10 else output_lines
+                        click.echo("    Test output (last 10 lines):", err=True)
+                        for tl in tail:
+                            click.echo(f"      {tl}", err=True)
+
+                try:
+                    reporter.write_trial(result)
+                except Exception as e:
+                    click.echo(f"  Warning: trial write failed: {e}", err=True)
+
+                try:
+                    checkpoint_path = reporter.write_checkpoint(results, eval_id, run_config=run_config)
+                    if len(results) == 1:
+                        click.echo(f"  Checkpoint: {checkpoint_path} (updated after each result)")
+                except Exception as e:
+                    click.echo(f"  Warning: checkpoint write failed: {e}", err=True)
+
+                if budget_threshold and not budget_warned and preflight_budget:
+                    cumulative_tokens = sum(r.input_tokens + r.output_tokens for r in results)
+                    if cumulative_tokens > budget_threshold:
+                        rem_fmt = fmt_tokens(preflight_budget.get('remaining_tokens', 0))
+                        cum_fmt = fmt_tokens(cumulative_tokens)
+                        click.echo(f"\n\u26a0 Budget checkpoint: {cum_fmt} tokens consumed so far (est. remaining: {rem_fmt} at start)\n")
+                        refresh_budget_snapshot()
+                        budget_warned = True
+
+        return batch_results
+
+    def _check_docker() -> bool:
+        """Return True if Docker daemon is responsive."""
+        import subprocess
+        try:
+            r = subprocess.run(["docker", "ps"], capture_output=True, timeout=10)
+            return r.returncode == 0
+        except Exception:
+            return False
+
+    def _restart_docker() -> bool:
+        """Attempt to restart Docker/OrbStack. Returns True if successful."""
+        import subprocess, time
+        click.echo("  Attempting Docker restart...")
+        # Try OrbStack first (macOS), then generic docker
+        for cmd in [["open", "-a", "OrbStack"], ["open", "-a", "Docker"]]:
             try:
-                result = future.result()
-            except Exception as e:
-                # Worker crashed (e.g., cache race, OOM) — record as infra error
-                click.echo(f"  {_task.id} ({_cond.value}): CRASH - {e}", err=True)
-                result = TaskResult(
-                    task_id=_task.id,
-                    condition=_cond,
-                    success=False,
-                    test_output="",
-                    wall_clock_seconds=0,
-                    input_tokens=0,
-                    output_tokens=0,
-                    tool_calls=0,
-                    lines_changed=0,
-                    files_touched=[],
-                    rep=rep,
-                    error=f"[worker-crash] {e}"
-                )
-            results.append(result)
-            status = "PASS" if result.success else "FAIL"
-            # Build the status line with error info if failed
-            rep_tag = f" [rep {rep+1}/{repetitions}]" if repetitions > 1 else ""
-            line = f"  {result.task_id} ({result.condition.value}){rep_tag}: {status}"
-            if not result.success:
-                if result.error:
-                    # Exception during execution - show first line
-                    error_line = result.error.split('\n')[0][:80]
-                    line += f" - {error_line}"
-                elif result.test_output:
-                    # Tests failed - extract last meaningful line from output
-                    output_lines = [l.strip() for l in result.test_output.strip().split('\n') if l.strip()]
-                    if output_lines:
-                        last_line = output_lines[-1][:80]
-                        line += f" - {last_line}"
-            click.echo(line)
-            # In verbose mode, show more error context for failures
-            if verbose and not result.success:
-                if result.error:
-                    click.echo(f"    Error: {result.error}", err=True)
-                elif result.test_output:
-                    # Show last 10 lines of test output
-                    output_lines = result.test_output.strip().split('\n')
-                    tail = output_lines[-10:] if len(output_lines) > 10 else output_lines
-                    click.echo("    Test output (last 10 lines):", err=True)
-                    for l in tail:
-                        click.echo(f"      {l}", err=True)
+                subprocess.run(cmd, capture_output=True, timeout=10)
+            except Exception:
+                continue
+        # Wait for Docker to come up
+        for attempt in range(12):  # up to 60s
+            time.sleep(5)
+            if _check_docker():
+                click.echo(f"  Docker restarted successfully (waited {(attempt+1)*5}s)")
+                return True
+        click.echo("  Docker restart failed after 60s", err=True)
+        return False
 
-            # Per-trial result file for ls-level observability
-            try:
-                reporter.write_trial(result)
-            except Exception as e:
-                click.echo(f"  Warning: trial write failed: {e}", err=True)
+    def _cb_reset():
+        """Reset circuit breaker state between supervisor rounds."""
+        with _cb_lock:
+            _cb_counts.clear()
+            _cb_tripped.clear()
 
-            # Incremental checkpoint — resume-compatible JSON written after each result
-            try:
-                checkpoint_path = reporter.write_checkpoint(results, eval_id, run_config=run_config)
-                if len(results) == 1:
-                    click.echo(f"  Checkpoint: {checkpoint_path} (updated after each result)")
-            except Exception as e:
-                click.echo(f"  Warning: checkpoint write failed: {e}", err=True)
+    # ── Supervisor loop ──────────────────────────────────────────────
+    MAX_RETRY_ROUNDS = 2
+    current_batch = work_queue
+    current_workers = parallel
 
-            # Mid-run budget checkpoint (one-time warning)
-            if budget_threshold and not budget_warned and preflight_budget:
-                cumulative_tokens = sum(r.input_tokens + r.output_tokens for r in results)
-                if cumulative_tokens > budget_threshold:
-                    rem_fmt = fmt_tokens(preflight_budget.get('remaining_tokens', 0))
-                    cum_fmt = fmt_tokens(cumulative_tokens)
-                    click.echo(f"\n\u26a0 Budget checkpoint: {cum_fmt} tokens consumed so far (est. remaining: {rem_fmt} at start)\n")
-                    refresh_budget_snapshot()
-                    budget_warned = True
+    for supervisor_round in range(1 + MAX_RETRY_ROUNDS):
+        if supervisor_round > 0:
+            click.echo(f"\n{'='*60}")
+            click.echo(f"Supervisor retry round {supervisor_round}/{MAX_RETRY_ROUNDS}")
+            click.echo(f"{'='*60}")
+
+        batch_results = _run_batch(current_batch, current_workers)
+
+        # Classify failures from this batch
+        infra_results = [
+            r for r in batch_results
+            if r.error and (
+                r.error.startswith(Reporter.INFRA_ERROR_PREFIXES)
+                or r.error.startswith("[circuit-breaker]")
+            )
+        ]
+
+        if not infra_results:
+            break  # all clean or only genuine failures
+
+        # Build retry queue: find work items whose results were infra errors
+        infra_keys = {(r.task_id, r.condition.value, r.rep) for r in infra_results}
+        retry_queue = [
+            item for item in current_batch
+            if (item[1].id, item[2].value, item[3]) in infra_keys
+        ]
+
+        if not retry_queue or supervisor_round >= MAX_RETRY_ROUNDS:
+            if retry_queue:
+                click.echo(f"\n  {len(retry_queue)} infra failures remain after {MAX_RETRY_ROUNDS} retry rounds")
+            break
+
+        click.echo(f"\n  {len(infra_results)} infra failures detected, diagnosing...")
+
+        # Remove infra results from global list — they'll be replaced by retries
+        for r in infra_results:
+            if r in results:
+                results.remove(r)
+
+        # Diagnose and remediate
+        has_docker_failures = any(
+            "[pre-validation]" in r.error or "Docker" in r.error
+            for r in infra_results
+        )
+        if has_docker_failures:
+            if not _check_docker():
+                click.echo("  Docker is down!")
+                if not _restart_docker():
+                    click.echo("  Cannot recover Docker — aborting retries", err=True)
+                    results.extend(infra_results)  # put them back
+                    break
+            # Reduce parallelism to ease Docker contention
+            current_workers = max(2, current_workers // 2)
+            click.echo(f"  Reducing parallelism to {current_workers} workers")
+
+        # Reset circuit breaker for retry round
+        _cb_reset()
+        current_batch = retry_queue
+        click.echo(f"  Retrying {len(retry_queue)} items...")
 
     # Generate reports — capture postflight budget in cli (not reporter)
     postflight_budget = get_budget_status()
