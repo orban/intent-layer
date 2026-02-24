@@ -643,14 +643,89 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         "task_files": [str(Path(t).resolve()) for t in tasks],
     }
 
+    # ── Control plane ─────────────────────────────────────────────
+    control_dir = Path(output) / ".eval-control"
+    control_dir.mkdir(parents=True, exist_ok=True)
+    status_path = Path(output) / ".eval-status.json"
+    _current_workers = parallel  # mutable via control commands
+
+    def _write_status(batch_total: int, completed: int, infra_fails: int,
+                      genuine_fails: int, passes: int, paused: bool):
+        """Write machine-readable status for external supervisors."""
+        import time as _time
+        status = {
+            "eval_id": eval_id,
+            "timestamp": datetime.now().isoformat(),
+            "uptime_seconds": _time.time() - _start_time,
+            "workers": _current_workers,
+            "paused": paused,
+            "batch_total": batch_total,
+            "completed": completed,
+            "passes": passes,
+            "genuine_failures": genuine_fails,
+            "infra_failures": infra_fails,
+            "remaining": batch_total - completed,
+            "pass_rate": round(passes / max(completed - infra_fails, 1), 3),
+            "infra_rate": round(infra_fails / max(completed, 1), 3),
+        }
+        tmp = status_path.with_suffix(f".tmp.{threading.get_ident()}")
+        with open(tmp, "w") as f:
+            json.dump(status, f, indent=2)
+        tmp.rename(status_path)
+
+    def _check_control() -> dict[str, str]:
+        """Read and consume control commands. Returns {command: value}."""
+        commands = {}
+        if not control_dir.exists():
+            return commands
+        for p in sorted(control_dir.iterdir()):
+            if p.name.startswith("."):
+                continue
+            val = p.read_text().strip() if p.stat().st_size > 0 else ""
+            commands[p.name] = val
+            p.unlink()  # consume the command
+        return commands
+
+    _start_time = __import__("time").time()
+    _paused = False
+
     def _run_batch(batch: list, workers: int) -> list[TaskResult]:
         """Run a batch of work items and return results."""
-        nonlocal budget_warned
+        nonlocal budget_warned, _current_workers, _paused
         batch_results: list[TaskResult] = []
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = {executor.submit(run_single, item): item for item in batch}
 
             for future in as_completed(futures):
+                # Check control commands between results
+                for cmd, val in _check_control().items():
+                    if cmd == "pause":
+                        _paused = True
+                        click.echo("\n  \u23f8 Paused by external supervisor")
+                    elif cmd == "resume":
+                        _paused = False
+                        click.echo("\n  \u25b6 Resumed by external supervisor")
+                    elif cmd == "set-workers":
+                        try:
+                            _current_workers = max(1, int(val))
+                            click.echo(f"\n  \u2699 Workers set to {_current_workers} (takes effect next batch)")
+                        except ValueError:
+                            click.echo(f"\n  Warning: invalid set-workers value: {val}", err=True)
+                    elif cmd == "skip-task":
+                        # Trip circuit breaker for this task across all conditions
+                        with _cb_lock:
+                            _cb_tripped.add((val,))
+                        click.echo(f"\n  \u23ed Skipping task {val} by external command")
+
+                # Honor pause: spin-wait until resumed
+                while _paused:
+                    import time as _t
+                    _t.sleep(2)
+                    for cmd2, _ in _check_control().items():
+                        if cmd2 == "resume":
+                            _paused = False
+                            click.echo("\n  \u25b6 Resumed by external supervisor")
+
                 item = futures[future]
                 _repo, _task, _cond, rep = item
                 try:
@@ -719,6 +794,12 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                         refresh_budget_snapshot()
                         budget_warned = True
 
+                # Update status file for external supervisors
+                n_infra = sum(1 for r in results if r.error and r.error.startswith(Reporter.INFRA_ERROR_PREFIXES))
+                n_pass = sum(1 for r in results if r.success)
+                n_genuine = len(results) - n_pass - n_infra
+                _write_status(len(work_queue), len(results), n_infra, n_genuine, n_pass, _paused)
+
         return batch_results
 
     def _check_docker() -> bool:
@@ -758,7 +839,6 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     # ── Supervisor loop ──────────────────────────────────────────────
     MAX_RETRY_ROUNDS = 2
     current_batch = work_queue
-    current_workers = parallel
 
     for supervisor_round in range(1 + MAX_RETRY_ROUNDS):
         if supervisor_round > 0:
@@ -766,7 +846,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             click.echo(f"Supervisor retry round {supervisor_round}/{MAX_RETRY_ROUNDS}")
             click.echo(f"{'='*60}")
 
-        batch_results = _run_batch(current_batch, current_workers)
+        batch_results = _run_batch(current_batch, _current_workers)
 
         # Classify failures from this batch
         infra_results = [
@@ -801,7 +881,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
         # Diagnose and remediate
         has_docker_failures = any(
-            "[pre-validation]" in r.error or "Docker" in r.error
+            r.error and ("[pre-validation]" in r.error or "Docker" in r.error)
             for r in infra_results
         )
         if has_docker_failures:
@@ -812,8 +892,8 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     results.extend(infra_results)  # put them back
                     break
             # Reduce parallelism to ease Docker contention
-            current_workers = max(2, current_workers // 2)
-            click.echo(f"  Reducing parallelism to {current_workers} workers")
+            _current_workers = max(2, _current_workers // 2)
+            click.echo(f"  Reducing parallelism to {_current_workers} workers")
 
         # Reset circuit breaker for retry round
         _cb_reset()
