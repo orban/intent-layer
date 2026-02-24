@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.task_runner import TaskResult, Condition
-from lib.stats import wilson_score_interval, ci_overlap, mcnemar_test
+from lib.stats import wilson_score_interval, ci_overlap, mcnemar_test, fisher_exact_test
 from lib.budget import fmt_tokens
 
 
@@ -372,6 +372,12 @@ class Reporter:
                 if mcnemar_entry and mcnemar_entry["n_discordant"] > 0:
                     summary[f"{treatment}_vs_none_significant"] = mcnemar_entry["p_value"] < 0.05
 
+        # Per-task Fisher's exact tests + recommendations
+        if has_multi_run:
+            per_task_fisher = self._compute_per_task_fisher(results)
+            summary["per_task_fisher"] = per_task_fisher
+            summary["recommendations"] = self._compute_recommendations(per_task_fisher, results)
+
         return summary
 
     def _compute_mcnemar(self, results: list[TaskResult]) -> dict:
@@ -421,6 +427,99 @@ class Reporter:
             mcnemar_results[f"{cond_a}_vs_{cond_b}"] = mcnemar_test(b, c)
 
         return mcnemar_results
+
+    def _compute_per_task_fisher(self, results: list[TaskResult]) -> list[dict]:
+        """Run Fisher's exact test per task for each condition pair.
+
+        Unlike McNemar (which pools all tasks for paired analysis), Fisher
+        tests each task independently — useful for identifying which specific
+        tasks drive the aggregate signal and for flagging task quality issues.
+        """
+        # Group by task_id → condition → list of valid results
+        grouped: dict[str, dict[str, list[TaskResult]]] = {}
+        for r in results:
+            if self._is_infra_error(r):
+                continue
+            if r.task_id not in grouped:
+                grouped[r.task_id] = {}
+            cond = r.condition.value
+            if cond not in grouped[r.task_id]:
+                grouped[r.task_id][cond] = []
+            grouped[r.task_id][cond].append(r)
+
+        comparisons = [
+            ("none", "flat_llm"),
+            ("none", "intent_layer"),
+            ("flat_llm", "intent_layer"),
+        ]
+
+        per_task: list[dict] = []
+        for task_id, conditions in grouped.items():
+            task_entry: dict[str, Any] = {"task_id": task_id, "comparisons": {}}
+
+            for cond_a, cond_b in comparisons:
+                a_runs = conditions.get(cond_a, [])
+                b_runs = conditions.get(cond_b, [])
+                if not a_runs or not b_runs:
+                    continue
+
+                a_pass = sum(1 for r in a_runs if r.success)
+                b_pass = sum(1 for r in b_runs if r.success)
+                result = fisher_exact_test(a_pass, len(a_runs), b_pass, len(b_runs))
+                task_entry["comparisons"][f"{cond_a}_vs_{cond_b}"] = result
+
+            # Task quality flags
+            all_runs = [r for runs in conditions.values() for r in runs]
+            total_pass = sum(1 for r in all_runs if r.success)
+            task_entry["total_runs"] = len(all_runs)
+            task_entry["total_pass"] = total_pass
+            task_entry["pass_rate"] = round(total_pass / len(all_runs), 2) if all_runs else 0
+
+            # Ceiling: all conditions ~100% → no discriminative power
+            task_entry["ceiling_effected"] = total_pass == len(all_runs) and len(all_runs) >= 3
+
+            # Floor: all conditions 0% → task may be broken or too hard
+            task_entry["floor_effected"] = total_pass == 0 and len(all_runs) >= 3
+
+            per_task.append(task_entry)
+
+        return per_task
+
+    def _compute_recommendations(self, per_task_fisher: list[dict], results: list[TaskResult]) -> list[str]:
+        """Generate actionable recommendations from per-task analysis."""
+        recs: list[str] = []
+
+        # Check for tasks with all infra errors (no valid runs)
+        task_ids_with_data = {t["task_id"] for t in per_task_fisher}
+        all_task_ids = set(r.task_id for r in results)
+        infra_only = all_task_ids - task_ids_with_data
+        for tid in sorted(infra_only):
+            recs.append(f"**{tid}**: all runs were infrastructure errors. Check Docker setup and pre-validation.")
+
+        for t in per_task_fisher:
+            tid = t["task_id"]
+            if t["ceiling_effected"]:
+                recs.append(
+                    f"**{tid}**: ceiling-effected ({t['total_pass']}/{t['total_runs']} pass). "
+                    f"No discriminative power — consider replacing with a harder task."
+                )
+            if t["floor_effected"]:
+                recs.append(
+                    f"**{tid}**: floor-effected (0/{t['total_runs']} pass). "
+                    f"All conditions fail — task may be too hard or misconfigured."
+                )
+
+            # Flag significant per-task results
+            for comp_key, comp in t["comparisons"].items():
+                if comp["p_value"] < 0.10 and abs(comp["rate_diff"]) >= 0.3:
+                    direction = "+" if comp["rate_diff"] > 0 else ""
+                    recs.append(
+                        f"**{tid}** ({comp_key.replace('_vs_', ' vs ')}): "
+                        f"{direction}{comp['rate_diff']:.0%} rate difference "
+                        f"(p={comp['p_value']:.3f}). Worth deeper investigation."
+                    )
+
+        return recs
 
     def write_checkpoint(
         self,
@@ -728,6 +827,51 @@ class Reporter:
                     f"{data['a_wins']} | {data['b_wins']} | "
                     f"{data['p_value']:.3f} | {sig} |"
                 )
+
+        # Per-Task Fisher's Exact Test section
+        per_task_fisher = summary.get("per_task_fisher", [])
+        tasks_with_comparisons = [t for t in per_task_fisher if t["comparisons"]]
+        if tasks_with_comparisons:
+            lines += [
+                "",
+                "",
+                "## Per-Task Analysis (Fisher's Exact Test)",
+                "",
+                "| Task | Comparison | A rate | B rate | Diff | p-value | Sig. |",
+                "|------|------------|--------|--------|------|---------|------|",
+            ]
+            for t in tasks_with_comparisons:
+                tid = t["task_id"]
+                for comp_key, comp in t["comparisons"].items():
+                    label = comp_key.replace("_vs_", " vs ")
+                    sig = "*" if comp["p_value"] < 0.05 else ("~" if comp["p_value"] < 0.10 else "")
+                    lines.append(
+                        f"| {tid} | {label} | {comp['a_rate']:.0%} | "
+                        f"{comp['b_rate']:.0%} | {comp['rate_diff']:+.0%} | "
+                        f"{comp['p_value']:.3f} | {sig} |"
+                    )
+
+            # Quality flags
+            ceiling = [t for t in per_task_fisher if t["ceiling_effected"]]
+            floor = [t for t in per_task_fisher if t["floor_effected"]]
+            if ceiling or floor:
+                lines.append("")
+                for t in ceiling:
+                    lines.append(f"- **{t['task_id']}**: ceiling-effected (100% all conditions)")
+                for t in floor:
+                    lines.append(f"- **{t['task_id']}**: floor-effected (0% all conditions)")
+
+        # Recommendations section
+        recs = summary.get("recommendations", [])
+        if recs:
+            lines += [
+                "",
+                "",
+                "## Recommendations",
+                "",
+            ]
+            for rec in recs:
+                lines.append(f"- {rec}")
 
         # Budget Impact section (when budget data is available)
         if results.budget:
