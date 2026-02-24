@@ -362,7 +362,7 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 
 @main.command()
 @click.option("--tasks", "-t", multiple=True, required=True, help="Task YAML files")
-@click.option("--parallel", "-p", default=2, help="Number of parallel workers")
+@click.option("--parallel", "-p", default=8, help="Number of parallel workers")
 @click.option("--category", type=click.Choice(["simple_fix", "targeted_refactor", "complex_fix"]))
 @click.option("--output", "-o", default="results", help="Output directory")
 @click.option("--keep-workspaces", is_flag=True, help="Don't cleanup workspaces")
@@ -719,7 +719,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
 @main.command()
 @click.option("--tasks", "-t", multiple=True, required=True, help="Task YAML files")
-@click.option("--parallel", "-p", default=2, help="Number of parallel workers")
+@click.option("--parallel", "-p", default=8, help="Number of parallel workers")
 @click.option("--timeout", default=300, help="Pre-validation timeout in seconds (default: 300)")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed progress")
 def validate(tasks, parallel, timeout, verbose):
