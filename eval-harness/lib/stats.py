@@ -102,10 +102,11 @@ def wilson_score_interval(
 
 
 def ci_overlap(ci_a: tuple[float, float], ci_b: tuple[float, float]) -> bool:
-    """Check if two confidence intervals overlap.
+    """Check if two confidence intervals overlap (visual heuristic only).
 
-    Returns True if the intervals share any range. Non-overlapping CIs
-    at 90% confidence suggest a statistically meaningful difference.
+    Returns True if the intervals share any range. Used for dashboard
+    display, NOT as a significance test. For significance decisions, use
+    McNemar's exact test (paired data) or Fisher's exact test (unpaired).
     """
     return ci_a[0] <= ci_b[1] and ci_b[0] <= ci_a[1]
 

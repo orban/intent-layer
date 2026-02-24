@@ -15,7 +15,7 @@ import click
 from lib.models import TaskFile
 from lib.task_runner import TaskRunner, TaskResult, Condition, PreValidationCache
 from lib.reporter import Reporter, EvalResults
-from lib.stats import wilson_score_interval, ci_overlap
+from lib.stats import wilson_score_interval
 from lib.git_scanner import GitScanner
 from lib.git_ops import clone_repo, checkout_commit
 from lib.index_cache import IndexCache
@@ -26,14 +26,23 @@ from lib.budget import check_budget, get_budget_status, refresh_budget_snapshot,
 _print_lock = threading.Lock()
 
 
-def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], dict]:
-    """Load prior results JSON file and identify passed (task_id, condition) pairs.
+def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], set[tuple[str, str]], dict]:
+    """Load prior results JSON and classify (task_id, condition) pairs.
 
-    A condition is "passed" if success=True and no error field exists at the
-    condition level. Works for both single-run and multi-run formats:
+    Returns:
+        passed: pairs where success=True and no error (carry forward)
+        genuine_failures: pairs that failed due to test failures, not infra
+            (skip by default on resume — retrying won't help)
+        data: raw prior data dict
+
+    Works for both single-run and multi-run formats:
     - Single-run: checks top-level success + absence of error
-    - Multi-run: checks aggregate success (majority pass) — individual run
-      errors don't produce a top-level error field, so the check works as-is
+    - Multi-run: checks aggregate success (majority pass)
+
+    Classification:
+    - passed: success=True, no error → carry forward
+    - infra error: error starts with INFRA_ERROR_PREFIXES → retry
+    - genuine failure: everything else (test failures, timeouts) → skip by default
     """
     try:
         with open(json_path) as f:
@@ -48,6 +57,8 @@ def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], dict]:
         raise click.ClickException(f"Invalid results file: 'results' must be a list in {json_path}")
 
     passed = set()
+    genuine_failures = set()
+
     for i, task in enumerate(data["results"]):
         if not isinstance(task, dict) or "task_id" not in task:
             raise click.ClickException(
@@ -58,10 +69,25 @@ def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], dict]:
             cond_data = task.get(cond_key)
             if cond_data is None:
                 continue
+
             if cond_data.get("success") is True and "error" not in cond_data:
                 passed.add((task_id, cond_key))
+                continue
 
-    return passed, data
+            # Not passed — classify as infra error or genuine failure.
+            # Multi-run: if any individual run had an infra error, the
+            # whole condition is worth retrying (more valid runs = better stats).
+            is_infra = _is_infra_error_dict(cond_data)
+            if not is_infra and "runs" in cond_data:
+                is_infra = any(
+                    r.get("error", "").startswith(Reporter.INFRA_ERROR_PREFIXES)
+                    for r in cond_data["runs"]
+                )
+
+            if not is_infra:
+                genuine_failures.add((task_id, cond_key))
+
+    return passed, genuine_failures, data
 
 
 def _is_infra_error_dict(cond_data: dict) -> bool:
@@ -159,8 +185,9 @@ def _merge_results(new_results: 'EvalResults', prior_data: dict, passed_pairs: s
 def _recompute_summary(merged_results: list[dict]) -> dict:
     """Recompute summary stats from merged result dicts.
 
-    Mirrors Reporter._compute_summary: success rates, Wilson Score CIs
-    for multi-run data, and significance flags via CI overlap.
+    Mirrors Reporter._compute_summary: success rates and Wilson Score CIs
+    for multi-run data. Significance flags (from McNemar) are NOT recomputed
+    here — they are carried forward from the original compilation.
     """
     cond_stats: dict[str, dict] = {
         "none": {"successes": 0, "total": 0, "assigned": 0},
@@ -229,17 +256,10 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
                     "upper": round(ci_upper, 3),
                 }
 
-        # Significance: check CI overlap between none and each treatment
-        none_ci = summary.get("none_ci_90")
-        if none_ci:
-            for treatment in ("flat_llm", "intent_layer"):
-                t_ci = summary.get(f"{treatment}_ci_90")
-                if t_ci:
-                    overlaps = ci_overlap(
-                        (none_ci["lower"], none_ci["upper"]),
-                        (t_ci["lower"], t_ci["upper"]),
-                    )
-                    summary[f"{treatment}_vs_none_significant"] = not overlaps
+        # Note: significance flags are derived from McNemar in the reporter's
+        # _compute_summary. _recompute_summary doesn't have access to raw
+        # TaskResults for McNemar pairing, so significance flags from merged
+        # results are carried forward from the original compilation.
 
     return summary
 
@@ -360,8 +380,10 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--repetitions", "-n", default=1,
               help="Number of times to repeat each task/condition pair (default: 1)")
 @click.option("--resume", default=None, type=click.Path(exists=True),
-              help="Prior results JSON — skip passed pairs, re-run failures")
-def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model, repetitions, resume):
+              help="Prior results JSON — skip passed pairs, re-run infra errors")
+@click.option("--retry-all", is_flag=True,
+              help="With --resume: also retry genuine failures, not just infra errors")
+def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model, repetitions, resume, retry_all):
     """Run eval on task files."""
     # Validate task files exist
     for task_path in tasks:
@@ -400,14 +422,47 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
     # Filter out passed pairs from prior run
     passed_pairs = set()
+    genuine_fail_pairs = set()
     prior_data = None
     pre_validated_tasks: frozenset[str] = frozenset()
     if resume:
-        passed_pairs, prior_data = _load_prior_results(resume)
+        passed_pairs, genuine_fail_pairs, prior_data = _load_prior_results(resume)
         pre_validated_tasks = _load_pre_validated_tasks(prior_data)
+
+        # Config compatibility check: warn if prior run used different settings
+        prior_config = prior_data.get("run_config")
+        if prior_config:
+            mismatches = []
+            current_task_ids = sorted(set(t.id for _, t in all_tasks))
+            prior_task_ids = sorted(prior_config.get("task_ids", []))
+            if current_task_ids != prior_task_ids:
+                mismatches.append(f"tasks: {len(prior_task_ids)} prior vs {len(current_task_ids)} current")
+            if prior_config.get("repetitions") != repetitions:
+                mismatches.append(f"repetitions: {prior_config['repetitions']} prior vs {repetitions} current")
+            if prior_config.get("timeout") != timeout:
+                mismatches.append(f"timeout: {prior_config['timeout']} prior vs {timeout} current")
+            prior_conds = sorted(prior_config.get("conditions", []))
+            current_conds = sorted(c.value for c in conditions)
+            if prior_conds != current_conds:
+                mismatches.append(f"conditions: {prior_conds} prior vs {current_conds} current")
+            if mismatches:
+                click.echo(f"\u26a0 Config mismatch with prior run ({', '.join(mismatches)})")
+
+        # By default, skip both passed pairs AND genuine failures.
+        # Genuine failures (test ran, code didn't fix it) won't improve on retry.
+        # Only infra errors (harness/Docker/network problems) are retried.
+        # Use --retry-all to also retry genuine failures.
+        skip_pairs = passed_pairs.copy()
+        if not retry_all:
+            skip_pairs |= genuine_fail_pairs
+
         original_len = len(work_queue)
-        work_queue = [item for item in work_queue if (item[1].id, item[2].value) not in passed_pairs]
-        click.echo(f"Resume: {len(passed_pairs)} passed pairs carried forward, {len(work_queue)}/{original_len} to re-run")
+        work_queue = [item for item in work_queue if (item[1].id, item[2].value) not in skip_pairs]
+        n_infra = original_len - len(work_queue) - len(passed_pairs) - (len(genuine_fail_pairs) if not retry_all else 0)
+
+        click.echo(f"Resume: {len(passed_pairs)} passed (carried forward), "
+                   f"{len(genuine_fail_pairs)} genuine failures ({'retrying' if retry_all else 'skipped'}), "
+                   f"{len(work_queue)} to re-run")
         if pre_validated_tasks:
             click.echo(f"Resume: {len(pre_validated_tasks)} task(s) will skip pre-validation")
 
@@ -521,6 +576,21 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         budget_threshold = int(preflight_budget["remaining_tokens"] * 0.8)
     budget_warned = False
 
+    # Pre-create reporter for incremental checkpoints.
+    # eval_id assigned now so checkpoint filenames are stable across the run.
+    reporter = Reporter(output)
+    eval_id = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+
+    # Snapshot run config for checkpoint verification on --resume
+    run_config = {
+        "task_ids": sorted(set(t.id for _, t in all_tasks)),
+        "conditions": sorted(c.value for c in conditions),
+        "repetitions": repetitions,
+        "timeout": timeout,
+        "model": model,
+        "task_files": [str(Path(t).resolve()) for t in tasks],
+    }
+
     with ThreadPoolExecutor(max_workers=parallel) as executor:
         futures = {executor.submit(run_single, item): item for item in work_queue}
 
@@ -575,6 +645,20 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                     for l in tail:
                         click.echo(f"      {l}", err=True)
 
+            # Per-trial result file for ls-level observability
+            try:
+                reporter.write_trial(result)
+            except Exception as e:
+                click.echo(f"  Warning: trial write failed: {e}", err=True)
+
+            # Incremental checkpoint — resume-compatible JSON written after each result
+            try:
+                checkpoint_path = reporter.write_checkpoint(results, eval_id, run_config=run_config)
+                if len(results) == 1:
+                    click.echo(f"  Checkpoint: {checkpoint_path} (updated after each result)")
+            except Exception as e:
+                click.echo(f"  Warning: checkpoint write failed: {e}", err=True)
+
             # Mid-run budget checkpoint (one-time warning)
             if budget_threshold and not budget_warned and preflight_budget:
                 cumulative_tokens = sum(r.input_tokens + r.output_tokens for r in results)
@@ -587,18 +671,30 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
 
     # Generate reports — capture postflight budget in cli (not reporter)
     postflight_budget = get_budget_status()
-    reporter = Reporter(output)
     eval_results = reporter.compile_results(
         results, preflight_budget=preflight_budget, postflight_budget=postflight_budget
     )
+    # Use the pre-assigned eval_id so final report matches the checkpoint lineage
+    eval_results = replace(
+        eval_results,
+        eval_id=eval_id,
+        timestamp=eval_results.timestamp,
+        run_config=run_config,
+    )
 
-    # Merge with prior results if resuming
+    # Merge with prior results if resuming.
+    # Carry forward both passed pairs AND genuine failures (unless --retry-all
+    # was used, in which case genuine failures were re-run and are in new results).
     if prior_data is not None:
-        eval_results = _merge_results(eval_results, prior_data, passed_pairs)
+        carry_forward = passed_pairs | (genuine_fail_pairs if not retry_all else set())
+        eval_results = _merge_results(eval_results, prior_data, carry_forward)
         eval_results.summary["resumed_from"] = prior_data.get("eval_id")
 
     json_path = reporter.write_json(eval_results)
     md_path = reporter.write_markdown(eval_results)
+
+    # Remove checkpoint now that final results are written
+    reporter.remove_checkpoint(eval_id)
 
     click.echo(f"\nResults written to:")
     click.echo(f"  JSON: {json_path}")

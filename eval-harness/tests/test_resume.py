@@ -9,7 +9,8 @@ import click
 import pytest
 
 from lib.cli import _load_prior_results, _merge_results, _recompute_summary, _is_infra_error_dict
-from lib.reporter import EvalResults
+from lib.reporter import EvalResults, Reporter
+from lib.task_runner import TaskResult, Condition
 
 
 def _write_json(data: dict) -> str:
@@ -116,7 +117,7 @@ class TestLoadPriorResults:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, data = _load_prior_results(path)
+        passed, genuine, data = _load_prior_results(path)
 
         assert ("task-1", "none") in passed
         assert ("task-1", "flat_llm") not in passed
@@ -132,9 +133,10 @@ class TestLoadPriorResults:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert len(passed) == 0
+        assert len(genuine) == 0  # infra errors are neither passed nor genuine
 
     def test_validates_structure(self):
         path = _write_json({"bad": "data"})
@@ -173,7 +175,7 @@ class TestLoadPriorResults:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert passed == {("task-1", "none")}
 
@@ -186,7 +188,7 @@ class TestLoadPriorResults:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert ("task-1", "none") in passed
         assert ("task-1", "flat_llm") not in passed
@@ -201,7 +203,7 @@ class TestLoadPriorResults:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert len(passed) == 0
 
@@ -214,7 +216,7 @@ class TestLoadPriorResults:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert ("task-1", "none") in passed
         assert ("task-1", "flat_llm") not in passed
@@ -234,7 +236,7 @@ class TestLoadPriorResults:
              "deltas": {}},
         ])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert len(passed) == 3  # all 3 conditions of task-1
         assert all(tid == "task-1" for tid, _ in passed)
@@ -321,9 +323,12 @@ class TestRecomputeSummary:
         assert "upper" in none_ci
         assert 0 <= none_ci["lower"] <= none_ci["upper"] <= 1
 
-        # Significance flags should exist
-        assert "flat_llm_vs_none_significant" in summary
-        assert "intent_layer_vs_none_significant" in summary
+        # Significance flags are NOT produced by _recompute_summary —
+        # they require McNemar pairing from raw TaskResults, which only
+        # the reporter's _compute_summary has access to. Flags from
+        # merged results are carried forward from the original compilation.
+        assert "flat_llm_vs_none_significant" not in summary
+        assert "intent_layer_vs_none_significant" not in summary
 
 
 # --- _merge_results tests ---
@@ -628,7 +633,7 @@ class TestLoadGenuineFailures:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert ("task-1", "none") not in passed
         assert ("task-1", "flat_llm") in passed
@@ -648,7 +653,239 @@ class TestLoadGenuineFailures:
             "deltas": {},
         }])
         path = _write_json(prior)
-        passed, _ = _load_prior_results(path)
+        passed, genuine, _ = _load_prior_results(path)
 
         assert ("task-1", "none") not in passed
         assert ("task-1", "flat_llm") in passed
+
+
+# --- Checkpoint tests ---
+
+class TestCheckpoint:
+    def _make_task_result(self, task_id, condition, success, rep=0):
+        return TaskResult(
+            task_id=task_id, condition=condition, success=success,
+            test_output="ok" if success else "fail",
+            wall_clock_seconds=100, input_tokens=500, output_tokens=200,
+            tool_calls=10, lines_changed=5, files_touched=["a.py"], rep=rep,
+        )
+
+    def test_checkpoint_is_resume_compatible(self):
+        """A checkpoint file can be loaded by _load_prior_results."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            results = [
+                self._make_task_result("task-1", Condition.NONE, True),
+                self._make_task_result("task-1", Condition.FLAT_LLM, False),
+            ]
+            checkpoint_path = reporter.write_checkpoint(results, "test-001")
+
+            passed, genuine, data = _load_prior_results(checkpoint_path)
+            assert ("task-1", "none") in passed
+            assert ("task-1", "flat_llm") not in passed
+            assert data["checkpoint"] is True
+            assert data["completed_runs"] == 2
+
+    def test_checkpoint_accumulates(self):
+        """Each checkpoint overwrites the previous, growing the result set."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            results = [self._make_task_result("task-1", Condition.NONE, True)]
+            reporter.write_checkpoint(results, "test-002")
+
+            results.append(self._make_task_result("task-1", Condition.FLAT_LLM, True))
+            checkpoint_path = reporter.write_checkpoint(results, "test-002")
+
+            passed, genuine, data = _load_prior_results(checkpoint_path)
+            assert ("task-1", "none") in passed
+            assert ("task-1", "flat_llm") in passed
+            assert data["completed_runs"] == 2
+
+    def test_checkpoint_includes_run_config(self):
+        """Checkpoint stores run_config for resume validation."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            results = [self._make_task_result("task-1", Condition.NONE, True)]
+            config = {"task_ids": ["task-1"], "conditions": ["none"], "repetitions": 5, "timeout": 1800}
+            checkpoint_path = reporter.write_checkpoint(results, "test-cfg", run_config=config)
+
+            with open(checkpoint_path) as f:
+                data = json.load(f)
+            assert data["run_config"] == config
+
+    def test_remove_checkpoint(self):
+        """remove_checkpoint deletes the in-progress file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            results = [self._make_task_result("task-1", Condition.NONE, True)]
+            path = reporter.write_checkpoint(results, "test-003")
+            assert Path(path).exists()
+
+            reporter.remove_checkpoint("test-003")
+            assert not Path(path).exists()
+
+    def test_remove_checkpoint_idempotent(self):
+        """remove_checkpoint doesn't error if file already gone."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            reporter.remove_checkpoint("nonexistent-id")  # should not raise
+
+
+# --- Error classification tests ---
+
+class TestErrorClassification:
+    def test_infra_errors_are_retryable(self):
+        """Infra errors should NOT be in genuine_failures (they get retried)."""
+        prior = _make_prior([{
+            "task_id": "task-1",
+            "none": _infra_error_condition(),
+            "flat_llm": _passing_condition(),
+            "intent_layer": _infra_error_condition(),
+            "deltas": {},
+        }])
+        path = _write_json(prior)
+        passed, genuine, _ = _load_prior_results(path)
+
+        assert ("task-1", "flat_llm") in passed
+        # Infra errors: not passed, not genuine → retried
+        assert ("task-1", "none") not in passed
+        assert ("task-1", "none") not in genuine
+        assert ("task-1", "intent_layer") not in passed
+        assert ("task-1", "intent_layer") not in genuine
+
+    def test_genuine_failures_classified(self):
+        """Test failures and timeouts are genuine failures (skipped on resume)."""
+        prior = _make_prior([{
+            "task_id": "task-1",
+            "none": _genuine_failure_condition(),
+            "flat_llm": _failing_condition(),  # timeout
+            "intent_layer": _passing_condition(),
+            "deltas": {},
+        }])
+        path = _write_json(prior)
+        passed, genuine, _ = _load_prior_results(path)
+
+        assert ("task-1", "intent_layer") in passed
+        assert ("task-1", "none") in genuine
+        assert ("task-1", "flat_llm") in genuine
+
+    def test_mixed_infra_and_genuine(self):
+        """Mixed scenario: passed + infra + genuine all classified correctly."""
+        prior = _make_prior([{
+            "task_id": "task-1",
+            "none": _passing_condition(),         # passed
+            "flat_llm": _infra_error_condition(),  # infra → retry
+            "intent_layer": _genuine_failure_condition(),  # genuine → skip
+            "deltas": {},
+        }])
+        path = _write_json(prior)
+        passed, genuine, _ = _load_prior_results(path)
+
+        assert passed == {("task-1", "none")}
+        assert genuine == {("task-1", "intent_layer")}
+        # flat_llm infra error: not in either set → retried
+
+    def test_multi_run_with_infra_in_runs_is_retryable(self):
+        """Multi-run condition with infra error in individual runs → retry."""
+        multi_with_infra = {
+            "success_rate": 0.5, "success": True, "successes": 1,
+            "total_valid_runs": 2,
+            "runs": [
+                {"success": True, "test_output": "ok", "wall_clock_seconds": 10,
+                 "input_tokens": 100, "output_tokens": 50, "tool_calls": 5,
+                 "lines_changed": 3, "files_touched": ["a.py"]},
+                {"success": False, "test_output": "", "wall_clock_seconds": 0,
+                 "input_tokens": 0, "output_tokens": 0, "tool_calls": 0,
+                 "lines_changed": 0, "files_touched": [],
+                 "error": "[worker-crash] OOM killed"},
+            ],
+        }
+        prior = _make_prior([{
+            "task_id": "task-1",
+            "none": multi_with_infra,
+            "flat_llm": None,
+            "intent_layer": None,
+            "deltas": {},
+        }])
+        path = _write_json(prior)
+        passed, genuine, _ = _load_prior_results(path)
+
+        # Has infra error in runs → retryable, not genuine failure
+        assert ("task-1", "none") not in genuine
+
+
+# --- Trial file tests ---
+
+class TestWriteTrial:
+    def test_writes_trial_file(self):
+        """write_trial creates a per-trial JSON file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            result = TaskResult(
+                task_id="fix-bug", condition=Condition.INTENT_LAYER, success=True,
+                test_output="ok", wall_clock_seconds=42.5, input_tokens=300,
+                output_tokens=150, tool_calls=8, lines_changed=3,
+                files_touched=["a.py"], rep=2,
+            )
+            path = reporter.write_trial(result)
+
+            assert Path(path).exists()
+            assert path.endswith("fix-bug-intent_layer-r2.json")
+            with open(path) as f:
+                data = json.load(f)
+            assert data["task_id"] == "fix-bug"
+            assert data["condition"] == "intent_layer"
+            assert data["rep"] == 2
+            assert data["success"] is True
+            assert "error" not in data
+
+    def test_trial_file_includes_error_class(self):
+        """Failed trials include error classification."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            result = TaskResult(
+                task_id="fix-bug", condition=Condition.NONE, success=False,
+                test_output="", wall_clock_seconds=0, input_tokens=0,
+                output_tokens=0, tool_calls=0, lines_changed=0,
+                files_touched=[], rep=0,
+                error="[pre-validation] test already passes",
+            )
+            path = reporter.write_trial(result)
+
+            with open(path) as f:
+                data = json.load(f)
+            assert data["error_class"] == "infra"
+
+    def test_trial_timeout_classified(self):
+        """Timeout errors are classified as 'timeout'."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            result = TaskResult(
+                task_id="fix-bug", condition=Condition.FLAT_LLM, success=False,
+                test_output="", wall_clock_seconds=300, input_tokens=0,
+                output_tokens=0, tool_calls=0, lines_changed=0,
+                files_touched=[], rep=0,
+                error="[timeout] Claude timed out after 300.0s",
+            )
+            path = reporter.write_trial(result)
+
+            with open(path) as f:
+                data = json.load(f)
+            assert data["error_class"] == "timeout"
+
+    def test_trial_genuine_failure_classified(self):
+        """Genuine test failures are classified as 'genuine'."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = Reporter(tmpdir)
+            result = TaskResult(
+                task_id="fix-bug", condition=Condition.NONE, success=False,
+                test_output="FAILED 3 tests", wall_clock_seconds=45,
+                input_tokens=500, output_tokens=200, tool_calls=12,
+                lines_changed=8, files_touched=["a.py"], rep=0,
+                error="tests failed with exit code 1",
+            )
+            path = reporter.write_trial(result)
+
+            with open(path) as f:
+                data = json.load(f)
+            assert data["error_class"] == "genuine"

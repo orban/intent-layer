@@ -19,6 +19,7 @@ class EvalResults:
     results: list[dict[str, Any]]
     summary: dict[str, Any]
     budget: dict[str, Any] | None = None
+    run_config: dict[str, Any] | None = None
 
 
 class Reporter:
@@ -354,20 +355,22 @@ class Reporter:
                         "upper": round(ci_upper, 3),
                     }
 
-            # Significance: check CI overlap between none and each treatment
-            none_ci = summary.get("none_ci_90")
-            if none_ci:
-                for treatment in ("flat_llm", "intent_layer"):
-                    t_ci = summary.get(f"{treatment}_ci_90")
-                    if t_ci:
-                        overlaps = ci_overlap(
-                            (none_ci["lower"], none_ci["upper"]),
-                            (t_ci["lower"], t_ci["upper"]),
-                        )
-                        summary[f"{treatment}_vs_none_significant"] = not overlaps
+            # Significance: derived from McNemar (paired test), not CI overlap.
+            # CI overlap is a visual heuristic only — it's not a valid test
+            # for paired data and maps unreliably to p-values.
+            # McNemar p-values are populated below in _compute_mcnemar.
 
         # McNemar's paired analysis: compare conditions per (task, rep) pair
         summary["mcnemar"] = self._compute_mcnemar(results)
+
+        # Derive significance flags from McNemar p-values (paired test).
+        # Only for multi-run data — single-run has too few pairs to be meaningful.
+        if has_multi_run:
+            for treatment in ("flat_llm", "intent_layer"):
+                key = f"{treatment}_vs_none"
+                mcnemar_entry = summary["mcnemar"].get(key)
+                if mcnemar_entry and mcnemar_entry["n_discordant"] > 0:
+                    summary[f"{treatment}_vs_none_significant"] = mcnemar_entry["p_value"] < 0.05
 
         return summary
 
@@ -418,6 +421,86 @@ class Reporter:
             mcnemar_results[f"{cond_a}_vs_{cond_b}"] = mcnemar_test(b, c)
 
         return mcnemar_results
+
+    def write_checkpoint(
+        self,
+        results: list['TaskResult'],
+        eval_id: str,
+        run_config: dict | None = None,
+    ) -> str:
+        """Write incremental checkpoint after each task result.
+
+        Produces a --resume-compatible JSON file so that a killed run can
+        be continued with the same command plus --resume <checkpoint>.
+        The checkpoint is overwritten after each result, keeping only the
+        latest snapshot.
+
+        run_config: snapshot of the CLI flags (tasks, conditions, reps, timeout)
+        so --resume can detect incompatible configs before mixing results.
+        """
+        checkpoint_path = self.output_dir / f"in-progress-{eval_id}.json"
+        compiled = self.compile_results(results)
+        # Stamp with the pre-assigned eval_id so resume traces lineage
+        data = asdict(compiled)
+        data["eval_id"] = eval_id
+        data["checkpoint"] = True
+        data["completed_runs"] = len(results)
+        if run_config is not None:
+            data["run_config"] = run_config
+
+        # Atomic write: write to tmp then rename to avoid partial reads
+        tmp_path = checkpoint_path.with_suffix(f".tmp.{id(results)}")
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2)
+        tmp_path.rename(checkpoint_path)
+
+        return str(checkpoint_path)
+
+    def remove_checkpoint(self, eval_id: str) -> None:
+        """Remove checkpoint file after successful completion."""
+        checkpoint_path = self.output_dir / f"in-progress-{eval_id}.json"
+        checkpoint_path.unlink(missing_ok=True)
+
+    def write_trial(self, result: 'TaskResult') -> str:
+        """Write a per-trial result file for ls-level observability.
+
+        Creates results/trials/<task_id>-<condition>-r<rep>.json so you
+        can see exactly which trials completed by listing a directory.
+        Each file is small (~1KB) and written atomically.
+        """
+        trials_dir = self.output_dir / "trials"
+        trials_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"{result.task_id}-{result.condition.value}-r{result.rep}.json"
+        trial_path = trials_dir / filename
+
+        data = {
+            "task_id": result.task_id,
+            "condition": result.condition.value,
+            "rep": result.rep,
+            "success": result.success,
+            "wall_clock_seconds": result.wall_clock_seconds,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
+            "tool_calls": result.tool_calls,
+            "lines_changed": result.lines_changed,
+        }
+        if result.error:
+            data["error"] = result.error
+            data["error_class"] = (
+                "infra" if result.error.startswith(self.INFRA_ERROR_PREFIXES)
+                else "timeout" if result.error.startswith("[timeout]")
+                else "genuine"
+            )
+
+        # Atomic write
+        import os
+        tmp_path = trial_path.with_suffix(f".tmp.{os.getpid()}")
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2)
+        tmp_path.rename(trial_path)
+
+        return str(trial_path)
 
     def write_json(self, results: EvalResults) -> str:
         """Write results to JSON file."""
@@ -490,16 +573,20 @@ class Reporter:
         # Significance flags
         if has_cis:
             lines.append("")
+            mcnemar_data = summary.get("mcnemar", {})
             for treatment, display_name in [
                 ("flat_llm", "Flat LLM"),
                 ("intent_layer", "Intent Layer"),
             ]:
                 sig_key = f"{treatment}_vs_none_significant"
-                if sig_key in summary:
+                mcnemar_entry = mcnemar_data.get(f"{treatment}_vs_none")
+                if sig_key in summary and mcnemar_entry:
+                    p = mcnemar_entry["p_value"]
+                    n_disc = mcnemar_entry["n_discordant"]
                     if summary[sig_key]:
-                        lines.append(f"- **{display_name} vs None:** significant (non-overlapping CIs)")
+                        lines.append(f"- **{display_name} vs None:** significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
                     else:
-                        lines.append(f"- **{display_name} vs None:** not significant (overlapping CIs)")
+                        lines.append(f"- **{display_name} vs None:** not significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
 
             # CI width as variance proxy
             widths = []
@@ -543,7 +630,8 @@ class Reporter:
             task_id = r["task_id"]
             deltas = r.get("deltas", {})
 
-            # Pre-compute per-task CI comparison for IL vs none
+            # Per-task CI comparison for IL vs none (visual heuristic only —
+            # aggregate significance comes from McNemar in the summary)
             none_data = r.get("none")
             il_data = r.get("intent_layer")
             il_vs_none = ""
@@ -558,8 +646,8 @@ class Reporter:
                         (none_ci["lower"], none_ci["upper"]),
                         (il_ci["lower"], il_ci["upper"]),
                     )
-                    sig_label = "overlap" if overlaps else "sig."
-                    il_vs_none = f"{diff:+.0%} ({sig_label})"
+                    ci_label = "CIs overlap" if overlaps else "CIs disjoint"
+                    il_vs_none = f"{diff:+.0%} ({ci_label})"
 
             for cond_key in ("none", "flat_llm", "intent_layer"):
                 cond_data = r.get(cond_key)
