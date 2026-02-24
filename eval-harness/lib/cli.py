@@ -375,8 +375,8 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--condition", "-c", multiple=True,
               type=click.Choice(["none", "flat_llm", "intent_layer"]),
               help="Conditions to run (default: all three)")
-@click.option("--model", default=None,
-              help="Claude model to use (e.g., claude-sonnet-4-5-20250929)")
+@click.option("--model", default="sonnet",
+              help="Claude model to use (default: sonnet)")
 @click.option("--repetitions", "-n", default=1,
               help="Number of times to repeat each task/condition pair (default: 1)")
 @click.option("--resume", default=None, type=click.Path(exists=True),
