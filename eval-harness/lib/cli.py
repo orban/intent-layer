@@ -555,8 +555,52 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                         click.echo(f"  {cond_str}: warmup failed - {e}", err=True)
                         click.echo(f"    (task runs will retry with their own timeout)", err=True)
 
+    # Circuit breaker: stop retrying after repeated identical failures.
+    # Pre-validation failures trip at task level (all conditions share Docker
+    # setup), other failures trip at task+condition level.
+    _cb_counts: dict[tuple[str, ...], int] = {}
+    _cb_tripped: set[tuple[str, ...]] = set()
+    _cb_lock = threading.Lock()
+    CB_THRESHOLD = 2  # trip after this many consecutive failures
+
+    def _cb_record(task_id: str, condition: str, error: str) -> bool:
+        """Record a failure. Returns True if newly tripped."""
+        with _cb_lock:
+            if "[pre-validation]" in error:
+                key = (task_id,)  # task-level — affects all conditions
+            else:
+                key = (task_id, condition)
+            _cb_counts[key] = _cb_counts.get(key, 0) + 1
+            if _cb_counts[key] >= CB_THRESHOLD:
+                newly = key not in _cb_tripped
+                _cb_tripped.add(key)
+                return newly
+        return False
+
+    def _cb_is_tripped(task_id: str, condition: str) -> bool:
+        with _cb_lock:
+            return (task_id,) in _cb_tripped or (task_id, condition) in _cb_tripped
+
     def run_single(item):
         repo, task, condition, rep = item
+
+        # Skip if circuit breaker already tripped for this task/condition
+        if _cb_is_tripped(task.id, condition.value):
+            return TaskResult(
+                task_id=task.id,
+                condition=condition,
+                success=False,
+                test_output="",
+                wall_clock_seconds=0,
+                input_tokens=0,
+                output_tokens=0,
+                tool_calls=0,
+                lines_changed=0,
+                files_touched=[],
+                rep=rep,
+                error=f"[circuit-breaker] skipped — repeated failures for this task"
+            )
+
         runner = TaskRunner(
             repo,
             str(workspaces_dir),
@@ -568,7 +612,15 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             claude_timeout=timeout,
             skip_pre_validation_for=pre_validated_tasks,
         )
-        return runner.run(task, condition, model=model, rep=rep)
+        result = runner.run(task, condition, model=model, rep=rep)
+
+        if result.error:
+            newly_tripped = _cb_record(task.id, condition.value, result.error)
+            if newly_tripped:
+                scope = task.id if "[pre-validation]" in result.error else f"{task.id}/{condition.value}"
+                click.echo(f"  \u26a1 Circuit breaker tripped for {scope} — skipping remaining reps")
+
+        return result
 
     # Mid-run budget tracking state
     budget_threshold = None
