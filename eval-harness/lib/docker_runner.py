@@ -28,6 +28,7 @@ def run_in_docker(
     stream_log: str | Path | None = None,
     heartbeat_interval: int = 20,
     heartbeat_callback: Callable[[float, int, int], None] | None = None,
+    network: str = "bridge",
 ) -> DockerResult:
     """Run a command in a Docker container with workspace mounted.
 
@@ -46,7 +47,7 @@ def run_in_docker(
         cmd.extend(["-v", f"{cache_volume}:/root/.cache"])
     cmd.extend([
         "-w", "/work",
-        "--network", "none",
+        "--network", network,
         "--memory", memory,
         "--cpus", cpus,
         image,
