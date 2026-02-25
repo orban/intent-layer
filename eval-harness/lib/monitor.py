@@ -16,6 +16,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from lib.reporter import Reporter
+
 log = logging.getLogger("monitor")
 
 
@@ -85,24 +87,26 @@ def count_task_infra_failures(checkpoint: dict) -> dict[str, int]:
         task_id = task_result["task_id"]
         total_infra = 0
         total_runs = 0
-        for cond in ("none", "flat_llm", "intent_layer"):
+        skip_keys = {"task_id", "deltas"}
+        cond_keys = [k for k in task_result if k not in skip_keys]
+        for cond in cond_keys:
             cond_data = task_result.get(cond)
             if not cond_data:
                 continue
             runs = cond_data.get("runs", [])
             if not runs:
                 # Single run format
-                if cond_data.get("error", "").startswith((
-                    "[infrastructure]", "[pre-validation]",
-                )):
+                if cond_data.get("error", "").startswith(
+                    Reporter.INFRA_ERROR_PREFIXES
+                ):
                     total_infra += 1
                 total_runs += 1
             else:
                 for run in runs:
                     total_runs += 1
-                    if run.get("error", "").startswith((
-                        "[infrastructure]", "[pre-validation]",
-                    )):
+                    if run.get("error", "").startswith(
+                        Reporter.INFRA_ERROR_PREFIXES
+                    ):
                         total_infra += 1
         # Only count if ALL runs are infra failures
         if total_runs > 0 and total_infra == total_runs:

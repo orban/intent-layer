@@ -127,7 +127,8 @@ def test_condition_enum():
     assert Condition.NONE.value == "none"
     assert Condition.FLAT_LLM.value == "flat_llm"
     assert Condition.INTENT_LAYER.value == "intent_layer"
-    assert len(Condition) == 3
+    assert Condition.HUMAN.value == "human"
+    assert len(Condition) == 4
 
 
 def test_find_agents_files(sample_repo):

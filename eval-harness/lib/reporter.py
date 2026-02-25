@@ -23,9 +23,41 @@ class EvalResults:
 
 
 class Reporter:
+    # Display names for conditions in markdown output
+    DISPLAY_NAMES = {
+        "none": "None",
+        "flat_llm": "Flat LLM",
+        "intent_layer": "Intent Layer",
+        "human": "Human",
+    }
+
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _discover_conditions(compiled_results: list[dict]) -> list[str]:
+        """Discover condition keys present in compiled result dicts.
+
+        Returns baseline ("none") first if present, then remaining keys sorted.
+        """
+        skip = {"task_id", "deltas"}
+        cond_keys: set[str] = set()
+        for r in compiled_results:
+            for key in r:
+                if key not in skip and r[key] is not None:
+                    cond_keys.add(key)
+        # Baseline first, then alphabetical
+        baseline = "none"
+        rest = sorted(k for k in cond_keys if k != baseline)
+        if baseline in cond_keys:
+            return [baseline] + rest
+        return rest
+
+    @classmethod
+    def _display_name(cls, cond_key: str) -> str:
+        """Human-readable display name for a condition key."""
+        return cls.DISPLAY_NAMES.get(cond_key, cond_key.replace("_", " ").title())
 
     def compile_results(
         self,
@@ -52,22 +84,24 @@ class Reporter:
                 grouped[r.task_id][cond] = []
             grouped[r.task_id][cond].append(r)
 
+        # Discover conditions present in this run
+        conditions_present = sorted(set(r.condition.value for r in results))
+        baseline = Condition.NONE.value
+        treatments = [c for c in conditions_present if c != baseline]
+
         compiled = []
         for task_id, conditions in grouped.items():
-            none_runs = conditions.get("none", [])
-            flat_runs = conditions.get("flat_llm", [])
-            il_runs = conditions.get("intent_layer", [])
+            task_result: dict[str, Any] = {"task_id": task_id}
+            for cond_key in conditions_present:
+                runs = conditions.get(cond_key, [])
+                task_result[cond_key] = self._serialize_condition(runs) if runs else None
 
-            task_result = {
-                "task_id": task_id,
-                "none": self._serialize_condition(none_runs) if none_runs else None,
-                "flat_llm": self._serialize_condition(flat_runs) if flat_runs else None,
-                "intent_layer": self._serialize_condition(il_runs) if il_runs else None,
-                "deltas": {
-                    "flat_llm": self._compute_delta(none_runs, flat_runs),
-                    "intent_layer": self._compute_delta(none_runs, il_runs),
-                }
-            }
+            baseline_runs = conditions.get(baseline, [])
+            deltas = {}
+            for treatment in treatments:
+                deltas[treatment] = self._compute_delta(baseline_runs, conditions.get(treatment, []))
+            task_result["deltas"] = deltas
+
             compiled.append(task_result)
 
         summary = self._compute_summary(results)
@@ -294,6 +328,8 @@ class Reporter:
         Two scoring modes:
         - Per-protocol: infra errors excluded from denominator (existing behavior)
         - ITT (intent-to-treat): all assigned tasks count, timeout/infra = fail
+
+        Condition-agnostic: iterates over whatever conditions appear in results.
         """
         def success_rate(task_results: list[TaskResult]) -> float:
             """Per-protocol: exclude infra errors from denominator."""
@@ -308,9 +344,8 @@ class Reporter:
                 return 0
             return round(sum(1 for r in task_results if r.success) / len(task_results), 2)
 
-        none_results = [r for r in results if r.condition == Condition.NONE]
-        flat_results = [r for r in results if r.condition == Condition.FLAT_LLM]
-        il_results = [r for r in results if r.condition == Condition.INTENT_LAYER]
+        conditions_present = sorted(set(r.condition for r in results), key=lambda c: c.value)
+        per_cond = {c: [r for r in results if r.condition == c] for c in conditions_present}
 
         infra_errors = sum(1 for r in results if self._is_infra_error(r))
 
@@ -324,16 +359,14 @@ class Reporter:
         summary: dict[str, Any] = {
             "total_tasks": len(set(r.task_id for r in results)),
             "infrastructure_errors": infra_errors,
-            "none_success_rate": success_rate(none_results),
-            "flat_llm_success_rate": success_rate(flat_results),
-            "intent_layer_success_rate": success_rate(il_results),
-            "none_itt_rate": itt_rate(none_results),
-            "flat_llm_itt_rate": itt_rate(flat_results),
-            "intent_layer_itt_rate": itt_rate(il_results),
-            "none_median_tokens": median_tokens(none_results),
-            "flat_llm_median_tokens": median_tokens(flat_results),
-            "intent_layer_median_tokens": median_tokens(il_results),
         }
+
+        for cond in conditions_present:
+            label = cond.value
+            cond_results = per_cond[cond]
+            summary[f"{label}_success_rate"] = success_rate(cond_results)
+            summary[f"{label}_itt_rate"] = itt_rate(cond_results)
+            summary[f"{label}_median_tokens"] = median_tokens(cond_results)
 
         # Add CIs when we have multi-run data
         has_multi_run = any(
@@ -341,12 +374,9 @@ class Reporter:
             for r in results
         )
         if has_multi_run:
-            for label, cond_results in [
-                ("none", none_results),
-                ("flat_llm", flat_results),
-                ("intent_layer", il_results),
-            ]:
-                valid = [r for r in cond_results if not self._is_infra_error(r)]
+            for cond in conditions_present:
+                label = cond.value
+                valid = [r for r in per_cond[cond] if not self._is_infra_error(r)]
                 if valid:
                     successes = sum(1 for r in valid if r.success)
                     ci_lower, ci_upper, _ = wilson_score_interval(successes, len(valid), 0.90)
@@ -355,22 +385,19 @@ class Reporter:
                         "upper": round(ci_upper, 3),
                     }
 
-            # Significance: derived from McNemar (paired test), not CI overlap.
-            # CI overlap is a visual heuristic only — it's not a valid test
-            # for paired data and maps unreliably to p-values.
-            # McNemar p-values are populated below in _compute_mcnemar.
-
         # McNemar's paired analysis: compare conditions per (task, rep) pair
         summary["mcnemar"] = self._compute_mcnemar(results)
 
         # Derive significance flags from McNemar p-values (paired test).
         # Only for multi-run data — single-run has too few pairs to be meaningful.
+        baseline = Condition.NONE
+        treatments = [c for c in conditions_present if c != baseline]
         if has_multi_run:
-            for treatment in ("flat_llm", "intent_layer"):
-                key = f"{treatment}_vs_none"
+            for treatment in treatments:
+                key = f"{treatment.value}_vs_{baseline.value}"
                 mcnemar_entry = summary["mcnemar"].get(key)
                 if mcnemar_entry and mcnemar_entry["n_discordant"] > 0:
-                    summary[f"{treatment}_vs_none_significant"] = mcnemar_entry["p_value"] < 0.05
+                    summary[f"{treatment.value}_vs_{baseline.value}_significant"] = mcnemar_entry["p_value"] < 0.05
 
         # Per-task Fisher's exact tests + recommendations
         if has_multi_run:
@@ -400,11 +427,21 @@ class Reporter:
             for runs in conditions.values():
                 runs.sort(key=lambda r: r.rep)
 
-        comparisons = [
-            ("flat_llm", "none"),
-            ("intent_layer", "none"),
-            ("intent_layer", "flat_llm"),
-        ]
+        # Generate all unique condition pairs: (treatment, baseline).
+        # Use baseline-first ordering so keys read "treatment_vs_baseline".
+        baseline = Condition.NONE.value
+        cond_values = sorted(set(r.condition.value for r in results))
+        comparisons = []
+        for i, a in enumerate(cond_values):
+            for b in cond_values[i + 1:]:
+                # Ensure baseline is always the second element
+                if a == baseline:
+                    comparisons.append((b, a))
+                elif b == baseline:
+                    comparisons.append((a, b))
+                else:
+                    # Neither is baseline — alphabetical: later vs earlier
+                    comparisons.append((b, a))
 
         mcnemar_results = {}
         for cond_a, cond_b in comparisons:
@@ -447,11 +484,14 @@ class Reporter:
                 grouped[r.task_id][cond] = []
             grouped[r.task_id][cond].append(r)
 
-        comparisons = [
-            ("none", "flat_llm"),
-            ("none", "intent_layer"),
-            ("flat_llm", "intent_layer"),
-        ]
+        # Generate all unique condition pairs dynamically
+        cond_values = sorted(set(
+            r.condition.value for r in results if not self._is_infra_error(r)
+        ))
+        comparisons = []
+        for i, a in enumerate(cond_values):
+            for b in cond_values[i + 1:]:
+                comparisons.append((a, b))
 
         per_task: list[dict] = []
         for task_id, conditions in grouped.items():
@@ -622,7 +662,12 @@ class Reporter:
         """
         path = self.output_dir / f"{results.eval_id}.md"
         summary = results.summary
-        has_cis = "none_ci_90" in summary or "intent_layer_ci_90" in summary
+
+        # Discover conditions from the compiled results
+        cond_keys = self._discover_conditions(results.results)
+        baseline = Condition.NONE.value
+        treatments = [c for c in cond_keys if c != baseline]
+        has_cis = any(f"{c}_ci_90" in summary for c in cond_keys)
 
         lines = [
             f"# Eval Results: {results.eval_id}",
@@ -636,60 +681,52 @@ class Reporter:
         ]
 
         # Per-condition summary with optional CIs
-        for label, display_name in [
-            ("none", "None"),
-            ("flat_llm", "Flat LLM"),
-            ("intent_layer", "Intent Layer"),
-        ]:
-            rate = summary[f"{label}_success_rate"]
+        for label in cond_keys:
+            display = self._display_name(label)
+            rate = summary.get(f"{label}_success_rate", 0)
             ci = summary.get(f"{label}_ci_90")
             if ci:
                 lines.append(
-                    f"- **{display_name} success rate:** {rate:.0%} "
+                    f"- **{display} success rate:** {rate:.0%} "
                     f"90% CI {self._format_ci(ci)}"
                 )
             else:
-                lines.append(f"- **{display_name} success rate:** {rate:.0%}")
+                lines.append(f"- **{display} success rate:** {rate:.0%}")
 
         # Per-condition median token usage
-        none_tok = summary.get("none_median_tokens", 0)
-        if none_tok:
+        baseline_tok = summary.get(f"{baseline}_median_tokens", 0)
+        if baseline_tok:
             lines.append("")
             lines.append("**Median tokens (input+output, fix phase only):**")
-            for label, display_name in [
-                ("none", "None"),
-                ("flat_llm", "Flat LLM"),
-                ("intent_layer", "Intent Layer"),
-            ]:
+            for label in cond_keys:
+                display = self._display_name(label)
                 tok = summary.get(f"{label}_median_tokens", 0)
                 tok_fmt = f"{tok / 1000:.0f}k" if tok else "N/A"
-                if label == "none" or not none_tok:
-                    lines.append(f"- **{display_name}:** {tok_fmt}")
+                if label == baseline or not baseline_tok:
+                    lines.append(f"- **{display}:** {tok_fmt}")
                 else:
-                    pct_diff = (tok - none_tok) / none_tok * 100
-                    lines.append(f"- **{display_name}:** {tok_fmt} ({pct_diff:+.0f}% vs none)")
+                    pct_diff = (tok - baseline_tok) / baseline_tok * 100
+                    lines.append(f"- **{display}:** {tok_fmt} ({pct_diff:+.0f}% vs {baseline})")
 
         # Significance flags
         if has_cis:
             lines.append("")
             mcnemar_data = summary.get("mcnemar", {})
-            for treatment, display_name in [
-                ("flat_llm", "Flat LLM"),
-                ("intent_layer", "Intent Layer"),
-            ]:
-                sig_key = f"{treatment}_vs_none_significant"
-                mcnemar_entry = mcnemar_data.get(f"{treatment}_vs_none")
+            for treatment in treatments:
+                display = self._display_name(treatment)
+                sig_key = f"{treatment}_vs_{baseline}_significant"
+                mcnemar_entry = mcnemar_data.get(f"{treatment}_vs_{baseline}")
                 if sig_key in summary and mcnemar_entry:
                     p = mcnemar_entry["p_value"]
                     n_disc = mcnemar_entry["n_discordant"]
                     if summary[sig_key]:
-                        lines.append(f"- **{display_name} vs None:** significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
+                        lines.append(f"- **{display} vs {self._display_name(baseline)}:** significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
                     else:
-                        lines.append(f"- **{display_name} vs None:** not significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
+                        lines.append(f"- **{display} vs {self._display_name(baseline)}:** not significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
 
             # CI width as variance proxy
             widths = []
-            for label in ("none", "flat_llm", "intent_layer"):
+            for label in cond_keys:
                 ci = summary.get(f"{label}_ci_90")
                 if ci:
                     widths.append((label, ci["upper"] - ci["lower"]))
@@ -705,50 +742,21 @@ class Reporter:
             "",
         ]
 
-        # Table header — add IL vs none column when multi-run CIs exist
-        if has_cis:
-            lines.append(
-                "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
-                "| \u0394 Time | \u0394 Tokens | IL vs none |"
-            )
-            lines.append(
-                "|------|-----------|---------|----------|--------|------------|-------"
-                "|--------|----------|------------|"
-            )
-        else:
-            lines.append(
-                "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
-                "| \u0394 Time | \u0394 Tokens |"
-            )
-            lines.append(
-                "|------|-----------|---------|----------|--------|------------|-------"
-                "|--------|----------|"
-            )
+        # Table header
+        lines.append(
+            "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
+            "| \u0394 Time | \u0394 Tokens |"
+        )
+        lines.append(
+            "|------|-----------|---------|----------|--------|------------|-------"
+            "|--------|----------|"
+        )
 
         for r in results.results:
             task_id = r["task_id"]
             deltas = r.get("deltas", {})
 
-            # Per-task CI comparison for IL vs none (visual heuristic only —
-            # aggregate significance comes from McNemar in the summary)
-            none_data = r.get("none")
-            il_data = r.get("intent_layer")
-            il_vs_none = ""
-            if has_cis and none_data and il_data:
-                none_ci = none_data.get("ci_90")
-                il_ci = il_data.get("ci_90")
-                if none_ci and il_ci:
-                    none_rate = none_data.get("success_rate", 0)
-                    il_rate = il_data.get("success_rate", 0)
-                    diff = il_rate - none_rate
-                    overlaps = ci_overlap(
-                        (none_ci["lower"], none_ci["upper"]),
-                        (il_ci["lower"], il_ci["upper"]),
-                    )
-                    ci_label = "CIs overlap" if overlaps else "CIs disjoint"
-                    il_vs_none = f"{diff:+.0%} ({ci_label})"
-
-            for cond_key in ("none", "flat_llm", "intent_layer"):
+            for cond_key in cond_keys:
                 cond_data = r.get(cond_key)
                 if cond_data is None:
                     continue
@@ -776,8 +784,8 @@ class Reporter:
 
                 tokens_fmt = f"{tokens / 1000:.1f}k"
 
-                # Deltas: none is baseline, shows "—"
-                if cond_key == "none":
+                # Deltas: baseline shows "—"
+                if cond_key == baseline:
                     d_time = "\u2014"
                     d_tokens = "\u2014"
                 else:
@@ -788,21 +796,13 @@ class Reporter:
                 row = (
                     f"| {task_id} | {cond_key} | {success} | {time_s:.1f} | "
                     f"{tokens_fmt} | {tool_calls} | {lines_changed} | "
-                    f"{d_time} | {d_tokens}"
+                    f"{d_time} | {d_tokens} |"
                 )
-
-                if has_cis:
-                    # Show IL vs none comparison on the intent_layer row
-                    comparison = il_vs_none if cond_key == "intent_layer" else ""
-                    row += f" | {comparison} |"
-                else:
-                    row += " |"
 
                 lines.append(row)
 
             # Blank row between tasks
-            blank = "|  |  |  |  |  |  |  |  |  |" + ("  |" if has_cis else "")
-            lines.append(blank)
+            lines.append("|  |  |  |  |  |  |  |  |  |")
 
         # Remove trailing blank row
         if lines and lines[-1].strip().replace("|", "").replace(" ", "") == "":

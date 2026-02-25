@@ -111,6 +111,7 @@ class Condition(Enum):
     NONE = "none"
     FLAT_LLM = "flat_llm"
     INTENT_LAYER = "intent_layer"
+    HUMAN = "human"
 
 
 @dataclass

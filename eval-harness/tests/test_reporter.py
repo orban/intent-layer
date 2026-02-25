@@ -195,11 +195,11 @@ def test_missing_condition():
 
     task = eval_results.results[0]
     assert task["none"] is not None
-    assert task["flat_llm"] is None
+    assert "flat_llm" not in task  # missing condition is absent, not None
     assert task["intent_layer"] is not None
 
-    # flat_llm delta should be empty (missing condition)
-    assert task["deltas"]["flat_llm"] == {}
+    # flat_llm delta should be absent (missing condition)
+    assert "flat_llm" not in task["deltas"]
     # intent_layer delta should exist
     assert task["deltas"]["intent_layer"]["time_percent"] == "-44.4%"
 
@@ -715,18 +715,18 @@ def test_markdown_multi_run_has_ci_columns(tmp_path):
     # CI brackets appear in success column
     assert "[" in content and "]" in content
 
-    # IL vs none column header present
-    assert "IL vs none" in content
+    # Comparison rows present in per-task Fisher table
+    assert "intent_layer vs none" in content
 
     # Significance labels appear
-    assert "overlap" in content or "sig." in content
+    assert "overlap" in content or "sig." in content or "*" in content
 
     # Summary has CI notation
     assert "90% CI" in content
 
 
 def test_markdown_single_run_no_ci_column(tmp_path, three_condition_results):
-    """Single-run markdown has no IL vs none column (backward-compatible)."""
+    """Single-run markdown has no per-task Fisher section (backward-compatible)."""
     reporter = Reporter(output_dir=str(tmp_path))
     eval_results = reporter.compile_results(three_condition_results)
     md_path = reporter.write_markdown(eval_results)
@@ -734,7 +734,7 @@ def test_markdown_single_run_no_ci_column(tmp_path, three_condition_results):
     with open(md_path) as f:
         content = f.read()
 
-    assert "IL vs none" not in content
+    assert "Per-Task Analysis" not in content
     assert "90% CI" not in content
 
 
@@ -945,10 +945,10 @@ def test_per_task_fisher_in_summary():
 
     # Find task-signal entry
     signal_task = next(t for t in fisher if t["task_id"] == "task-signal")
-    assert "none_vs_intent_layer" in signal_task["comparisons"]
-    comp = signal_task["comparisons"]["none_vs_intent_layer"]
-    assert comp["a_rate"] == 0.0
-    assert comp["b_rate"] == 1.0
+    assert "intent_layer_vs_none" in signal_task["comparisons"]
+    comp = signal_task["comparisons"]["intent_layer_vs_none"]
+    assert comp["a_rate"] == 1.0
+    assert comp["b_rate"] == 0.0
     assert comp["p_value"] <= 0.10  # borderline significant
 
     # Ceiling-effected task
@@ -1013,7 +1013,7 @@ def test_fisher_markdown_output(tmp_path):
 
     assert "## Per-Task Analysis (Fisher's Exact Test)" in content
     assert "task-signal" in content
-    assert "none vs intent_layer" in content
+    assert "intent_layer vs none" in content
 
     assert "## Recommendations" in content
     assert "ceiling-effected" in content

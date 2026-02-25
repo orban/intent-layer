@@ -614,10 +614,11 @@ class TestRecomputeSummaryGenuineFailures:
         summary = _recompute_summary([])
 
         assert summary["total_tasks"] == 0
-        assert summary["none_success_rate"] == 0
-        assert summary["flat_llm_success_rate"] == 0
-        assert summary["intent_layer_success_rate"] == 0
         assert summary["infrastructure_errors"] == 0
+        # No conditions present → no success rate keys
+        assert "none_success_rate" not in summary
+        assert "flat_llm_success_rate" not in summary
+        assert "intent_layer_success_rate" not in summary
 
 
 # --- _load_prior_results with genuine failures ---

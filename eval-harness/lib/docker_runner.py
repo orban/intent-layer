@@ -46,7 +46,7 @@ def run_in_docker(
         cmd.extend(["-v", f"{cache_volume}:/root/.cache"])
     cmd.extend([
         "-w", "/work",
-        "--network", "host",
+        "--network", "none",
         "--memory", memory,
         "--cpus", cpus,
         image,

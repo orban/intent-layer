@@ -20,6 +20,8 @@ from lib.git_scanner import GitScanner
 from lib.git_ops import clone_repo, checkout_commit
 from lib.index_cache import IndexCache
 from lib.budget import check_budget, get_budget_status, refresh_budget_snapshot, fmt_tokens
+from lib.agentbench_loader import load_instances, AgentbenchInstance
+from lib.agentbench_runner import run_single as agentbench_run_single
 
 
 # Thread-safe print lock for progress output
@@ -65,7 +67,9 @@ def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], set[tuple
                 f"Invalid results file: task at index {i} missing 'task_id' in {json_path}"
             )
         task_id = task["task_id"]
-        for cond_key in ("none", "flat_llm", "intent_layer"):
+        # Discover condition keys dynamically from prior results
+        cond_keys = Reporter._discover_conditions([task])
+        for cond_key in cond_keys:
             cond_data = task.get(cond_key)
             if cond_data is None:
                 continue
@@ -146,7 +150,11 @@ def _merge_results(new_results: 'EvalResults', prior_data: dict, passed_pairs: s
         merged_task = {"task_id": task_id}
         has_carried = False  # Any condition kept from prior via passed_pairs
         has_new = False  # Any condition replaced with new results
-        for cond_key in ("none", "flat_llm", "intent_layer"):
+        # Discover conditions from both prior and new task dicts
+        all_cond_keys = Reporter._discover_conditions(
+            [t for t in (prior_task, new_task) if t is not None]
+        )
+        for cond_key in all_cond_keys:
             if (task_id, cond_key) in passed_pairs:
                 # Carry forward from prior
                 merged_task[cond_key] = prior_task.get(cond_key)
@@ -189,16 +197,17 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
     for multi-run data. Significance flags (from McNemar) are NOT recomputed
     here — they are carried forward from the original compilation.
     """
+    # Discover conditions dynamically from the merged data
+    conditions_present = Reporter._discover_conditions(merged_results)
     cond_stats: dict[str, dict] = {
-        "none": {"successes": 0, "total": 0, "assigned": 0},
-        "flat_llm": {"successes": 0, "total": 0, "assigned": 0},
-        "intent_layer": {"successes": 0, "total": 0, "assigned": 0},
+        c: {"successes": 0, "total": 0, "assigned": 0}
+        for c in conditions_present
     }
     infra_errors = 0
     has_multi_run = False
 
     for task in merged_results:
-        for cond_key in ("none", "flat_llm", "intent_layer"):
+        for cond_key in conditions_present:
             cond_data = task.get(cond_key)
             if cond_data is None:
                 continue
@@ -234,18 +243,15 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
     summary: dict = {
         "total_tasks": len(merged_results),
         "infrastructure_errors": infra_errors,
-        "none_success_rate": rate(cond_stats["none"]),
-        "flat_llm_success_rate": rate(cond_stats["flat_llm"]),
-        "intent_layer_success_rate": rate(cond_stats["intent_layer"]),
-        "none_itt_rate": itt_rate(cond_stats["none"]),
-        "flat_llm_itt_rate": itt_rate(cond_stats["flat_llm"]),
-        "intent_layer_itt_rate": itt_rate(cond_stats["intent_layer"]),
         "resumed_from": None,  # Filled in by caller
     }
+    for label in conditions_present:
+        summary[f"{label}_success_rate"] = rate(cond_stats[label])
+        summary[f"{label}_itt_rate"] = itt_rate(cond_stats[label])
 
     # Add Wilson Score CIs when multi-run data is present
     if has_multi_run:
-        for label in ("none", "flat_llm", "intent_layer"):
+        for label in conditions_present:
             stats = cond_stats[label]
             if stats["total"] > 0:
                 ci_lower, ci_upper, _ = wilson_score_interval(
@@ -276,7 +282,7 @@ def _load_pre_validated_tasks(prior_data: dict) -> frozenset[str]:
         task_id = task.get("task_id")
         if not task_id:
             continue
-        for cond_key in ("none", "flat_llm", "intent_layer"):
+        for cond_key in Reporter._discover_conditions([task]):
             cond = task.get(cond_key)
             if cond is None:
                 continue
@@ -373,8 +379,8 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
 @click.option("--no-cache", is_flag=True, help="Disable index caching entirely")
 @click.option("--cache-dir", default="workspaces/.index-cache", help="Index cache directory")
 @click.option("--condition", "-c", multiple=True,
-              type=click.Choice(["none", "flat_llm", "intent_layer"]),
-              help="Conditions to run (default: all three)")
+              type=click.Choice([c.value for c in Condition]),
+              help="Conditions to run (default: none, flat_llm, intent_layer)")
 @click.option("--model", default="sonnet",
               help="Claude model to use (default: sonnet)")
 @click.option("--repetitions", "-n", default=1,
@@ -407,11 +413,12 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         cache.clear()
         click.echo(f"Cleared index cache at {cache_dir}")
 
-    # Determine conditions to run
+    # Determine conditions to run (HUMAN is AGENTbench-only, not used here)
+    YAML_CONDITIONS = [Condition.NONE, Condition.FLAT_LLM, Condition.INTENT_LAYER]
     if condition:
         conditions = [Condition(c) for c in condition]
     else:
-        conditions = list(Condition)
+        conditions = YAML_CONDITIONS
 
     # Build work queue (with repetitions)
     work_queue = []
@@ -778,12 +785,15 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                 except Exception as e:
                     click.echo(f"  Warning: trial write failed: {e}", err=True)
 
-                try:
-                    checkpoint_path = reporter.write_checkpoint(results, eval_id, run_config=run_config)
-                    if len(results) == 1:
-                        click.echo(f"  Checkpoint: {checkpoint_path} (updated after each result)")
-                except Exception as e:
-                    click.echo(f"  Warning: checkpoint write failed: {e}", err=True)
+                # Checkpoint every 10 results (+ first and last) to avoid O(n^2) recompilation
+                is_last = len(results) >= len(work_queue)
+                if len(results) == 1 or len(results) % 10 == 0 or is_last:
+                    try:
+                        checkpoint_path = reporter.write_checkpoint(results, eval_id, run_config=run_config)
+                        if len(results) == 1:
+                            click.echo(f"  Checkpoint: {checkpoint_path} (updated every 10 results)")
+                    except Exception as e:
+                        click.echo(f"  Warning: checkpoint write failed: {e}", err=True)
 
                 if budget_threshold and not budget_warned and preflight_budget:
                     cumulative_tokens = sum(r.input_tokens + r.output_tokens for r in results)
@@ -875,9 +885,8 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         click.echo(f"\n  {len(infra_results)} infra failures detected, diagnosing...")
 
         # Remove infra results from global list — they'll be replaced by retries
-        for r in infra_results:
-            if r in results:
-                results.remove(r)
+        infra_remove = {(r.task_id, r.condition.value, r.rep) for r in infra_results}
+        results[:] = [r for r in results if (r.task_id, r.condition.value, r.rep) not in infra_remove]
 
         # Diagnose and remediate
         has_docker_failures = any(
@@ -935,6 +944,399 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
     if not keep_workspaces and workspaces_dir.exists():
         cache_path = Path(cache_dir)
         # Move cache out, remove workspaces, move cache back
+        tmp_cache = None
+        if cache_path.exists() and cache_path.is_relative_to(workspaces_dir):
+            tmp_cache = workspaces_dir.parent / ".index-cache-preserve"
+            if tmp_cache.exists():
+                shutil.rmtree(tmp_cache)
+            shutil.move(str(cache_path), str(tmp_cache))
+        shutil.rmtree(workspaces_dir)
+        if tmp_cache and tmp_cache.exists():
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(tmp_cache), str(cache_path))
+        click.echo("Cleaned up workspaces")
+
+
+@main.command("run-agentbench")
+@click.option("--parallel", "-p", default=4, help="Number of parallel workers")
+@click.option("--output", "-o", default="results", help="Output directory")
+@click.option("--timeout", default=1800, help="Per-task Claude timeout in seconds")
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed progress for each step")
+@click.option("--condition", "-c", multiple=True,
+              type=click.Choice([c.value for c in Condition]),
+              help="Conditions to run (default: none, flat_llm, human, intent_layer)")
+@click.option("--model", default="sonnet", help="Claude model to use (default: sonnet)")
+@click.option("--repetitions", "-n", default=1,
+              help="Number of times to repeat each instance/condition pair (default: 1)")
+@click.option("--filter-repo", default=None, help="Only run instances from this repo (e.g. ansible_ansible)")
+@click.option("--filter-ids", default=None, help="Comma-separated instance IDs to run")
+@click.option("--resume", default=None, type=click.Path(exists=True),
+              help="Prior results JSON — skip passed pairs, re-run infra errors")
+@click.option("--retry-all", is_flag=True,
+              help="With --resume: also retry genuine failures, not just infra errors")
+@click.option("--keep-workspaces", is_flag=True, help="Don't cleanup workspaces")
+@click.option("--dry-run", is_flag=True, help="Show what would run")
+@click.option("--no-cache", is_flag=True, help="Disable index caching entirely")
+@click.option("--cache-dir", default="workspaces/.index-cache", help="Index cache directory")
+def run_agentbench(parallel, output, timeout, verbose, condition, model, repetitions,
+                   filter_repo, filter_ids, resume, retry_all, keep_workspaces,
+                   dry_run, no_cache, cache_dir):
+    """Run AGENTbench paper instances (138 tasks from HuggingFace)."""
+    import subprocess
+    import time as _time
+
+    # --- Load instances from HuggingFace ---
+    filter_id_list = [s.strip() for s in filter_ids.split(",")] if filter_ids else None
+    click.echo("Loading AGENTbench instances from HuggingFace...")
+    instances = load_instances(filter_repo=filter_repo, filter_ids=filter_id_list)
+    if not instances:
+        raise click.ClickException("No instances matched filters")
+    click.echo(f"Loaded {len(instances)} instances across "
+               f"{len(set(i.repo for i in instances))} repos")
+
+    # Default conditions: all four for AGENTbench
+    ALL_CONDITIONS = [Condition.NONE, Condition.FLAT_LLM, Condition.HUMAN, Condition.INTENT_LAYER]
+    if condition:
+        conditions = [Condition(c) for c in condition]
+    else:
+        conditions = ALL_CONDITIONS
+
+    # --- Build work queue ---
+    work_queue: list[tuple[AgentbenchInstance, Condition, int]] = []
+    for inst in instances:
+        for cond in conditions:
+            for rep in range(repetitions):
+                work_queue.append((inst, cond, rep))
+
+    # --- Resume filtering ---
+    passed_pairs: set[tuple[str, str]] = set()
+    genuine_fail_pairs: set[tuple[str, str]] = set()
+    prior_data = None
+    if resume:
+        passed_pairs, genuine_fail_pairs, prior_data = _load_prior_results(resume)
+        skip_pairs = passed_pairs.copy()
+        if not retry_all:
+            skip_pairs |= genuine_fail_pairs
+        work_queue = [item for item in work_queue if (item[0].instance_id, item[1].value) not in skip_pairs]
+        click.echo(f"Resume: {len(passed_pairs)} passed (carried forward), "
+                   f"{len(genuine_fail_pairs)} genuine failures ({'retrying' if retry_all else 'skipped'}), "
+                   f"{len(work_queue)} to re-run")
+
+    if dry_run:
+        click.echo("\nDry run - would execute:")
+        for inst, cond, rep in work_queue:
+            rep_tag = f" [rep {rep+1}]" if repetitions > 1 else ""
+            click.echo(f"  - {inst.instance_id} ({cond.value}){rep_tag}")
+        if not work_queue:
+            click.echo("  (nothing to re-run)")
+        return
+
+    total_unique = len(set((item[0].instance_id, item[1].value) for item in work_queue))
+    rep_note = f" x{repetitions} reps" if repetitions > 1 else ""
+    click.echo(f"Running {total_unique} instance/condition pairs{rep_note} "
+               f"({len(work_queue)} total) with {parallel} workers")
+
+    # --- Pre-pull Docker images ---
+    unique_images = sorted(set(i.docker_image for i in instances))
+    click.echo(f"Pre-pulling {len(unique_images)} Docker image(s)...")
+    for image in unique_images:
+        for attempt in range(3):
+            try:
+                subprocess.run(
+                    ["docker", "pull", image],
+                    capture_output=True, timeout=300, check=True,
+                )
+                click.echo(f"  {image}: ready")
+                break
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                if attempt < 2:
+                    click.echo(f"  {image}: retry {attempt+1}/3 ({e})", err=True)
+                else:
+                    click.echo(f"  {image}: FAILED after 3 attempts", err=True)
+
+    # --- Create reference clones ---
+    workspaces_dir = Path("workspaces")
+    unique_repos = {f"https://github.com/{i.base_repo}.git" for i in instances}
+    reference_clones_str = _create_reference_clones(unique_repos, workspaces_dir)
+    # Convert to Path values for agentbench_runner
+    reference_clones: dict[str, Path] = {
+        # Key by repo slug (e.g. "ansible/ansible") not URL
+        repo_url.replace("https://github.com/", "").replace(".git", ""): Path(path)
+        for repo_url, path in reference_clones_str.items()
+    }
+
+    # --- Warm caches ---
+    index_cache = None if no_cache else IndexCache(cache_dir)
+
+    progress_callback = _make_progress_callback(verbose)
+
+    # --- Circuit breaker ---
+    _cb_counts: dict[tuple[str, ...], int] = {}
+    _cb_tripped: set[tuple[str, ...]] = set()
+    _cb_lock = threading.Lock()
+    CB_THRESHOLD = 2
+
+    def _cb_record(task_id: str, condition_val: str, error: str) -> bool:
+        with _cb_lock:
+            if "[pre-validation]" in error:
+                key = (task_id,)
+            else:
+                key = (task_id, condition_val)
+            _cb_counts[key] = _cb_counts.get(key, 0) + 1
+            if _cb_counts[key] >= CB_THRESHOLD:
+                newly = key not in _cb_tripped
+                _cb_tripped.add(key)
+                return newly
+        return False
+
+    def _cb_is_tripped(task_id: str, condition_val: str) -> bool:
+        with _cb_lock:
+            return (task_id,) in _cb_tripped or (task_id, condition_val) in _cb_tripped
+
+    def _cb_reset():
+        with _cb_lock:
+            _cb_counts.clear()
+            _cb_tripped.clear()
+
+    # --- Worker function ---
+    def _run_one(item: tuple[AgentbenchInstance, Condition, int]) -> TaskResult:
+        inst, cond, rep = item
+
+        if _cb_is_tripped(inst.instance_id, cond.value):
+            return TaskResult(
+                task_id=inst.instance_id, condition=cond, success=False,
+                test_output="", wall_clock_seconds=0,
+                input_tokens=0, output_tokens=0, tool_calls=0,
+                lines_changed=0, files_touched=[], rep=rep,
+                error="[circuit-breaker] skipped — repeated failures for this instance",
+            )
+
+        result = agentbench_run_single(
+            instance=inst,
+            condition=cond,
+            rep=rep,
+            workspaces_dir=workspaces_dir,
+            reference_clones=reference_clones,
+            index_cache=index_cache,
+            claude_timeout=timeout,
+            model=model,
+            progress_callback=progress_callback,
+        )
+
+        if result.error:
+            newly_tripped = _cb_record(inst.instance_id, cond.value, result.error)
+            if newly_tripped:
+                scope = inst.instance_id if "[pre-validation]" in result.error else f"{inst.instance_id}/{cond.value}"
+                click.echo(f"  \u26a1 Circuit breaker tripped for {scope}")
+
+        return result
+
+    # --- Reporter + eval ID ---
+    reporter = Reporter(output)
+    eval_id = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    run_config = {
+        "task_ids": sorted(set(i.instance_id for i in instances)),
+        "conditions": sorted(c.value for c in conditions),
+        "repetitions": repetitions,
+        "timeout": timeout,
+        "model": model,
+        "source": "agentbench",
+        "filter_repo": filter_repo,
+        "filter_ids": filter_ids,
+    }
+
+    # --- Control plane ---
+    control_dir = Path(output) / ".eval-control"
+    control_dir.mkdir(parents=True, exist_ok=True)
+    status_path = Path(output) / ".eval-status.json"
+    _current_workers = parallel
+    _start_time = _time.time()
+    _paused = False
+
+    def _write_status(batch_total: int, completed: int, infra_fails: int,
+                      genuine_fails: int, passes: int, paused: bool):
+        status = {
+            "eval_id": eval_id,
+            "timestamp": datetime.now().isoformat(),
+            "uptime_seconds": _time.time() - _start_time,
+            "workers": _current_workers,
+            "paused": paused,
+            "batch_total": batch_total,
+            "completed": completed,
+            "passes": passes,
+            "genuine_failures": genuine_fails,
+            "infra_failures": infra_fails,
+            "remaining": batch_total - completed,
+            "pass_rate": round(passes / max(completed - infra_fails, 1), 3),
+            "infra_rate": round(infra_fails / max(completed, 1), 3),
+        }
+        tmp = status_path.with_suffix(f".tmp.{threading.get_ident()}")
+        with open(tmp, "w") as f:
+            json.dump(status, f, indent=2)
+        tmp.rename(status_path)
+
+    def _check_control() -> dict[str, str]:
+        commands = {}
+        if not control_dir.exists():
+            return commands
+        for p in sorted(control_dir.iterdir()):
+            if p.name.startswith("."):
+                continue
+            val = p.read_text().strip() if p.stat().st_size > 0 else ""
+            commands[p.name] = val
+            p.unlink()
+        return commands
+
+    # --- Batch runner ---
+    results: list[TaskResult] = []
+
+    def _run_batch(batch: list, workers: int) -> list[TaskResult]:
+        nonlocal _current_workers, _paused
+        batch_results: list[TaskResult] = []
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_run_one, item): item for item in batch}
+            for future in as_completed(futures):
+                # Check control commands
+                for cmd, val in _check_control().items():
+                    if cmd == "pause":
+                        _paused = True
+                        click.echo("\n  \u23f8 Paused by external supervisor")
+                    elif cmd == "resume":
+                        _paused = False
+                        click.echo("\n  \u25b6 Resumed")
+                    elif cmd == "set-workers":
+                        try:
+                            _current_workers = max(1, int(val))
+                            click.echo(f"\n  \u2699 Workers set to {_current_workers} (next batch)")
+                        except ValueError:
+                            click.echo(f"\n  Warning: invalid set-workers value: {val}", err=True)
+                    elif cmd == "skip-task":
+                        with _cb_lock:
+                            _cb_tripped.add((val,))
+                        click.echo(f"\n  \u23ed Skipping {val}")
+
+                while _paused:
+                    _time.sleep(2)
+                    for cmd2, _ in _check_control().items():
+                        if cmd2 == "resume":
+                            _paused = False
+                            click.echo("\n  \u25b6 Resumed")
+
+                item = futures[future]
+                _inst, _cond, rep = item
+                try:
+                    result = future.result()
+                except Exception as e:
+                    click.echo(f"  {_inst.instance_id} ({_cond.value}): CRASH - {e}", err=True)
+                    result = TaskResult(
+                        task_id=_inst.instance_id, condition=_cond, success=False,
+                        test_output="", wall_clock_seconds=0,
+                        input_tokens=0, output_tokens=0, tool_calls=0,
+                        lines_changed=0, files_touched=[], rep=rep,
+                        error=f"[worker-crash] {e}",
+                    )
+                batch_results.append(result)
+                results.append(result)
+
+                status_str = "PASS" if result.success else "FAIL"
+                rep_tag = f" [rep {rep+1}/{repetitions}]" if repetitions > 1 else ""
+                line = f"  {result.task_id} ({result.condition.value}){rep_tag}: {status_str}"
+                if not result.success:
+                    if result.error:
+                        first_line = result.error.split("\n")[0][:80]
+                        line += f" - {first_line}"
+                    elif result.test_output:
+                        non_empty = [s.strip() for s in result.test_output.strip().split("\n") if s.strip()]
+                        if non_empty:
+                            line += f" - {non_empty[-1][:80]}"
+                click.echo(line)
+
+                try:
+                    reporter.write_trial(result)
+                except Exception as e:
+                    click.echo(f"  Warning: trial write failed: {e}", err=True)
+                # Checkpoint every 10 results (+ first and last) to avoid O(n^2) recompilation
+                is_last = len(results) >= len(work_queue)
+                if len(results) == 1 or len(results) % 10 == 0 or is_last:
+                    try:
+                        checkpoint_path = reporter.write_checkpoint(results, eval_id, run_config=run_config)
+                        if len(results) == 1:
+                            click.echo(f"  Checkpoint: {checkpoint_path}")
+                    except Exception as e:
+                        click.echo(f"  Warning: checkpoint write failed: {e}", err=True)
+
+                n_infra = sum(1 for r in results if r.error and r.error.startswith(Reporter.INFRA_ERROR_PREFIXES))
+                n_pass = sum(1 for r in results if r.success)
+                n_genuine = len(results) - n_pass - n_infra
+                _write_status(len(work_queue), len(results), n_infra, n_genuine, n_pass, _paused)
+
+        return batch_results
+
+    # --- Supervisor loop ---
+    MAX_RETRY_ROUNDS = 2
+    current_batch = work_queue
+
+    for supervisor_round in range(1 + MAX_RETRY_ROUNDS):
+        if supervisor_round > 0:
+            click.echo(f"\n{'='*60}")
+            click.echo(f"Supervisor retry round {supervisor_round}/{MAX_RETRY_ROUNDS}")
+            click.echo(f"{'='*60}")
+
+        batch_results = _run_batch(current_batch, _current_workers)
+
+        infra_results = [
+            r for r in batch_results
+            if r.error and (
+                r.error.startswith(Reporter.INFRA_ERROR_PREFIXES)
+                or r.error.startswith("[circuit-breaker]")
+            )
+        ]
+
+        if not infra_results:
+            break
+
+        infra_keys = {(r.task_id, r.condition.value, r.rep) for r in infra_results}
+        retry_queue = [
+            item for item in current_batch
+            if (item[0].instance_id, item[1].value, item[2]) in infra_keys
+        ]
+
+        if not retry_queue or supervisor_round >= MAX_RETRY_ROUNDS:
+            if retry_queue:
+                click.echo(f"\n  {len(retry_queue)} infra failures remain after {MAX_RETRY_ROUNDS} retry rounds")
+            break
+
+        click.echo(f"\n  {len(infra_results)} infra failures detected, retrying...")
+        infra_remove = {(r.task_id, r.condition.value, r.rep) for r in infra_results}
+        results[:] = [r for r in results if (r.task_id, r.condition.value, r.rep) not in infra_remove]
+
+        _cb_reset()
+        current_batch = retry_queue
+
+    # --- Generate reports ---
+    eval_results = reporter.compile_results(results)
+    eval_results = replace(
+        eval_results,
+        eval_id=eval_id,
+        timestamp=eval_results.timestamp,
+        run_config=run_config,
+    )
+
+    if prior_data is not None:
+        carry_forward = passed_pairs | (genuine_fail_pairs if not retry_all else set())
+        eval_results = _merge_results(eval_results, prior_data, carry_forward)
+        eval_results.summary["resumed_from"] = prior_data.get("eval_id")
+
+    json_path = reporter.write_json(eval_results)
+    md_path = reporter.write_markdown(eval_results)
+    reporter.remove_checkpoint(eval_id)
+
+    click.echo(f"\nResults written to:")
+    click.echo(f"  JSON: {json_path}")
+    click.echo(f"  Markdown: {md_path}")
+
+    if not keep_workspaces and workspaces_dir.exists():
+        cache_path = Path(cache_dir)
         tmp_cache = None
         if cache_path.exists() and cache_path.is_relative_to(workspaces_dir):
             tmp_cache = workspaces_dir.parent / ".index-cache-preserve"
