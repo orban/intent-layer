@@ -40,7 +40,7 @@ def load_instances(
     """
     from datasets import load_dataset
 
-    ds = load_dataset(DATASET_NAME, split="test")
+    ds = load_dataset(DATASET_NAME, split="train")
     logger.info("Loaded %d instances from %s", len(ds), DATASET_NAME)
 
     filter_ids_set = set(filter_ids) if filter_ids else None

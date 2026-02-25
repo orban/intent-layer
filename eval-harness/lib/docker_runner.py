@@ -51,7 +51,7 @@ def run_in_docker(
         "--memory", memory,
         "--cpus", cpus,
         image,
-        "sh", "-c", command
+        "bash", "-c", command
     ])
 
     # Fast path: keep existing behavior when no streaming/heartbeat is needed.
