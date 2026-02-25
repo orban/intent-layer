@@ -557,9 +557,9 @@ def test_workspace_name_includes_rep(sample_repo):
             prompt_source="commit_message"
         )
 
-        ws0 = runner._setup_workspace(task, Condition.NONE, rep=0)
-        ws1 = runner._setup_workspace(task, Condition.NONE, rep=1)
-        ws5 = runner._setup_workspace(task, Condition.NONE, rep=5)
+        ws0 = runner.setup_workspace(task, Condition.NONE, rep=0)
+        ws1 = runner.setup_workspace(task, Condition.NONE, rep=1)
+        ws5 = runner.setup_workspace(task, Condition.NONE, rep=5)
 
         assert ws0 != ws1
         assert ws1 != ws5
@@ -580,7 +580,7 @@ def test_workspace_default_rep_is_zero(sample_repo):
             prompt_source="commit_message"
         )
 
-        ws = runner._setup_workspace(task, Condition.NONE)
+        ws = runner.setup_workspace(task, Condition.NONE)
         assert "-r0" in ws
 
 
