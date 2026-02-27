@@ -1037,14 +1037,22 @@ def run_agentbench(parallel, output, timeout, verbose, condition, model, repetit
                f"({len(work_queue)} total) with {parallel} workers")
 
     # --- Pre-pull Docker images ---
+    from lib.docker_runner import REMOTE_DOCKER_HOST
     unique_images = sorted(set(i.docker_image for i in instances))
-    click.echo(f"Pre-pulling {len(unique_images)} Docker image(s)...")
+    remote_host = REMOTE_DOCKER_HOST
+    pull_target = f" on {remote_host}" if remote_host else ""
+    click.echo(f"Pre-pulling {len(unique_images)} Docker image(s){pull_target}...")
     for image in unique_images:
+        pull_cmd = (
+            ["ssh", remote_host, "docker", "pull", image]
+            if remote_host else
+            ["docker", "pull", image]
+        )
         for attempt in range(3):
             try:
                 subprocess.run(
-                    ["docker", "pull", image],
-                    capture_output=True, timeout=300, check=True,
+                    pull_cmd,
+                    capture_output=True, timeout=600, check=True,
                 )
                 click.echo(f"  {image}: ready")
                 break
