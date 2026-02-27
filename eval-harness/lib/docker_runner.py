@@ -12,8 +12,8 @@ from typing import Callable
 logger = logging.getLogger(__name__)
 
 # Remote Docker host for native x86 execution (avoids QEMU on Apple Silicon).
-# Set EVAL_DOCKER_HOST=ryo@chronos to enable.  Workspace files are rsynced
-# to/from the remote host; Docker runs there with native bind mounts.
+# Set EVAL_DOCKER_HOST=chronos to enable.  Workspace files are synced via
+# tar-over-SSH to the remote host; Docker runs there with native bind mounts.
 REMOTE_DOCKER_HOST: str | None = os.environ.get("EVAL_DOCKER_HOST")
 REMOTE_WORKSPACE_BASE: str = os.environ.get("EVAL_REMOTE_WORKSPACE_BASE", "/tmp/eval-workspaces")
 
@@ -27,27 +27,42 @@ class DockerResult:
 
 
 # ---------------------------------------------------------------------------
-# Remote helpers (rsync workspace ↔ remote host)
+# Remote helpers (tar-over-SSH workspace ↔ remote host)
 # ---------------------------------------------------------------------------
 
-def _rsync_to_remote(local_path: str, remote_host: str, remote_path: str) -> None:
-    """Sync local workspace to remote host. Creates remote dir if needed."""
+def _sync_to_remote(local_path: str, remote_host: str, remote_path: str) -> None:
+    """Sync local workspace to remote host via tar-over-SSH.
+
+    Uses tar piped through SSH instead of rsync, because some hosts
+    (e.g. UGREEN NAS) run an rsync daemon that intercepts all rsync
+    connections and rejects paths outside configured modules.
+    """
     subprocess.run(
         ["ssh", remote_host, "mkdir", "-p", remote_path],
         check=True, capture_output=True,
     )
+    # tar from local, extract on remote — --delete equivalent via rm first
     subprocess.run(
-        ["rsync", "-az", "--delete", f"{local_path}/", f"{remote_host}:{remote_path}/"],
+        ["ssh", remote_host, "rm", "-rf", f"{remote_path}/*"],
         check=True, capture_output=True,
+    )
+    subprocess.run(
+        f"tar -cf - -C {_sh_quote(local_path)} . | ssh {remote_host} 'tar -xf - -C {_sh_quote(remote_path)}'",
+        shell=True, check=True, capture_output=True,
     )
 
 
-def _rsync_from_remote(remote_host: str, remote_path: str, local_path: str) -> None:
-    """Sync remote workspace back to local (picks up test result files etc)."""
+def _sync_from_remote(remote_host: str, remote_path: str, local_path: str) -> None:
+    """Sync remote workspace back to local via tar-over-SSH."""
     subprocess.run(
-        ["rsync", "-az", f"{remote_host}:{remote_path}/", f"{local_path}/"],
-        check=True, capture_output=True,
+        f"ssh {remote_host} 'tar -cf - -C {_sh_quote(remote_path)} .' | tar -xf - -C {_sh_quote(local_path)}",
+        shell=True, check=True, capture_output=True,
     )
+
+
+def _sh_quote(s: str) -> str:
+    """Shell-quote a string for safe use in shell commands."""
+    return "'" + s.replace("'", "'\"'\"'") + "'"
 
 
 def _remote_docker_cmd(
@@ -76,15 +91,8 @@ def _remote_docker_cmd(
         "bash", "-lc", command,
     ])
     # Shell-quote each arg for ssh
-    escaped = " ".join(_shell_quote(p) for p in docker_parts)
+    escaped = " ".join(_sh_quote(p) for p in docker_parts)
     return ["ssh", remote_host, escaped]
-
-
-def _shell_quote(s: str) -> str:
-    """Simple single-quote escaping for ssh remote commands."""
-    if not s or any(c in s for c in " \t\n'\"\\$`!#&|;(){}[]<>?*~"):
-        return "'" + s.replace("'", "'\"'\"'") + "'"
-    return s
 
 
 # ---------------------------------------------------------------------------
@@ -156,17 +164,17 @@ def _run_remote(
     heartbeat_interval: int,
     heartbeat_callback: Callable[[float, int, int], None] | None,
 ) -> DockerResult:
-    """Rsync workspace to remote, run Docker there, rsync results back."""
+    """Sync workspace to remote via tar-over-SSH, run Docker there, sync back."""
     workspace_name = Path(abs_workspace).name
     remote_path = f"{REMOTE_WORKSPACE_BASE}/{workspace_name}"
 
     # 1. Sync workspace to remote
     try:
-        _rsync_to_remote(abs_workspace, remote_host, remote_path)
+        _sync_to_remote(abs_workspace, remote_host, remote_path)
     except subprocess.CalledProcessError as e:
         return DockerResult(
             exit_code=-1, stdout="",
-            stderr=f"rsync to remote failed: {e.stderr if e.stderr else e}",
+            stderr=f"sync to remote failed: {e.stderr if e.stderr else e}",
         )
 
     # 2. Run Docker on remote via SSH
@@ -184,9 +192,9 @@ def _run_remote(
 
     # 3. Sync results back (even on failure — we want test_results.json)
     try:
-        _rsync_from_remote(remote_host, remote_path, abs_workspace)
+        _sync_from_remote(remote_host, remote_path, abs_workspace)
     except subprocess.CalledProcessError as e:
-        logger.warning("rsync from remote failed: %s", e)
+        logger.warning("sync from remote failed: %s", e)
 
     return result
 
