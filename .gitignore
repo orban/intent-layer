@@ -20,3 +20,4 @@ CODEX_REVIEW.md
 .serena/
 # Nightshift plan artifacts (keep out of version control)
 .nightshift-plan
+.dmux/

@@ -168,8 +168,9 @@ class TestStripDocs:
 
             count = strip_docs(ws)
 
-            assert count == 3  # README.md, CONTRIBUTING.md, src/notes.md
-            assert not (ws / "README.md").exists()
+            assert count == 2  # CONTRIBUTING.md, src/notes.md (README.md preserved)
+            assert (ws / "README.md").exists()  # preserved for setup.py
+            assert not (ws / "CONTRIBUTING.md").exists()
             assert not (ws / "src" / "notes.md").exists()
             assert (ws / "src" / "main.py").exists()
 
@@ -356,7 +357,7 @@ class TestEvaluateInstance:
 
             success, output = evaluate_instance(ws, inst, "test-image")
             assert success is False
-            assert "flipped" in output
+            assert "regressions" in output
 
 
 # ── Runner: build_prompt ───────────────────────────────────────────────

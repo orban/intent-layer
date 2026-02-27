@@ -41,7 +41,11 @@ def _build_docker_cmd(setup_commands: list[str], commands: list[str]) -> str:
 
 
 def strip_docs(workspace: Path) -> int:
-    """Delete all .md files, .github/, docs/, .claude/, .cursor/, .codex/.
+    """Remove context/doc files that could leak hints, preserving build-required files.
+
+    Keeps README.md (and readme.md variants) because many setup.py/pyproject.toml
+    files read them for long_description.  Only strips known AI-context files and
+    documentation directories.
 
     Returns count of files/dirs removed.
     """
@@ -53,8 +57,11 @@ def strip_docs(workspace: Path) -> int:
             shutil.rmtree(dirpath)
             count += 1
 
-    # Remove markdown files
+    # Remove markdown files, but preserve README variants that builds depend on
+    _readme_names = {"readme.md", "readme.rst", "readme.txt", "readme"}
     for md_file in workspace.rglob("*.md"):
+        if md_file.name.lower() in _readme_names:
+            continue
         md_file.unlink()
         count += 1
 
@@ -180,20 +187,26 @@ def evaluate_instance(
     repo_total = len(repo_results)
     repo_passed = sum(1 for v in repo_results.values() if v)
 
-    # Check which tests flipped compared to expected (repo_test_after_pr_patch)
+    # Match paper's evaluation: only fail if a test that PASSED in the golden
+    # baseline (repo_test_after_pr_patch) now FAILS.  Pre-existing failures
+    # and tests missing from the golden baseline are ignored.
     expected = instance.repo_test_after_pr_patch
-    flipped = []
-    for test_id, actual_pass in repo_results.items():
-        expected_pass = expected.get(test_id)
-        if expected_pass is not None and actual_pass != expected_pass:
-            flipped.append(test_id)
+    regressions = []
+    for test_id, expected_pass in expected.items():
+        if not expected_pass:
+            continue  # already failing in golden — ignore
+        actual_pass = repo_results.get(test_id, True)  # missing defaults to True (paper behavior)
+        if not actual_pass:
+            regressions.append(test_id)
 
-    repo_all_pass = repo_passed == repo_total and not flipped
-    parts.append(f"REGRESSION: {repo_passed}/{repo_total} passed")
-    if flipped:
-        parts.append(f"{len(flipped)} flipped: {', '.join(flipped[:5])}")
+    golden_pass = sum(1 for v in expected.values() if v)
+    golden_total = len(expected)
+    repo_ok = not regressions
+    parts.append(f"REGRESSION: {repo_passed}/{repo_total} passed (golden: {golden_pass}/{golden_total})")
+    if regressions:
+        parts.append(f"{len(regressions)} regressions: {', '.join(regressions[:5])}")
 
-    return repo_all_pass, " | ".join(parts)
+    return repo_ok, " | ".join(parts)
 
 
 def build_prompt(
