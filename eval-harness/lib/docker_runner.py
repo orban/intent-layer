@@ -17,6 +17,20 @@ logger = logging.getLogger(__name__)
 REMOTE_DOCKER_HOST: str | None = os.environ.get("EVAL_DOCKER_HOST")
 REMOTE_WORKSPACE_BASE: str = os.environ.get("EVAL_REMOTE_WORKSPACE_BASE", "/tmp/eval-workspaces")
 
+# SSH options to prevent indefinite hangs when the agent drops keys or the
+# remote becomes unreachable.  ConnectTimeout caps the initial handshake,
+# ServerAlive detects dead connections mid-transfer.
+_SSH_OPTS = [
+    "-o", "ConnectTimeout=10",
+    "-o", "ServerAliveInterval=30",
+    "-o", "ServerAliveCountMax=3",
+]
+
+# Timeout (seconds) for sync operations (mkdir, tar upload/download).
+# These are workspace-sized transfers (~20-50 MB), not Docker execution,
+# so 5 minutes is generous.
+_SYNC_TIMEOUT = 300
+
 
 @dataclass
 class DockerResult:
@@ -38,25 +52,38 @@ def _sync_to_remote(local_path: str, remote_host: str, remote_path: str) -> None
     connections and rejects paths outside configured modules.
     """
     subprocess.run(
-        ["ssh", remote_host, "mkdir", "-p", remote_path],
-        check=True, capture_output=True,
+        ["ssh", *_SSH_OPTS, remote_host, "mkdir", "-p", remote_path],
+        check=True, capture_output=True, timeout=_SYNC_TIMEOUT,
     )
     # tar from local, extract on remote — --delete equivalent via rm first
     subprocess.run(
-        ["ssh", remote_host, "rm", "-rf", f"{remote_path}/*"],
-        check=True, capture_output=True,
+        ["ssh", *_SSH_OPTS, remote_host, "rm", "-rf", f"{remote_path}/*"],
+        check=True, capture_output=True, timeout=_SYNC_TIMEOUT,
     )
+    ssh_opts_str = " ".join(_SSH_OPTS)
     subprocess.run(
-        f"tar -cf - -C {_sh_quote(local_path)} . | ssh {remote_host} 'tar -xf - -C {_sh_quote(remote_path)}'",
-        shell=True, check=True, capture_output=True,
+        f"tar -cf - -C {_sh_quote(local_path)} . | ssh {ssh_opts_str} {remote_host} 'tar -xf - -C {_sh_quote(remote_path)}'",
+        shell=True, check=True, capture_output=True, timeout=_SYNC_TIMEOUT,
     )
+
+
+_SYNC_BACK_EXCLUDES = [
+    ".venv", "node_modules", "__pycache__", ".tox",
+    "*.pyc", ".mypy_cache", ".pytest_cache",
+]
 
 
 def _sync_from_remote(remote_host: str, remote_path: str, local_path: str) -> None:
-    """Sync remote workspace back to local via tar-over-SSH."""
+    """Sync remote workspace back to local via tar-over-SSH.
+
+    Excludes large build artifacts (.venv, node_modules, etc.) that Claude may
+    have created during execution — we only need source changes and test results.
+    """
+    excludes = " ".join(f"--exclude={_sh_quote(e)}" for e in _SYNC_BACK_EXCLUDES)
+    ssh_opts_str = " ".join(_SSH_OPTS)
     subprocess.run(
-        f"ssh {remote_host} 'tar -cf - -C {_sh_quote(remote_path)} .' | tar -xf - -C {_sh_quote(local_path)}",
-        shell=True, check=True, capture_output=True,
+        f"ssh {ssh_opts_str} {remote_host} 'tar -cf - {excludes} -C {_sh_quote(remote_path)} .' | tar -xf - -C {_sh_quote(local_path)}",
+        shell=True, check=True, capture_output=True, timeout=_SYNC_TIMEOUT,
     )
 
 
@@ -92,7 +119,7 @@ def _remote_docker_cmd(
     ])
     # Shell-quote each arg for ssh
     escaped = " ".join(_sh_quote(p) for p in docker_parts)
-    return ["ssh", remote_host, escaped]
+    return ["ssh", *_SSH_OPTS, remote_host, escaped]
 
 
 # ---------------------------------------------------------------------------
@@ -171,10 +198,10 @@ def _run_remote(
     # 1. Sync workspace to remote
     try:
         _sync_to_remote(abs_workspace, remote_host, remote_path)
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         return DockerResult(
             exit_code=-1, stdout="",
-            stderr=f"sync to remote failed: {e.stderr if e.stderr else e}",
+            stderr=f"sync to remote failed: {e}",
         )
 
     # 2. Run Docker on remote via SSH
@@ -193,7 +220,7 @@ def _run_remote(
     # 3. Sync results back (even on failure — we want test_results.json)
     try:
         _sync_from_remote(remote_host, remote_path, abs_workspace)
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         logger.warning("sync from remote failed: %s", e)
 
     return result
