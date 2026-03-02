@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -22,7 +23,14 @@ from typing import Callable
 
 from lib.agentbench_loader import AgentbenchInstance
 from lib.claude_runner import run_claude
-from lib.docker_runner import run_in_docker
+from lib.docker_runner import (
+    REMOTE_DOCKER_HOST,
+    _SSH_OPTS,
+    _sh_quote,
+    copy_into_container,
+    exec_in_container,
+    persistent_container,
+)
 from lib.git_ops import clone_repo, checkout_commit, create_baseline_commit, get_diff_stats
 from lib.prompt_builder import FLAT_PREAMBLE, INTENT_LAYER_PREAMBLE
 from lib.task_runner import Condition, TaskResult, SkillGenerationMetrics
@@ -35,9 +43,36 @@ PRE_VALIDATION_TIMEOUT = 300
 
 
 def _build_docker_cmd(setup_commands: list[str], commands: list[str]) -> str:
-    """Join setup + test commands into a single shell command string."""
+    """Join setup + test commands into a single shell command string.
+
+    Strips leading 'sudo' from commands since Docker containers run as root.
+    """
     parts = setup_commands + commands
+    parts = [cmd.removeprefix("sudo ") for cmd in parts]
     return " && ".join(parts)
+
+
+def _build_activate_cmd(setup_commands: list[str], test_commands: list[str]) -> str:
+    """Prepend venv activation (if any) to test commands.
+
+    Setup commands often include `source venv/bin/activate`, which doesn't
+    persist across docker exec calls. Extract it and prepend to test commands.
+    """
+    activate = ""
+    for cmd in setup_commands:
+        if re.match(r'^\s*(source|\.)\s+\S*activate', cmd):
+            activate = cmd.removeprefix("sudo ") + " && "
+            break
+    parts = [c.removeprefix("sudo ") for c in test_commands]
+    return activate + " && ".join(parts)
+
+
+# Paths that should never be copied from the local workspace into the
+# container after Claude's edit pass — they'd clobber installed deps.
+_DIFF_EXCLUDES = {
+    ".venv", "venv", "node_modules", "__pycache__",
+    ".pytest_cache", ".mypy_cache", ".tox",
+}
 
 
 def strip_docs(workspace: Path) -> int:
@@ -143,23 +178,43 @@ def _parse_test_results(workspace: Path, filename: str) -> dict[str, bool] | Non
 
 
 def evaluate_instance(
-    workspace: Path,
+    container_name: str,
     instance: AgentbenchInstance,
-    docker_image: str,
+    remote_host: str | None = None,
     timeout: int = DOCKER_STEP_TIMEOUT,
 ) -> tuple[bool, str]:
-    """Two-tier evaluation. Returns (success, test_output_summary).
+    """Two-tier evaluation inside a persistent container.
 
-    Tier 1: Instance tests (test_file_runner → pr_test_results.json)
-    Tier 2: Repo regression tests (repo_test_runner → test_results.json)
+    Returns (success, test_output_summary).
+
+    Tier 1: Instance tests (test_file_runner -> pr_test_results.json)
+    Tier 2: Repo regression tests (repo_test_runner -> test_results.json)
     Both must pass for success=True.
     """
     parts = []
 
+    # Clear stale results from pre-validation phase
+    exec_in_container(
+        container_name,
+        "rm -f /testbed/pr_test_results.json /testbed/test_results.json",
+        timeout=10, remote_host=remote_host,
+    )
+
     # Tier 1: Instance tests
-    test_cmd = _build_docker_cmd(instance.setup_commands, instance.test_commands)
-    result = run_in_docker(str(workspace), docker_image, test_cmd, timeout=timeout)
-    pr_results = _parse_test_results(workspace, "pr_test_results.json")
+    test_cmd = _build_activate_cmd(instance.setup_commands, instance.test_commands)
+    result = exec_in_container(
+        container_name, test_cmd, timeout=timeout, remote_host=remote_host,
+    )
+    pr_json = exec_in_container(
+        container_name, "cat /testbed/pr_test_results.json",
+        timeout=10, remote_host=remote_host,
+    )
+    try:
+        pr_results = json.loads(pr_json.stdout) if pr_json.exit_code == 0 else None
+        if not isinstance(pr_results, dict):
+            pr_results = None
+    except (json.JSONDecodeError, ValueError):
+        pr_results = None
 
     if pr_results is None:
         return False, f"INSTANCE: pr_test_results.json missing or corrupt | docker exit={result.exit_code}"
@@ -175,12 +230,22 @@ def evaluate_instance(
         return False, " | ".join(parts)
 
     # Tier 2: Regression tests
-    repo_test_cmd = _build_docker_cmd(instance.setup_commands, instance.repo_test_commands)
-    result = run_in_docker(str(workspace), docker_image, repo_test_cmd, timeout=timeout)
-    repo_results = _parse_test_results(workspace, "test_results.json")
+    repo_test_cmd = _build_activate_cmd(instance.setup_commands, instance.repo_test_commands)
+    result = exec_in_container(
+        container_name, repo_test_cmd, timeout=timeout, remote_host=remote_host,
+    )
+    repo_json = exec_in_container(
+        container_name, "cat /testbed/test_results.json",
+        timeout=10, remote_host=remote_host,
+    )
+    try:
+        repo_results = json.loads(repo_json.stdout) if repo_json.exit_code == 0 else None
+        if not isinstance(repo_results, dict):
+            repo_results = None
+    except (json.JSONDecodeError, ValueError):
+        repo_results = None
 
     if repo_results is None:
-        # Regression runner failed — instance tests passed though
         parts.append("REGRESSION: test_results.json missing or corrupt")
         return False, " | ".join(parts)
 
@@ -301,6 +366,59 @@ def _inject_cached_context(
     )
 
 
+def _copy_diffs_into_container(
+    workspace: Path,
+    container_name: str,
+    remote_host: str | None,
+) -> list[str]:
+    """Copy only Claude's changed files into the container.
+
+    Uses git diff to find changed files, filters out build artifacts that
+    could clobber installed deps, then sends a minimal tar (<100 KB typical)
+    instead of the full workspace (20-50 MB).
+
+    Returns list of files copied.
+    """
+    # Stage everything so diff --cached sees new untracked files too
+    subprocess.run(["git", "add", "-A"], cwd=workspace, capture_output=True)
+    diff_result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "HEAD"],
+        cwd=workspace, capture_output=True, text=True,
+    )
+
+    changed = []
+    for f in diff_result.stdout.strip().split("\n"):
+        if not f:
+            continue
+        if any(part in _DIFF_EXCLUDES for part in Path(f).parts):
+            continue
+        if f.endswith((".pyc", ".egg-info")):
+            continue
+        changed.append(f)
+
+    if not changed:
+        return []
+
+    tar_cmd = ["tar", "-cf", "-", "-C", str(workspace)] + changed
+    if remote_host:
+        ssh_opts_str = " ".join(_SSH_OPTS)
+        subprocess.run(
+            f"{' '.join(_sh_quote(p) for p in tar_cmd)} | "
+            f"ssh {ssh_opts_str} {remote_host} "
+            f"'docker exec -i {_sh_quote(container_name)} tar -xf - -C /testbed'",
+            shell=True, check=True, capture_output=True, timeout=60,
+        )
+    else:
+        tar_proc = subprocess.Popen(tar_cmd, stdout=subprocess.PIPE)
+        subprocess.run(
+            ["docker", "exec", "-i", container_name, "tar", "-xf", "-", "-C", "/testbed"],
+            stdin=tar_proc.stdout, capture_output=True, timeout=60,
+        )
+        tar_proc.wait()
+
+    return changed
+
+
 def run_single(
     instance: AgentbenchInstance,
     condition: Condition,
@@ -312,28 +430,49 @@ def run_single(
     model: str = "sonnet",
     progress_callback=None,
 ) -> TaskResult:
-    """Full per-instance execution. Returns a standard TaskResult.
+    """Full per-instance execution using a persistent Docker container.
 
     Steps:
-    1. Clone repo at base_sha (from reference clone)
-    2. strip_docs()
-    3. Inject condition context
-    4. write_test_infrastructure()
-    5. Pre-validate: instance tests should fail
-    6. Create baseline commit
-    7. build_prompt() + run_claude()
-    8. evaluate_instance()
-    9. Return TaskResult
+     1. Clone repo locally at base_sha
+     2. strip_docs()
+     3. Inject condition context
+     4. write_test_infrastructure()
+     5. Start persistent container
+     6. git checkout base_sha + strip docs INSIDE container
+     7. Overlay context + test files onto /testbed (excludes .git)
+     8. Run setup_commands ONCE in container
+     9. Pre-validate: run test_commands, read results via exec+cat
+    10. Create baseline commit (local workspace)
+    11. run_claude() (operates on local workspace)
+    12. Copy ONLY Claude's changed files into container
+    13. Evaluate: run test commands, read results via exec+cat
+    14. Collect diff stats
+    15. Container auto-cleanup via context manager
     """
     task_id = instance.instance_id
     start = time.time()
     docker_image = instance.docker_image
+    remote_host = REMOTE_DOCKER_HOST
 
     def _progress(step: str, msg: str = ""):
         if progress_callback:
             progress_callback(task_id, condition.value, step, msg)
 
-    # --- Step 1: Setup workspace ---
+    def _fail(error: str, **kwargs) -> TaskResult:
+        return TaskResult(
+            task_id=task_id, condition=condition, success=False,
+            test_output="", wall_clock_seconds=time.time() - start,
+            input_tokens=kwargs.get("input_tokens", 0),
+            output_tokens=kwargs.get("output_tokens", 0),
+            tool_calls=kwargs.get("tool_calls", 0),
+            lines_changed=0, files_touched=[], rep=rep,
+            error=error,
+            skill_generation=kwargs.get("skill_generation"),
+            exit_code=kwargs.get("exit_code"),
+            is_timeout=kwargs.get("is_timeout", False),
+        )
+
+    # --- Step 1: Setup local workspace ---
     _progress("setup", "cloning workspace")
     task_hash = format(hash(task_id) % 0xFFFF, '04x')
     workspace_name = f"{instance.repo}-{instance.base_sha[:8]}-{task_hash}-{condition.value}-r{rep}"
@@ -379,92 +518,142 @@ def run_single(
     elif condition == Condition.INTENT_LAYER:
         plugin_root = os.environ.get("INTENT_LAYER_PLUGIN_ROOT", "")
         if not plugin_root:
-            return TaskResult(
-                task_id=task_id, condition=condition, success=False,
-                test_output="", wall_clock_seconds=time.time() - start,
-                input_tokens=0, output_tokens=0, tool_calls=0,
-                lines_changed=0, files_touched=[], rep=rep,
-                error="[infrastructure] INTENT_LAYER_PLUGIN_ROOT not set",
-            )
+            return _fail("[infrastructure] INTENT_LAYER_PLUGIN_ROOT not set")
         skill_metrics = _inject_cached_context(
             instance, workspace, workspaces_dir, index_cache, model,
             cache_key="intent_layer",
-            generate_fn=lambda ws, inst, ws_dir, mdl: _generate_il_context(ws, plugin_root, mdl),
+            generate_fn=lambda ws, _inst, _ws_dir, mdl: _generate_il_context(ws, plugin_root, mdl),
         )
 
     # --- Step 4: Write test infrastructure ---
     _progress("test-infra", "writing test files")
     write_test_infrastructure(workspace, instance)
 
-    # --- Step 5: Pre-validation ---
-    _progress("pre-validate", "checking instance tests fail at base")
-    test_cmd = _build_docker_cmd(instance.setup_commands, instance.test_commands)
-    run_in_docker(  # side effect: writes pr_test_results.json
-        str(workspace), docker_image, test_cmd, timeout=PRE_VALIDATION_TIMEOUT
-    )
-    pre_pr_results = _parse_test_results(workspace, "pr_test_results.json")
+    # --- Steps 5-13: Persistent container ---
+    _progress("container", "starting persistent container")
+    with persistent_container(docker_image, remote_host=remote_host) as ctr:
 
-    if pre_pr_results is not None and pre_pr_results and all(pre_pr_results.values()):
-        return TaskResult(
-                task_id=task_id, condition=condition, success=False,
-                test_output="", wall_clock_seconds=time.time() - start,
-                input_tokens=0, output_tokens=0, tool_calls=0,
-                lines_changed=0, files_touched=[], rep=rep,
-                error="[pre-validation] instance tests already pass at base_sha",
+        # Mark /testbed as safe — the tar overlay from macOS writes files
+        # with a different UID, triggering git's CVE-2022-24765 ownership
+        # check ("dubious ownership").  Without this, git commands and
+        # SCM-based version detection (pdm-backend, setuptools_scm) fail.
+        exec_in_container(
+            ctr, "git config --global --add safe.directory /testbed",
+            timeout=10, remote_host=remote_host,
+        )
+
+        # Step 6: Bring container's /testbed to exact base_sha state
+        checkout_result = exec_in_container(
+            ctr,
+            f"git checkout {instance.base_sha} 2>/dev/null || "
+            f"(git fetch origin {instance.base_sha} --depth=1 && "
+            f"git checkout {instance.base_sha}) && "
+            f"git reset --hard",
+            timeout=60, remote_host=remote_host,
+        )
+        if checkout_result.exit_code != 0:
+            return _fail(
+                f"[setup] git checkout failed in container: {checkout_result.stderr[:200]}",
                 skill_generation=skill_metrics,
             )
 
-    # --- Step 6: Baseline commit ---
-    _progress("baseline", "creating baseline commit")
-    create_baseline_commit(str(workspace))
-
-    # --- Step 7: Run Claude ---
-    _progress("claude", "running claude")
-    prompt = build_prompt(instance.problem_description, condition)
-    log_dir = workspaces_dir.parent / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    stderr_log = log_dir / f"{task_id}-{condition.value}-r{rep}.log"
-
-    claude_result = run_claude(
-        str(workspace), prompt, timeout=claude_timeout, model=model,
-        stderr_log=str(stderr_log),
-    )
-
-    if claude_result.timed_out:
-        return TaskResult(
-            task_id=task_id, condition=condition, success=False,
-            test_output="", wall_clock_seconds=time.time() - start,
-            input_tokens=claude_result.input_tokens,
-            output_tokens=claude_result.output_tokens,
-            tool_calls=claude_result.tool_calls,
-            lines_changed=0, files_touched=[], rep=rep,
-            error="[timeout] claude timed out",
-            skill_generation=skill_metrics,
-            exit_code=claude_result.exit_code,
-            is_timeout=True,
+        # Strip docs inside container (matches what we did on local workspace)
+        exec_in_container(
+            ctr,
+            "find . -name '*.md' ! -iname 'readme*' -delete && "
+            "rm -rf .github docs .claude .cursor .codex",
+            timeout=30, remote_host=remote_host,
         )
 
-    # Check for empty run (Claude did nothing)
-    if claude_result.tool_calls == 0:
-        return TaskResult(
-            task_id=task_id, condition=condition, success=False,
-            test_output="", wall_clock_seconds=time.time() - start,
-            input_tokens=claude_result.input_tokens,
-            output_tokens=claude_result.output_tokens,
-            tool_calls=0,
-            lines_changed=0, files_touched=[], rep=rep,
-            error="[empty-run] claude made no tool calls",
-            skill_generation=skill_metrics,
-            exit_code=claude_result.exit_code,
+        # Step 7: Overlay context files + test infrastructure onto /testbed
+        copy_into_container(ctr, str(workspace), "/testbed", remote_host=remote_host)
+
+        # Step 8: Run setup commands ONCE
+        _progress("setup-docker", "installing dependencies (once)")
+        setup_cmd = " && ".join(
+            cmd.removeprefix("sudo ") for cmd in instance.setup_commands
+        )
+        setup_result = exec_in_container(
+            ctr, setup_cmd, timeout=DOCKER_STEP_TIMEOUT, remote_host=remote_host,
+        )
+        if setup_result.exit_code != 0:
+            stderr_tail = (setup_result.stderr or "").strip()[-300:]
+            stdout_tail = (setup_result.stdout or "").strip()[-300:]
+            detail = stderr_tail or stdout_tail or "(no output)"
+            return _fail(
+                f"[setup] docker exit={setup_result.exit_code}: {detail}",
+                skill_generation=skill_metrics,
+            )
+
+        # Step 9: Pre-validate — instance tests should fail at base_sha
+        _progress("pre-validate", "checking instance tests fail at base")
+        test_cmd = _build_activate_cmd(instance.setup_commands, instance.test_commands)
+        exec_in_container(ctr, test_cmd, timeout=PRE_VALIDATION_TIMEOUT, remote_host=remote_host)
+
+        pr_json = exec_in_container(
+            ctr, "cat /testbed/pr_test_results.json",
+            timeout=10, remote_host=remote_host,
+        )
+        try:
+            pre_pr_results = json.loads(pr_json.stdout) if pr_json.exit_code == 0 else None
+            if not isinstance(pre_pr_results, dict):
+                pre_pr_results = None
+        except (json.JSONDecodeError, ValueError):
+            pre_pr_results = None
+
+        if pre_pr_results is not None and pre_pr_results and all(pre_pr_results.values()):
+            return _fail(
+                "[pre-validation] instance tests already pass at base_sha",
+                skill_generation=skill_metrics,
+            )
+
+        # --- Step 10: Baseline commit (local) ---
+        _progress("baseline", "creating baseline commit")
+        create_baseline_commit(str(workspace))
+
+        # --- Step 11: Run Claude (operates on local workspace) ---
+        _progress("claude", "running claude")
+        prompt = build_prompt(instance.problem_description, condition)
+        log_dir = workspaces_dir.parent / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        stderr_log = log_dir / f"{task_id}-{condition.value}-r{rep}.log"
+
+        claude_result = run_claude(
+            str(workspace), prompt, timeout=claude_timeout, model=model,
+            stderr_log=str(stderr_log),
         )
 
-    # --- Step 8: Evaluate ---
-    _progress("evaluate", "running tests")
-    success, test_output = evaluate_instance(
-        workspace, instance, docker_image, timeout=DOCKER_STEP_TIMEOUT
-    )
+        if claude_result.timed_out:
+            return _fail(
+                "[timeout] claude timed out",
+                skill_generation=skill_metrics,
+                input_tokens=claude_result.input_tokens,
+                output_tokens=claude_result.output_tokens,
+                tool_calls=claude_result.tool_calls,
+                exit_code=claude_result.exit_code,
+                is_timeout=True,
+            )
 
-    # --- Step 9: Collect diff stats ---
+        if claude_result.tool_calls == 0:
+            return _fail(
+                "[empty-run] claude made no tool calls",
+                skill_generation=skill_metrics,
+                input_tokens=claude_result.input_tokens,
+                output_tokens=claude_result.output_tokens,
+                exit_code=claude_result.exit_code,
+            )
+
+        # --- Step 12: Copy Claude's changes into container ---
+        _progress("sync", "copying changed files into container")
+        _copy_diffs_into_container(workspace, ctr, remote_host)
+
+        # --- Step 13: Evaluate ---
+        _progress("evaluate", "running tests")
+        success, test_output = evaluate_instance(
+            ctr, instance, remote_host=remote_host, timeout=DOCKER_STEP_TIMEOUT,
+        )
+
+    # --- Step 14: Collect diff stats ---
     diff = get_diff_stats(str(workspace))
 
     elapsed = time.time() - start

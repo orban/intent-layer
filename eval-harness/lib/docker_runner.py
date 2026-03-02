@@ -5,9 +5,11 @@ import os
 import subprocess
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,9 @@ _SSH_OPTS = [
     "-o", "ConnectTimeout=10",
     "-o", "ServerAliveInterval=30",
     "-o", "ServerAliveCountMax=3",
+    "-o", "ControlMaster=auto",
+    "-o", "ControlPath=/tmp/ssh-eval-%r@%h:%p",
+    "-o", "ControlPersist=300",
 ]
 
 # Timeout (seconds) for sync operations (mkdir, tar upload/download).
@@ -386,3 +391,127 @@ def _exec_cmd(
     finally:
         if log_file:
             log_file.close()
+
+
+# ---------------------------------------------------------------------------
+# Persistent container API (for AGENTbench: start once, exec many)
+# ---------------------------------------------------------------------------
+
+def start_container(
+    image: str,
+    workdir: str = "/testbed",
+    memory: str = "4g",
+    cpus: str = "1",
+    network: str = "bridge",
+    remote_host: str | None = None,
+) -> str:
+    """Start a persistent container. Returns container name."""
+    name = f"eval-{uuid4().hex[:12]}"
+    cmd = [
+        "docker", "run", "-d", "--name", name,
+        "--memory", memory, "--cpus", cpus,
+        "--network", network, "-w", workdir,
+        image, "sleep", "infinity",
+    ]
+    if remote_host:
+        escaped = " ".join(_sh_quote(p) for p in cmd)
+        cmd = ["ssh", *_SSH_OPTS, remote_host, escaped]
+    subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+    return name
+
+
+def exec_in_container(
+    name: str,
+    command: str,
+    timeout: int = 120,
+    remote_host: str | None = None,
+    stream_log: str | Path | None = None,
+    heartbeat_interval: int = 20,
+    heartbeat_callback: Callable[[float, int, int], None] | None = None,
+) -> DockerResult:
+    """Run command inside persistent container via docker exec."""
+    cmd = ["docker", "exec", name, "bash", "-lc", command]
+    if remote_host:
+        escaped = " ".join(_sh_quote(p) for p in cmd)
+        cmd = ["ssh", *_SSH_OPTS, remote_host, escaped]
+    return _exec_cmd(
+        cmd, timeout=timeout, stream_log=stream_log,
+        heartbeat_interval=heartbeat_interval,
+        heartbeat_callback=heartbeat_callback,
+    )
+
+
+def stop_container(name: str, remote_host: str | None = None) -> None:
+    """Stop and remove container. Safe to call if container doesn't exist."""
+    stop_cmd = ["docker", "stop", "-t", "1", name]
+    rm_cmd = ["docker", "rm", "-f", name]
+    try:
+        if remote_host:
+            for c in (stop_cmd, rm_cmd):
+                subprocess.run(
+                    ["ssh", *_SSH_OPTS, remote_host,
+                     " ".join(_sh_quote(p) for p in c)],
+                    capture_output=True, timeout=30,
+                )
+        else:
+            for c in (stop_cmd, rm_cmd):
+                subprocess.run(c, capture_output=True, timeout=30)
+    except Exception:
+        pass  # best-effort cleanup
+
+
+@contextmanager
+def persistent_container(image: str, **kwargs):
+    """Context manager for persistent container lifecycle."""
+    name = start_container(image, **kwargs)
+    try:
+        yield name
+    finally:
+        stop_container(name, remote_host=kwargs.get("remote_host"))
+
+
+def copy_into_container(
+    name: str,
+    local_dir: str,
+    container_dir: str,
+    remote_host: str | None = None,
+    excludes: list[str] | None = None,
+) -> None:
+    """Overlay local directory onto container path via tar pipe.
+
+    Excludes .git by default (200-400 MB for large repos).
+    """
+    exclude_args = ["--exclude=.git"]
+    for e in (excludes or []):
+        exclude_args.append(f"--exclude={e}")
+    exclude_str = " ".join(exclude_args)
+
+    if remote_host:
+        ssh_opts_str = " ".join(_SSH_OPTS)
+        subprocess.run(
+            f"tar -cf - {exclude_str} -C {_sh_quote(local_dir)} . | "
+            f"ssh {ssh_opts_str} {remote_host} "
+            f"'docker exec -i {_sh_quote(name)} tar -xf - -C {_sh_quote(container_dir)}'",
+            shell=True, check=True, capture_output=True, timeout=_SYNC_TIMEOUT,
+        )
+    else:
+        subprocess.run(
+            f"tar -cf - {exclude_str} -C {_sh_quote(local_dir)} . | "
+            f"docker exec -i {_sh_quote(name)} tar -xf - -C {_sh_quote(container_dir)}",
+            shell=True, check=True, capture_output=True, timeout=_SYNC_TIMEOUT,
+        )
+
+
+def cleanup_stale_containers(remote_host: str | None = None) -> None:
+    """Remove orphaned eval-* containers from prior crashed runs."""
+    cmd = "docker ps -a --filter name=eval- -q | xargs -r docker rm -f"
+    try:
+        if remote_host:
+            subprocess.run(
+                ["ssh", *_SSH_OPTS, remote_host, cmd],
+                capture_output=True, timeout=30,
+            )
+        else:
+            subprocess.run(cmd, shell=True, capture_output=True, timeout=30)
+    except Exception:
+        pass  # best-effort

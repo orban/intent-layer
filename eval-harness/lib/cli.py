@@ -1037,7 +1037,8 @@ def run_agentbench(parallel, output, timeout, verbose, condition, model, repetit
                f"({len(work_queue)} total) with {parallel} workers")
 
     # --- Pre-pull Docker images ---
-    from lib.docker_runner import REMOTE_DOCKER_HOST
+    from lib.docker_runner import REMOTE_DOCKER_HOST, cleanup_stale_containers
+    cleanup_stale_containers(remote_host=REMOTE_DOCKER_HOST)
     unique_images = sorted(set(i.docker_image for i in instances))
     remote_host = REMOTE_DOCKER_HOST
     pull_target = f" on {remote_host}" if remote_host else ""
@@ -1130,6 +1131,16 @@ def run_agentbench(parallel, output, timeout, verbose, condition, model, repetit
             model=model,
             progress_callback=progress_callback,
         )
+
+        # Clean up local workspace after evaluation to avoid filling disk.
+        # Docker execution happens on chronos; local clone is only needed
+        # for setup + sync and can be removed once results are collected.
+        task_hash = format(hash(inst.instance_id) % 0xFFFF, '04x')
+        ws_name = f"{inst.repo}-{inst.base_sha[:8]}-{task_hash}-{cond.value}-r{rep}"
+        ws_path = workspaces_dir / ws_name
+        if ws_path.exists():
+            import shutil
+            shutil.rmtree(ws_path, ignore_errors=True)
 
         if result.error:
             newly_tripped = _cb_record(inst.instance_id, cond.value, result.error)

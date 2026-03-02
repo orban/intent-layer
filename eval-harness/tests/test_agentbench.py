@@ -15,6 +15,7 @@ from lib.agentbench_runner import (
     evaluate_instance,
     build_prompt,
 )
+from lib.docker_runner import DockerResult
 from lib.task_runner import Condition
 
 
@@ -275,89 +276,75 @@ class TestParseTestResults:
 
 class TestEvaluateInstance:
 
-    def _setup_results(self, ws: Path, pr_results: dict | None, repo_results: dict | None):
-        """Write test result files that the evaluator will parse."""
-        if pr_results is not None:
-            (ws / "pr_test_results.json").write_text(json.dumps(pr_results))
-        if repo_results is not None:
-            (ws / "test_results.json").write_text(json.dumps(repo_results))
+    def _mock_exec_fn(self, pr_results=None, repo_results=None):
+        """Build a side_effect for exec_in_container that returns test results."""
+        pr_json = json.dumps(pr_results) if pr_results is not None else ""
+        repo_json = json.dumps(repo_results) if repo_results is not None else ""
 
-    @patch("lib.agentbench_runner.run_in_docker")
-    def test_all_pass(self, mock_docker):
+        def _side_effect(name, command, **kwargs):
+            if command.startswith("rm -f"):
+                return DockerResult(exit_code=0, stdout="", stderr="")
+            if "pr_test_results.json" in command and command.startswith("cat"):
+                if pr_results is None:
+                    return DockerResult(exit_code=1, stdout="", stderr="No such file")
+                return DockerResult(exit_code=0, stdout=pr_json, stderr="")
+            if "test_results.json" in command and command.startswith("cat"):
+                if repo_results is None:
+                    return DockerResult(exit_code=1, stdout="", stderr="No such file")
+                return DockerResult(exit_code=0, stdout=repo_json, stderr="")
+            return DockerResult(exit_code=0, stdout="", stderr="")
+
+        return _side_effect
+
+    @patch("lib.agentbench_runner.exec_in_container")
+    def test_all_pass(self, mock_exec_ctr):
         inst = _make_instance(
             repo_test_after_pr_patch={"test_a": True, "test_b": True},
         )
-        mock_docker.return_value = MagicMock(exit_code=0)
+        mock_exec_ctr.side_effect = self._mock_exec_fn(
+            {"t1": True, "t2": True}, {"test_a": True, "test_b": True},
+        )
+        success, output = evaluate_instance("eval-abc123", inst)
+        assert success is True
+        assert "INSTANCE: 2/2 passed" in output
+        assert "REGRESSION: 2/2 passed" in output
 
-        with tempfile.TemporaryDirectory() as d:
-            ws = Path(d)
-            # Pre-write both result files (evaluator reads after Docker returns)
-            self._setup_results(ws, {"t1": True, "t2": True}, {"test_a": True, "test_b": True})
-
-            success, output = evaluate_instance(ws, inst, "test-image")
-            assert success is True
-            assert "INSTANCE: 2/2 passed" in output
-            assert "REGRESSION: 2/2 passed" in output
-
-    @patch("lib.agentbench_runner.run_in_docker")
-    def test_instance_test_fails(self, mock_docker):
+    @patch("lib.agentbench_runner.exec_in_container")
+    def test_instance_test_fails(self, mock_exec_ctr):
         inst = _make_instance()
-        mock_docker.return_value = MagicMock(exit_code=1)
+        mock_exec_ctr.side_effect = self._mock_exec_fn({"t1": True, "t2": False})
+        success, output = evaluate_instance("eval-abc123", inst)
+        assert success is False
+        assert "INSTANCE: 1/2 passed" in output
 
-        with tempfile.TemporaryDirectory() as d:
-            ws = Path(d)
-            self._setup_results(ws, {"t1": True, "t2": False}, None)
-
-            success, output = evaluate_instance(ws, inst, "test-image")
-            assert success is False
-            assert "INSTANCE: 1/2 passed" in output
-
-    @patch("lib.agentbench_runner.run_in_docker")
-    def test_missing_pr_results(self, mock_docker):
+    @patch("lib.agentbench_runner.exec_in_container")
+    def test_missing_pr_results(self, mock_exec_ctr):
         inst = _make_instance()
-        mock_docker.return_value = MagicMock(exit_code=1)
+        mock_exec_ctr.side_effect = self._mock_exec_fn()
+        success, output = evaluate_instance("eval-abc123", inst)
+        assert success is False
+        assert "missing or corrupt" in output
 
-        with tempfile.TemporaryDirectory() as d:
-            ws = Path(d)
-            # No result files written
-            success, output = evaluate_instance(ws, inst, "test-image")
-            assert success is False
-            assert "missing or corrupt" in output
-
-    @patch("lib.agentbench_runner.run_in_docker")
-    def test_empty_pr_results_not_treated_as_all_pass(self, mock_docker):
+    @patch("lib.agentbench_runner.exec_in_container")
+    def test_empty_pr_results_not_treated_as_all_pass(self, mock_exec_ctr):
         """Empty dict should not be treated as 'all tests passed'."""
         inst = _make_instance()
-        mock_docker.return_value = MagicMock(exit_code=0)
+        mock_exec_ctr.side_effect = self._mock_exec_fn({})
+        success, output = evaluate_instance("eval-abc123", inst)
+        assert success is False
+        assert "0/0" in output
 
-        with tempfile.TemporaryDirectory() as d:
-            ws = Path(d)
-            # Empty results dict — all({}.values()) is True, but should not count as pass
-            self._setup_results(ws, {}, None)
-
-            success, output = evaluate_instance(ws, inst, "test-image")
-            assert success is False
-            assert "0/0" in output
-
-    @patch("lib.agentbench_runner.run_in_docker")
-    def test_regression_flipped_tests(self, mock_docker):
+    @patch("lib.agentbench_runner.exec_in_container")
+    def test_regression_flipped_tests(self, mock_exec_ctr):
         inst = _make_instance(
             repo_test_after_pr_patch={"test_a": True, "test_b": True},
         )
-        mock_docker.return_value = MagicMock(exit_code=0)
-
-        with tempfile.TemporaryDirectory() as d:
-            ws = Path(d)
-            # Instance tests pass, but regression test_b flipped from True -> False
-            self._setup_results(
-                ws,
-                {"t1": True},
-                {"test_a": True, "test_b": False},
-            )
-
-            success, output = evaluate_instance(ws, inst, "test-image")
-            assert success is False
-            assert "regressions" in output
+        mock_exec_ctr.side_effect = self._mock_exec_fn(
+            {"t1": True}, {"test_a": True, "test_b": False},
+        )
+        success, output = evaluate_instance("eval-abc123", inst)
+        assert success is False
+        assert "regressions" in output
 
 
 # ── Runner: build_prompt ───────────────────────────────────────────────
