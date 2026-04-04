@@ -141,6 +141,9 @@ Agent makes mistake → PostToolUseFailure auto-creates skeleton
 # Detect which nodes need review after changes
 ./scripts/detect_changes.sh main HEAD
 
+# Explain which behaviors or contracts likely changed in those nodes
+./scripts/explain_semantic_diff.sh main HEAD
+
 # Generate pain point capture template
 ./scripts/capture_pain_points.sh pain_points.md
 
@@ -187,6 +190,18 @@ All scripts support:
 - Cross-platform compatibility (macOS + Linux)
 - Detailed error messages with remediation hints
 - Consistent exclusion of generated directories (node_modules, dist, etc.)
+
+### Diff Analysis Scripts
+
+Use the three diff-oriented scripts at different stages:
+
+| Script | Use it when | Output |
+|--------|-------------|--------|
+| `./scripts/detect_changes.sh` | You only need affected Intent Nodes and review order | Node list + file counts |
+| `./scripts/explain_semantic_diff.sh` | You want behavioral and contract-level meaning for a diff | Per-node semantic summary with review focus |
+| `./scripts/suggest_updates.sh` | You want candidate `AGENTS.md` edits from the diff | Suggested node updates |
+
+`explain_semantic_diff.sh` works offline with local heuristics and optionally uses Claude when `ANTHROPIC_API_KEY` is set for richer semantic summaries.
 
 ## When to Use
 
