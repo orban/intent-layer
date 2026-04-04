@@ -84,6 +84,7 @@ def _multi_run_passing():
         "median": {"wall_clock_seconds": 12, "input_tokens": 110,
                     "output_tokens": 55, "cost_usd": 0.01, "tool_calls": 6, "lines_changed": 3},
         "cost_breakdown": {"fix_only_usd": 0.01, "skill_generation_usd": 0.0, "total_usd": 0.01},
+        "cost_totals": {"fix_only_usd": 0.03, "skill_generation_usd": 0.0, "total_usd": 0.03},
     }
 
 
@@ -108,6 +109,7 @@ def _multi_run_failing():
         "median": {"wall_clock_seconds": 300, "input_tokens": 0,
                     "output_tokens": 0, "cost_usd": 0.0, "tool_calls": 0, "lines_changed": 0},
         "cost_breakdown": {"fix_only_usd": 0.0, "skill_generation_usd": 0.0, "total_usd": 0.0},
+        "cost_totals": {"fix_only_usd": 0.01, "skill_generation_usd": 0.02, "total_usd": 0.03},
     }
 
 
@@ -285,6 +287,9 @@ class TestRecomputeSummary:
         assert summary["intent_layer_success_rate"] == 0.67
         # flat_llm: 1 success out of 3 valid = 0.33
         assert summary["flat_llm_success_rate"] == 0.33
+        assert summary["cost_attribution"]["by_condition"]["none"]["total_usd"] == 0.03
+        assert summary["cost_attribution"]["by_condition"]["flat_llm"]["total_usd"] == 0.03
+        assert summary["cost_attribution"]["overall"]["total_usd"] == 0.09
 
     def test_infra_errors_counted(self):
         results = [{

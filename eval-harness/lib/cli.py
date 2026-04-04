@@ -228,12 +228,21 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
                 cond_stats[cond_key]["successes"] += successes
                 cond_stats[cond_key]["total"] += valid
                 cond_stats[cond_key]["assigned"] += total_runs
-                cost_breakdown = cond_data.get("cost_breakdown", {})
                 if valid:
-                    median_fix = cost_breakdown.get("fix_only_usd", 0.0)
-                    median_skill = cost_breakdown.get("skill_generation_usd", 0.0)
-                    cond_stats[cond_key]["fix_costs"].append(median_fix)
-                    cond_stats[cond_key]["skill_costs"].append(median_skill)
+                    cost_totals = cond_data.get("cost_totals")
+                    if cost_totals:
+                        cond_stats[cond_key]["fix_costs"].append(
+                            cost_totals.get("fix_only_usd", 0.0)
+                        )
+                        cond_stats[cond_key]["skill_costs"].append(
+                            cost_totals.get("skill_generation_usd", 0.0)
+                        )
+                    else:
+                        cost_breakdown = cond_data.get("cost_breakdown", {})
+                        median_fix = cost_breakdown.get("fix_only_usd", 0.0)
+                        median_skill = cost_breakdown.get("skill_generation_usd", 0.0)
+                        cond_stats[cond_key]["fix_costs"].append(median_fix)
+                        cond_stats[cond_key]["skill_costs"].append(median_skill)
             else:
                 cond_stats[cond_key]["assigned"] += 1
                 if _is_infra_error_dict(cond_data):
