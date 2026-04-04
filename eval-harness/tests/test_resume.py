@@ -35,7 +35,8 @@ def _make_prior(tasks: list[dict]) -> dict:
 def _passing_condition():
     return {"success": True, "test_output": "ok", "wall_clock_seconds": 10,
             "input_tokens": 100, "output_tokens": 50, "tool_calls": 5,
-            "lines_changed": 3, "files_touched": ["a.py"], "exit_code": 0}
+            "lines_changed": 3, "files_touched": ["a.py"], "exit_code": 0,
+            "cost_usd": 0.01, "cost_breakdown": {"fix_only_usd": 0.01, "skill_generation_usd": 0.0, "total_usd": 0.01}}
 
 
 def _failing_condition():
@@ -43,7 +44,8 @@ def _failing_condition():
             "input_tokens": 0, "output_tokens": 0, "tool_calls": 0,
             "lines_changed": 0, "files_touched": [],
             "error": "[timeout] Claude timed out after 300.0s",
-            "exit_code": -1, "is_timeout": True}
+            "exit_code": -1, "is_timeout": True,
+            "cost_usd": 0.0, "cost_breakdown": {"fix_only_usd": 0.0, "skill_generation_usd": 0.0, "total_usd": 0.0}}
 
 
 def _infra_error_condition():
@@ -51,14 +53,16 @@ def _infra_error_condition():
             "input_tokens": 0, "output_tokens": 0, "tool_calls": 0,
             "lines_changed": 0, "files_touched": [],
             "error": "[empty-run] Claude produced no output (exit_code=-1, 0.0s)",
-            "exit_code": -1}
+            "exit_code": -1,
+            "cost_usd": 0.0, "cost_breakdown": {"fix_only_usd": 0.0, "skill_generation_usd": 0.0, "total_usd": 0.0}}
 
 
 def _genuine_failure_condition():
     """A real test failure — not an infra error. Counts toward the denominator."""
     return {"success": False, "test_output": "FAILED 3 tests", "wall_clock_seconds": 45,
             "input_tokens": 500, "output_tokens": 200, "tool_calls": 12,
-            "lines_changed": 8, "files_touched": ["a.py"], "exit_code": 1}
+            "lines_changed": 8, "files_touched": ["a.py"], "exit_code": 1,
+            "cost_usd": 0.02, "cost_breakdown": {"fix_only_usd": 0.02, "skill_generation_usd": 0.0, "total_usd": 0.02}}
 
 
 def _multi_run_passing():
@@ -78,7 +82,8 @@ def _multi_run_passing():
              "lines_changed": 0, "files_touched": []},
         ],
         "median": {"wall_clock_seconds": 12, "input_tokens": 110,
-                    "output_tokens": 55, "tool_calls": 6, "lines_changed": 3},
+                    "output_tokens": 55, "cost_usd": 0.01, "tool_calls": 6, "lines_changed": 3},
+        "cost_breakdown": {"fix_only_usd": 0.01, "skill_generation_usd": 0.0, "total_usd": 0.01},
     }
 
 
@@ -101,7 +106,8 @@ def _multi_run_failing():
              "error": "[timeout] Claude timed out after 300.0s"},
         ],
         "median": {"wall_clock_seconds": 300, "input_tokens": 0,
-                    "output_tokens": 0, "tool_calls": 0, "lines_changed": 0},
+                    "output_tokens": 0, "cost_usd": 0.0, "tool_calls": 0, "lines_changed": 0},
+        "cost_breakdown": {"fix_only_usd": 0.0, "skill_generation_usd": 0.0, "total_usd": 0.0},
     }
 
 
@@ -262,6 +268,8 @@ class TestRecomputeSummary:
         assert summary["none_itt_rate"] == 1.0
         assert summary["flat_llm_itt_rate"] == 0  # 0 successes / 1 assigned
         assert summary["intent_layer_itt_rate"] == 1.0
+        assert summary["cost_attribution"]["by_condition"]["none"]["total_usd"] == 0.01
+        assert summary["cost_attribution"]["overall"]["total_usd"] == 0.02
 
     def test_multi_run_summary(self):
         results = [{

@@ -295,13 +295,13 @@ The fix should make the existing tests pass. Do not modify the test files."""
 
 # -- Context generation helpers (used by run_single Step 3) --
 
-# Type alias: (workspace, instance, workspaces_dir, model) -> (input_tokens, output_tokens)
-_GenerateFn = Callable[[Path, AgentbenchInstance, Path, str], tuple[int, int]]
+# Type alias: (workspace, instance, workspaces_dir, model) -> (input_tokens, output_tokens, cost_usd)
+_GenerateFn = Callable[[Path, AgentbenchInstance, Path, str], tuple[int, int, float]]
 
 
 def _generate_flat_context(
     workspace: Path, instance: AgentbenchInstance, workspaces_dir: Path, model: str,
-) -> tuple[int, int]:
+) -> tuple[int, int, float]:
     """Generate flat CLAUDE.md via Claude, dual-write to AGENTS.md."""
     from lib.prompt_builder import build_flat_generation_prompt
     log_dir = workspaces_dir.parent / "logs"
@@ -316,19 +316,19 @@ def _generate_flat_context(
     agents_md = workspace / "AGENTS.md"
     if claude_md.exists() and not agents_md.exists():
         shutil.copy2(claude_md, agents_md)
-    return result.input_tokens, result.output_tokens
+    return result.input_tokens, result.output_tokens, result.cost_usd
 
 
 def _generate_il_context(
     workspace: Path, plugin_root: str, model: str,
-) -> tuple[int, int]:
+) -> tuple[int, int, float]:
     """Generate intent-layer context via the skill prompt."""
     from lib.prompt_builder import build_skill_generation_prompt
     result = run_claude(
         str(workspace), build_skill_generation_prompt(plugin_root),
         timeout=600, model=model,
     )
-    return result.input_tokens, result.output_tokens
+    return result.input_tokens, result.output_tokens, result.cost_usd
 
 
 def _inject_cached_context(
@@ -344,6 +344,7 @@ def _inject_cached_context(
     gen_start = time.time()
     gen_input_tokens = 0
     gen_output_tokens = 0
+    gen_cost_usd = 0.0
     cache_hit = False
 
     if index_cache:
@@ -354,7 +355,7 @@ def _inject_cached_context(
             cache_hit = True
 
     if not cache_hit:
-        gen_input_tokens, gen_output_tokens = generate_fn(
+        gen_input_tokens, gen_output_tokens, gen_cost_usd = generate_fn(
             workspace, instance, workspaces_dir, model,
         )
 
@@ -362,6 +363,7 @@ def _inject_cached_context(
         wall_clock_seconds=time.time() - gen_start,
         input_tokens=gen_input_tokens,
         output_tokens=gen_output_tokens,
+        cost_usd=gen_cost_usd,
         cache_hit=cache_hit,
     )
 
@@ -464,6 +466,7 @@ def run_single(
             test_output="", wall_clock_seconds=time.time() - start,
             input_tokens=kwargs.get("input_tokens", 0),
             output_tokens=kwargs.get("output_tokens", 0),
+            cost_usd=kwargs.get("cost_usd", 0.0),
             tool_calls=kwargs.get("tool_calls", 0),
             lines_changed=0, files_touched=[], rep=rep,
             error=error,
@@ -511,6 +514,7 @@ def run_single(
             wall_clock_seconds=time.time() - human_start,
             input_tokens=0,
             output_tokens=0,
+            cost_usd=0.0,
             cache_hit=False,
             files_created=files,
         )
@@ -629,6 +633,7 @@ def run_single(
                 skill_generation=skill_metrics,
                 input_tokens=claude_result.input_tokens,
                 output_tokens=claude_result.output_tokens,
+                cost_usd=claude_result.cost_usd,
                 tool_calls=claude_result.tool_calls,
                 exit_code=claude_result.exit_code,
                 is_timeout=True,
@@ -640,6 +645,7 @@ def run_single(
                 skill_generation=skill_metrics,
                 input_tokens=claude_result.input_tokens,
                 output_tokens=claude_result.output_tokens,
+                cost_usd=claude_result.cost_usd,
                 exit_code=claude_result.exit_code,
             )
 
@@ -665,6 +671,7 @@ def run_single(
         wall_clock_seconds=elapsed,
         input_tokens=claude_result.input_tokens,
         output_tokens=claude_result.output_tokens,
+        cost_usd=claude_result.cost_usd,
         tool_calls=claude_result.tool_calls,
         lines_changed=diff.lines_changed,
         files_touched=diff.files,
