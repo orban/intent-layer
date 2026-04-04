@@ -9,24 +9,49 @@ from __future__ import annotations
 
 import os
 import subprocess
-import tempfile
+import sys
+import types
 from pathlib import Path
 from unittest import mock
 
 import pytest
 
-# We need to set INTENT_LAYER_ALLOWED_PROJECTS before importing the server
-# module so that tool calls don't fail during import. We'll override per-test.
-
-# Ensure the import can find the plugin root by patching _find_plugin_root
-# if needed. In practice the repo checkout already has .claude-plugin/.
-
-import sys
-
-# Add the mcp/ directory so we can import server
+# Add the mcp/ directory so we can import server.
 MCP_DIR = str(Path(__file__).resolve().parent.parent / "mcp")
 if MCP_DIR not in sys.path:
     sys.path.insert(0, MCP_DIR)
+
+# The contract tests validate our wrapper logic, not the third-party SDK.
+# Stub FastMCP so these tests run even when `pip install -r mcp/requirements.txt`
+# has not been performed yet.
+if "mcp.server.fastmcp" not in sys.modules:
+    mcp_module = types.ModuleType("mcp")
+    server_module = types.ModuleType("mcp.server")
+    fastmcp_module = types.ModuleType("mcp.server.fastmcp")
+
+    class _FakeFastMCP:
+        def __init__(self, name: str):
+            self.name = name
+
+        def tool(self):
+            def decorator(func):
+                return func
+
+            return decorator
+
+        def resource(self, _uri: str):
+            def decorator(func):
+                return func
+
+            return decorator
+
+        def run(self):
+            return None
+
+    fastmcp_module.FastMCP = _FakeFastMCP
+    sys.modules["mcp"] = mcp_module
+    sys.modules["mcp.server"] = server_module
+    sys.modules["mcp.server.fastmcp"] = fastmcp_module
 
 from server import (
     _find_plugin_root,
@@ -146,11 +171,13 @@ class TestReadIntent:
         )
         result = read_intent(tmp_project, "src/api/")
         assert "Context output" in result
-        # Verify the script was called with canonical paths
-        call_args = mock_run.call_args
-        cmd = call_args[0][0]
+        cmd = mock_run.call_args[0][0]
         assert cmd[0].endswith("resolve_context.sh")
-        assert os.path.realpath(tmp_project) in cmd[1]
+        assert cmd[1] == os.path.realpath(tmp_project)
+        assert cmd[2] == os.path.realpath(os.path.join(tmp_project, "src", "api"))
+        assert mock_run.call_args.kwargs["timeout"] == SUBPROCESS_TIMEOUT
+        assert mock_run.call_args.kwargs["text"] is True
+        assert mock_run.call_args.kwargs["capture_output"] is True
 
     @mock.patch("server.subprocess.run")
     def test_with_sections_filter(self, mock_run, tmp_project: str):
@@ -162,6 +189,16 @@ class TestReadIntent:
         assert "--sections" in cmd
         idx = cmd.index("--sections")
         assert cmd[idx + 1] == "Contracts,Pitfalls"
+
+    @mock.patch("server.subprocess.run")
+    def test_absolute_target_is_canonicalized(self, mock_run, tmp_project: str):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="ok\n", stderr=""
+        )
+        target = os.path.join(tmp_project, "src", "..", "src", "app.py")
+        read_intent(tmp_project, target)
+        cmd = mock_run.call_args[0][0]
+        assert cmd[2] == os.path.realpath(os.path.join(tmp_project, "src", "app.py"))
 
     @mock.patch("server.subprocess.run")
     def test_no_coverage_returns_message(self, mock_run, tmp_project: str):
@@ -220,6 +257,10 @@ class TestReportLearning:
         assert "successfully" in result
         cmd = mock_run.call_args[0][0]
         assert cmd[0].endswith("report_learning.sh")
+        assert cmd[cmd.index("--project") + 1] == os.path.realpath(tmp_project)
+        assert cmd[cmd.index("--path") + 1] == os.path.realpath(
+            os.path.join(tmp_project, "src", "api")
+        )
         assert "--type" in cmd
         assert "pitfall" in cmd
 
@@ -240,6 +281,23 @@ class TestReportLearning:
         assert "--agent-id" in cmd
         idx = cmd.index("--agent-id")
         assert cmd[idx + 1] == "worker-7"
+
+    @mock.patch("server.subprocess.run")
+    def test_absolute_path_is_canonicalized(self, mock_run, tmp_project: str):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="ok", stderr=""
+        )
+        report_learning(
+            project_root=tmp_project,
+            path=os.path.join(tmp_project, "src", "..", "src", "api"),
+            type="check",
+            title="t",
+            detail="d",
+        )
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--path") + 1] == os.path.realpath(
+            os.path.join(tmp_project, "src", "api")
+        )
 
     @mock.patch("server.subprocess.run")
     def test_script_failure_raises(self, mock_run, tmp_project: str):
@@ -317,6 +375,15 @@ class TestIntentResource:
     def test_unknown_project_rejected(self, tmp_project: str):
         with pytest.raises(ValueError, match="not found in allowed"):
             read_intent_resource("nonexistent-project", "CLAUDE.md")
+
+    def test_url_encoded_project_path_is_accepted(self, tmp_project: str):
+        content = read_intent_resource(tmp_project.replace("/", "%2F"), "CLAUDE.md")
+        assert "# Root" in content
+
+    def test_url_encoded_path_is_accepted(self, tmp_project: str):
+        project_name = os.path.basename(tmp_project)
+        content = read_intent_resource(project_name, "src%2FAGENTS.md")
+        assert "# Src agents" in content
 
     def test_traversal_rejected(self, tmp_project: str):
         project_name = os.path.basename(tmp_project)

@@ -216,7 +216,12 @@ Python MCP server (`mcp/server.py`) wrapping existing bash scripts via `FastMCP`
 - `report_learning(project_root, path, type, title, detail, agent_id?)` — queue a learning report
 - `intent://{project}/{path}` resource — individual AGENTS.md/CLAUDE.md files
 
-Requires `INTENT_LAYER_ALLOWED_PROJECTS` env var (colon-separated paths). All paths canonicalized with `os.path.realpath()` and validated for containment before use.
+Verified contract:
+
+- `INTENT_LAYER_ALLOWED_PROJECTS` is required and must contain a colon-separated allowlist of project roots.
+- `read_intent` accepts absolute or project-relative `target_path`, canonicalizes it with `os.path.realpath()`, rejects traversal outside the allowed project, returns script stdout on exit `0`, returns `No Intent Layer coverage for this path.` on exit `2`, raises `ValueError` on other non-zero exits, and raises `RuntimeError` on timeout.
+- `report_learning` canonicalizes `path`, rejects traversal outside the allowed project, passes `CLAUDE_PLUGIN_ROOT` to `report_learning.sh`, returns a success message on exit `0`, raises `ValueError` on non-zero exits, and raises `RuntimeError` on timeout.
+- `intent://{project}/{path}` serves only files named `AGENTS.md` or `CLAUDE.md` inside allowlisted projects. `project` may be either the allowlisted project basename or a URL-encoded full project path. Resource paths are URL-decoded, canonicalized, and rejected if they escape the project root.
 
 ### Tool Adapter
 

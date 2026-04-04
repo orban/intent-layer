@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from urllib.parse import unquote
 
 from mcp.server.fastmcp import FastMCP
 
@@ -234,6 +235,9 @@ def read_intent_resource(project: str, path: str) -> str:
     URI format: intent://<project_alias_or_path>/<relative_path>
     Only serves files named AGENTS.md or CLAUDE.md.
     """
+    decoded_project = unquote(project)
+    decoded_path = unquote(path)
+
     # project may be URL-encoded or an alias; try to match against allowed
     # projects by basename or full path
     allowed = _get_allowed_projects()
@@ -241,22 +245,22 @@ def read_intent_resource(project: str, path: str) -> str:
     canonical_root = None
     matches = [
         c for c in allowed
-        if os.path.basename(c) == project or c == project
+        if os.path.basename(c) == decoded_project or c == decoded_project
     ]
     if len(matches) > 1:
         # Ambiguous basename — use exact match or first match
-        exact = [c for c in matches if c == project]
+        exact = [c for c in matches if c == decoded_project]
         canonical_root = exact[0] if exact else matches[0]
     elif matches:
         canonical_root = matches[0]
 
     if canonical_root is None:
         raise ValueError(
-            f"Project {project!r} not found in allowed projects. "
+            f"Project {decoded_project!r} not found in allowed projects. "
             f"Known projects: {[os.path.basename(p) for p in allowed]}"
         )
 
-    target = os.path.join(canonical_root, path)
+    target = os.path.join(canonical_root, decoded_path)
     canonical_target = _validate_path_within_project(canonical_root, target)
 
     if not _is_intent_file(canonical_target):
@@ -266,7 +270,7 @@ def read_intent_resource(project: str, path: str) -> str:
         )
 
     if not os.path.isfile(canonical_target):
-        raise ValueError(f"File not found: {path}")
+        raise ValueError(f"File not found: {decoded_path}")
 
     with open(canonical_target) as f:
         return f.read()
