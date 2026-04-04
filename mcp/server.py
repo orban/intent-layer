@@ -11,10 +11,13 @@ Every path is canonicalized with os.path.realpath() before use.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.resources.templates import ResourceTemplate
 
 mcp = FastMCP("intent-layer")
 
@@ -35,6 +38,7 @@ def _find_plugin_root() -> str:
 PLUGIN_ROOT = _find_plugin_root()
 
 SUBPROCESS_TIMEOUT = 30  # seconds
+INTENT_RESOURCE_URI_TEMPLATE = "intent://{project}/{path}"
 
 # ---------------------------------------------------------------------------
 # Security helpers
@@ -94,6 +98,27 @@ def _is_intent_file(path: str) -> bool:
     """Return True if path's basename is AGENTS.md or CLAUDE.md."""
     basename = os.path.basename(path)
     return basename in ("AGENTS.md", "CLAUDE.md")
+
+
+class NestedPathResourceTemplate(ResourceTemplate):
+    """Resource template that allows the final URI parameter to include slashes."""
+
+    def matches(self, uri: str) -> dict[str, Any] | None:
+        parts: list[str] = []
+        last_end = 0
+        params = list(re.finditer(r"{(\w+)}", self.uri_template))
+        for index, match in enumerate(params):
+            parts.append(re.escape(self.uri_template[last_end:match.start()]))
+            name = match.group(1)
+            token = ".+" if index == len(params) - 1 else "[^/]+"
+            parts.append(f"(?P<{name}>{token})")
+            last_end = match.end()
+        parts.append(re.escape(self.uri_template[last_end:]))
+
+        result = re.match(f"^{''.join(parts)}$", uri)
+        if result:
+            return result.groupdict()
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +252,6 @@ def report_learning(
 # ---------------------------------------------------------------------------
 
 
-@mcp.resource("intent://{project}/{path}")
 def read_intent_resource(project: str, path: str) -> str:
     """Read an individual AGENTS.md or CLAUDE.md file.
 
@@ -270,6 +294,18 @@ def read_intent_resource(project: str, path: str) -> str:
 
     with open(canonical_target) as f:
         return f.read()
+
+
+def _register_intent_resource() -> None:
+    template = NestedPathResourceTemplate.from_function(
+        read_intent_resource,
+        uri_template=INTENT_RESOURCE_URI_TEMPLATE,
+        description=read_intent_resource.__doc__,
+    )
+    mcp._resource_manager._templates[template.uri_template] = template
+
+
+_register_intent_resource()
 
 
 # ---------------------------------------------------------------------------

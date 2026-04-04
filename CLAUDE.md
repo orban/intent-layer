@@ -214,9 +214,9 @@ Python MCP server (`mcp/server.py`) wrapping existing bash scripts via `FastMCP`
 
 - `read_intent(project_root, target_path, sections?)` — merged ancestor context
 - `report_learning(project_root, path, type, title, detail, agent_id?)` — queue a learning report
-- `intent://{project}/{path}` resource — individual AGENTS.md/CLAUDE.md files
+- `intent://{project}/{path}` resource — individual AGENTS.md/CLAUDE.md files, including nested paths such as `intent://my-project/src/AGENTS.md`
 
-Requires `INTENT_LAYER_ALLOWED_PROJECTS` env var (colon-separated paths). All paths canonicalized with `os.path.realpath()` and validated for containment before use.
+Requires `INTENT_LAYER_ALLOWED_PROJECTS` env var (colon-separated absolute project roots). All paths are canonicalized with `os.path.realpath()` and validated for containment before use. `read_intent` maps `resolve_context.sh` exit `2` to `No Intent Layer coverage for this path.`; subprocess timeouts raise errors. `report_learning` passes canonical paths through to `report_learning.sh` and raises on non-zero exit codes. For local verification, install the MCP SDK with `python -m pip install -r mcp/requirements.txt` before running `pytest -q tests/test_mcp_server.py`.
 
 ### Tool Adapter
 
