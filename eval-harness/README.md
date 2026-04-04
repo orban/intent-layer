@@ -99,6 +99,7 @@ Results separate fix-only metrics from skill generation (indexing) metrics:
 - Success rate (test passes)
 - Wall clock time
 - Input/output tokens
+- Estimated Claude-reported USD cost for the fix pass
 - Tool calls
 - Lines changed
 - Files touched
@@ -106,7 +107,16 @@ Results separate fix-only metrics from skill generation (indexing) metrics:
 **Skill generation metrics** (reported separately):
 - Wall clock time (indexing)
 - Input/output tokens (indexing)
+- Estimated Claude-reported USD cost for context generation
 - Cache hit/miss status
 - Files created
 
-**Delta calculations**: Compare `with_skill` fix metrics vs `without_skill` metrics. Skill generation costs are visible in reports but excluded from performance deltas. This ensures the comparison shows whether the Intent Layer helps with fixing bugs, independent of the one-time indexing overhead.
+**Estimated cost attribution**: Reports now carry Claude's reported `total_cost_usd` end-to-end and attribute it by harness component:
+
+- `fix_only`: the Claude edit/fix pass for the task
+- `skill_generation`: the context-generation pass for `flat_llm` or `intent_layer`
+- `total`: the sum of those two estimates
+
+This is an estimate derived from Claude's own run-level USD cost reporting. It is not a per-tool or per-model pricing engine, and it currently splits cost only across harness execution components (`fix` vs `skill_generation`).
+
+**Delta calculations**: Compare `with_skill` fix metrics vs `without_skill` metrics. Skill generation costs are visible in reports, but deltas still use fix-only metrics so the comparison stays focused on whether the added context improves bug-fixing rather than on the one-time indexing overhead.

@@ -14,6 +14,7 @@ from lib.agentbench_runner import (
     _parse_test_results,
     evaluate_instance,
     build_prompt,
+    run_single,
 )
 from lib.docker_runner import DockerResult
 from lib.task_runner import Condition
@@ -376,3 +377,66 @@ class TestBuildPrompt:
     def test_prompt_includes_test_instruction(self):
         prompt = build_prompt("Fix X.", Condition.NONE)
         assert "Do not modify the test files" in prompt
+
+
+def test_run_single_propagates_costs(monkeypatch, tmp_path):
+    instance = _make_instance()
+
+    def fake_clone_repo(_url, workspace, **_kwargs):
+        Path(workspace).mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr("lib.agentbench_runner.clone_repo", fake_clone_repo)
+    monkeypatch.setattr("lib.agentbench_runner.checkout_commit", lambda *args, **kwargs: None)
+    monkeypatch.setattr("lib.agentbench_runner.strip_docs", lambda workspace: 0)
+    monkeypatch.setattr("lib.agentbench_runner.write_test_infrastructure", lambda workspace, inst: None)
+    monkeypatch.setattr("lib.agentbench_runner.create_baseline_commit", lambda workspace: None)
+    monkeypatch.setattr("lib.agentbench_runner.copy_into_container", lambda *args, **kwargs: None)
+    monkeypatch.setattr("lib.agentbench_runner.evaluate_instance", lambda *args, **kwargs: (True, "ok"))
+    monkeypatch.setattr("lib.agentbench_runner._copy_diffs_into_container", lambda *args, **kwargs: ["a.py"])
+    monkeypatch.setattr(
+        "lib.agentbench_runner.get_diff_stats",
+        lambda workspace: type("DiffStats", (), {"lines_changed": 3, "files": ["a.py"]})(),
+    )
+    monkeypatch.setattr(
+        "lib.agentbench_runner.exec_in_container",
+        lambda *args, **kwargs: DockerResult(exit_code=0, stdout="{}", stderr=""),
+    )
+
+    class _Container:
+        def __enter__(self):
+            return "ctr"
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("lib.agentbench_runner.persistent_container", lambda *args, **kwargs: _Container())
+    monkeypatch.setattr(
+        "lib.agentbench_runner.run_claude",
+        lambda *args, **kwargs: type(
+            "ClaudeResult",
+            (),
+            {
+                "exit_code": 0,
+                "wall_clock_seconds": 12.0,
+                "input_tokens": 1000,
+                "output_tokens": 500,
+                "tool_calls": 4,
+                "stdout": "{}",
+                "stderr": "",
+                "timed_out": False,
+                "cost_usd": 0.09,
+            },
+        )(),
+    )
+
+    result = run_single(
+        instance=instance,
+        condition=Condition.NONE,
+        rep=0,
+        workspaces_dir=tmp_path,
+        reference_clones={},
+        index_cache=None,
+    )
+
+    assert result.success is True
+    assert result.cost_usd == 0.09
