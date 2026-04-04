@@ -1167,6 +1167,141 @@ def test_skill_generation_failure_retains_generation_cost(sample_repo, monkeypat
     assert result.skill_generation.cost_usd == 0.04
 
 
+def test_timeout_retains_skill_generation_cost(sample_repo, monkeypatch):
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        return type("ClaudeResult", (), {
+            "exit_code": -1,
+            "wall_clock_seconds": 30.0,
+            "input_tokens": 700,
+            "output_tokens": 80,
+            "tool_calls": 4,
+            "stdout": "",
+            "stderr": "",
+            "timed_out": True,
+            "cost_usd": 0.05,
+            "num_turns": 2,
+        })()
+
+    def fake_check_or_generate_index(self, workspace, repo_url, commit,
+                                      condition="", model=None, timeout=600,
+                                      repo_level=False):
+        workspace_path = Path(workspace)
+        (workspace_path / "CLAUDE.md").write_text("# intent context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=2.0,
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.04,
+            cache_hit=False,
+            files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr(TaskRunner, "_check_or_generate_index", fake_check_or_generate_index)
+    monkeypatch.setattr(TaskRunner, "_pre_validate", lambda *args, **kwargs: None)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-timeout-cost",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        result = runner.run(task, Condition.INTENT_LAYER)
+
+    assert result.error is not None
+    assert result.error.startswith("[timeout]")
+    assert result.cost_usd == 0.05
+    assert result.skill_generation is not None
+    assert result.skill_generation.cost_usd == 0.04
+
+
+def test_empty_run_retains_skill_generation_cost(sample_repo, monkeypatch):
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        return type("ClaudeResult", (), {
+            "exit_code": 1,
+            "wall_clock_seconds": 3.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "stdout": "",
+            "stderr": "cli failed",
+            "timed_out": False,
+            "cost_usd": 0.0,
+            "num_turns": 0,
+        })()
+
+    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None):
+        workspace_path = Path(workspace)
+        (workspace_path / "CLAUDE.md").write_text("# flat context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=1.0,
+            input_tokens=10,
+            output_tokens=5,
+            cost_usd=0.02,
+            cache_hit=False,
+            files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr(TaskRunner, "_generate_flat_context", fake_generate_flat_context)
+    monkeypatch.setattr(TaskRunner, "_pre_validate", lambda *args, **kwargs: None)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-empty-cost",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        result = runner.run(task, Condition.FLAT_LLM)
+
+    assert result.error is not None
+    assert result.error.startswith("[empty-run]")
+    assert result.skill_generation is not None
+    assert result.skill_generation.cost_usd == 0.02
+
+
 def test_no_plugin_hooks_for_flat_llm(sample_repo, monkeypatch):
     """flat_llm condition does NOT install plugin hooks or set CLAUDE_PLUGIN_ROOT."""
     captured_calls = []

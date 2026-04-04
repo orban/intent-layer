@@ -829,6 +829,7 @@ class TaskRunner:
                     lines_changed=0,
                     files_touched=[],
                     rep=rep,
+                    skill_generation=skill_metrics,
                     error=(
                         f"[empty-run] Claude produced no output "
                         f"(exit_code={claude_result.exit_code}, "
@@ -853,6 +854,7 @@ class TaskRunner:
                     lines_changed=0,
                     files_touched=[],
                     rep=rep,
+                    skill_generation=skill_metrics,
                     error=(
                         f"[timeout] Claude timed out after "
                         f"{claude_result.wall_clock_seconds:.1f}s"
