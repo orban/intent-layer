@@ -207,11 +207,20 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
             "assigned": 0,
             "fix_costs": [],
             "skill_costs": [],
+            "total_fix_cost": 0.0,
+            "total_skill_cost": 0.0,
         }
         for c in conditions_present
     }
     infra_errors = 0
     has_multi_run = False
+
+    def cost_breakdown(data: dict) -> tuple[float, float]:
+        breakdown = data.get("cost_breakdown", {})
+        return (
+            breakdown.get("fix_only_usd", data.get("cost_usd", 0.0)),
+            breakdown.get("skill_generation_usd", 0.0),
+        )
 
     for task in merged_results:
         for cond_key in conditions_present:
@@ -231,18 +240,31 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
                 if valid:
                     cost_totals = cond_data.get("cost_totals")
                     if cost_totals:
-                        cond_stats[cond_key]["fix_costs"].append(
-                            cost_totals.get("fix_only_usd", 0.0)
+                        cond_stats[cond_key]["total_fix_cost"] += cost_totals.get(
+                            "fix_only_usd", 0.0
                         )
-                        cond_stats[cond_key]["skill_costs"].append(
-                            cost_totals.get("skill_generation_usd", 0.0)
+                        cond_stats[cond_key]["total_skill_cost"] += cost_totals.get(
+                            "skill_generation_usd", 0.0
                         )
                     else:
-                        cost_breakdown = cond_data.get("cost_breakdown", {})
-                        median_fix = cost_breakdown.get("fix_only_usd", 0.0)
-                        median_skill = cost_breakdown.get("skill_generation_usd", 0.0)
-                        cond_stats[cond_key]["fix_costs"].append(median_fix)
-                        cond_stats[cond_key]["skill_costs"].append(median_skill)
+                        valid_runs = [
+                            run for run in cond_data["runs"] if not _is_infra_error_dict(run)
+                        ]
+                        cond_stats[cond_key]["total_fix_cost"] += sum(
+                            cost_breakdown(run)[0] for run in valid_runs
+                        )
+                        cond_stats[cond_key]["total_skill_cost"] += sum(
+                            cost_breakdown(run)[1] for run in valid_runs
+                        )
+                    valid_runs = [
+                        run for run in cond_data["runs"] if not _is_infra_error_dict(run)
+                    ]
+                    cond_stats[cond_key]["fix_costs"].extend(
+                        cost_breakdown(run)[0] for run in valid_runs
+                    )
+                    cond_stats[cond_key]["skill_costs"].extend(
+                        cost_breakdown(run)[1] for run in valid_runs
+                    )
             else:
                 cond_stats[cond_key]["assigned"] += 1
                 if _is_infra_error_dict(cond_data):
@@ -251,13 +273,11 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
                     cond_stats[cond_key]["total"] += 1
                     if cond_data.get("success") is True:
                         cond_stats[cond_key]["successes"] += 1
-                    cost_breakdown = cond_data.get("cost_breakdown", {})
-                    cond_stats[cond_key]["fix_costs"].append(
-                        cost_breakdown.get("fix_only_usd", cond_data.get("cost_usd", 0.0))
-                    )
-                    cond_stats[cond_key]["skill_costs"].append(
-                        cost_breakdown.get("skill_generation_usd", 0.0)
-                    )
+                    fix_cost, skill_cost = cost_breakdown(cond_data)
+                    cond_stats[cond_key]["fix_costs"].append(fix_cost)
+                    cond_stats[cond_key]["skill_costs"].append(skill_cost)
+                    cond_stats[cond_key]["total_fix_cost"] += fix_cost
+                    cond_stats[cond_key]["total_skill_cost"] += skill_cost
 
     def rate(stats):
         if stats["total"] == 0:
@@ -286,8 +306,8 @@ def _recompute_summary(merged_results: list[dict]) -> dict:
         summary[f"{label}_success_rate"] = rate(cond_stats[label])
         summary[f"{label}_itt_rate"] = itt_rate(cond_stats[label])
         summary[f"{label}_median_cost_usd"] = median_cost(cond_stats[label]["fix_costs"])
-        total_fix = round(sum(cond_stats[label]["fix_costs"]), 6)
-        total_skill = round(sum(cond_stats[label]["skill_costs"]), 6)
+        total_fix = round(cond_stats[label]["total_fix_cost"], 6)
+        total_skill = round(cond_stats[label]["total_skill_cost"], 6)
         summary["cost_attribution"]["by_condition"][label] = {
             "median_fix_only_usd": median_cost(cond_stats[label]["fix_costs"]),
             "median_skill_generation_usd": median_cost(cond_stats[label]["skill_costs"]),

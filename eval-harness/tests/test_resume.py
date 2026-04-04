@@ -291,6 +291,52 @@ class TestRecomputeSummary:
         assert summary["cost_attribution"]["by_condition"]["flat_llm"]["total_usd"] == 0.03
         assert summary["cost_attribution"]["overall"]["total_usd"] == 0.09
 
+    def test_multi_run_cost_medians_use_per_run_costs(self):
+        results = [
+            {
+                "task_id": "task-1",
+                "none": {
+                    "success_rate": 1.0,
+                    "success": True,
+                    "successes": 3,
+                    "total_valid_runs": 3,
+                    "runs": [
+                        {"success": True, "cost_breakdown": {"fix_only_usd": 1.0, "skill_generation_usd": 0.0, "total_usd": 1.0}},
+                        {"success": True, "cost_breakdown": {"fix_only_usd": 2.0, "skill_generation_usd": 0.0, "total_usd": 2.0}},
+                        {"success": True, "cost_breakdown": {"fix_only_usd": 3.0, "skill_generation_usd": 0.0, "total_usd": 3.0}},
+                    ],
+                    "median": {"wall_clock_seconds": 1, "input_tokens": 1, "output_tokens": 1, "cost_usd": 2.0, "tool_calls": 1, "lines_changed": 1},
+                    "cost_breakdown": {"fix_only_usd": 2.0, "skill_generation_usd": 0.0, "total_usd": 2.0},
+                    "cost_totals": {"fix_only_usd": 6.0, "skill_generation_usd": 0.0, "total_usd": 6.0},
+                },
+            },
+            {
+                "task_id": "task-2",
+                "none": {
+                    "success_rate": 1.0,
+                    "success": True,
+                    "successes": 3,
+                    "total_valid_runs": 3,
+                    "runs": [
+                        {"success": True, "cost_breakdown": {"fix_only_usd": 10.0, "skill_generation_usd": 0.0, "total_usd": 10.0}},
+                        {"success": True, "cost_breakdown": {"fix_only_usd": 11.0, "skill_generation_usd": 0.0, "total_usd": 11.0}},
+                        {"success": True, "cost_breakdown": {"fix_only_usd": 12.0, "skill_generation_usd": 0.0, "total_usd": 12.0}},
+                    ],
+                    "median": {"wall_clock_seconds": 1, "input_tokens": 1, "output_tokens": 1, "cost_usd": 11.0, "tool_calls": 1, "lines_changed": 1},
+                    "cost_breakdown": {"fix_only_usd": 11.0, "skill_generation_usd": 0.0, "total_usd": 11.0},
+                    "cost_totals": {"fix_only_usd": 33.0, "skill_generation_usd": 0.0, "total_usd": 33.0},
+                },
+            },
+        ]
+
+        summary = _recompute_summary(results)
+
+        assert summary["none_median_cost_usd"] == 6.5
+        assert summary["cost_attribution"]["by_condition"]["none"]["median_fix_only_usd"] == 6.5
+        assert summary["cost_attribution"]["by_condition"]["none"]["median_total_usd"] == 6.5
+        assert summary["cost_attribution"]["by_condition"]["none"]["total_fix_only_usd"] == 39.0
+        assert summary["cost_attribution"]["overall"]["total_usd"] == 39.0
+
     def test_infra_errors_counted(self):
         results = [{
             "task_id": "task-1",
