@@ -607,6 +607,34 @@ def test_build_run_log_path_is_unique_per_rep(sample_repo):
         assert "intent_layer-r0-fix.log" in str(p2)
 
 
+def test_append_log_marker_writes_metadata(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        log_path = Path(tmpdir) / "logs" / "phase.log"
+
+        runner._append_log_marker(log_path, "start", "phase begins", task="t1", rep=2)
+
+        contents = log_path.read_text()
+        assert "start: phase begins" in contents
+        assert "task=t1" in contents
+        assert "rep=2" in contents
+
+
+def test_build_error_message_includes_log_path(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        message = runner._build_error_message(
+            "[timeout]",
+            "Claude timed out after 30.0s",
+            Path("/tmp/example.log"),
+            detail="exit_code=124",
+        )
+
+        assert message.startswith("[timeout] Claude timed out after 30.0s")
+        assert "exit_code=124" in message
+        assert "log=/tmp/example.log" in message
+
+
 def test_warm_cache_none_condition_returns_none(sample_repo):
     """warm_cache for the NONE condition is a no-op (nothing to generate)."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -923,7 +951,7 @@ def test_plugin_hooks_env_for_intent_layer(sample_repo, monkeypatch):
 
     def fake_check_or_generate_index(self, workspace, repo_url, commit,
                                       condition="", model=None, timeout=600,
-                                      repo_level=False):
+                                      repo_level=False, stderr_log=None):
         import pathlib
         (pathlib.Path(workspace) / "CLAUDE.md").write_text("# context")
         return SkillGenerationMetrics(
@@ -1081,7 +1109,7 @@ def test_no_plugin_hooks_for_flat_llm(sample_repo, monkeypatch):
             "files": ["src/main.py"],
         })()
 
-    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None):
+    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None, stderr_log=None):
         # Create a CLAUDE.md so _find_agents_files has something
         import pathlib
         workspace_path = pathlib.Path(workspace)
@@ -1142,7 +1170,7 @@ def test_intent_layer_writes_hooks_to_workspace(sample_repo, monkeypatch):
 
     def fake_check_or_generate_index(self, workspace, repo_url, commit,
                                       condition="", model=None, timeout=600,
-                                      repo_level=False):
+                                      repo_level=False, stderr_log=None):
         import pathlib
         # Create a CLAUDE.md so the runner is satisfied
         (pathlib.Path(workspace) / "CLAUDE.md").write_text("# intent layer context")

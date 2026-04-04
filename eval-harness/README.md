@@ -57,6 +57,8 @@ Results are written to `results/` as JSON and Markdown:
 cat results/2026-01-21-143200.md
 ```
 
+Run logs for each task phase are written under `workspaces/../logs/`. File names include repo, commit, task slug/hash, condition, repetition, and phase, for example `repo-abc12345-fix-bug-123-deadbeef-intent_layer-r0-fix.log`. Pre-validation, context generation, Claude execution, and post-fix test phases each get their own log. Timeout and infrastructure errors now include the relevant log path in the recorded error string so failures can be tailed directly.
+
 ## Development
 
 ```bash

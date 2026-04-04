@@ -70,7 +70,7 @@ else
     fail "No outcomes.log created"
 fi
 
-# ---- Test 2: outcome log format (4 TSV fields) ----
+# ---- Test 2: outcome log format (7 TSV fields) ----
 echo "Test 2: Outcome log line format"
 
 if [[ -f "$OUTCOMES_LOG" ]]; then
@@ -78,8 +78,9 @@ if [[ -f "$OUTCOMES_LOG" ]]; then
     FIELD_COUNT=$(echo "$LINE" | awk -F'\t' '{print NF}')
     TOOL_FIELD=$(echo "$LINE" | awk -F'\t' '{print $2}')
     RESULT_FIELD=$(echo "$LINE" | awk -F'\t' '{print $3}')
-    if [[ "$FIELD_COUNT" -eq 4 && "$TOOL_FIELD" == "Edit" && "$RESULT_FIELD" == "success" ]]; then
-        pass "Outcome log format: timestamp, tool, result, file"
+    COVERAGE_FIELD=$(echo "$LINE" | awk -F'\t' '{print $5}')
+    if [[ "$FIELD_COUNT" -eq 7 && "$TOOL_FIELD" == "Edit" && "$RESULT_FIELD" == "success" && "$COVERAGE_FIELD" == "covered" ]]; then
+        pass "Outcome log format: timestamp, tool, result, file, coverage, node, detail"
     else
         fail "Unexpected format (fields=$FIELD_COUNT, tool=$TOOL_FIELD, result=$RESULT_FIELD): $LINE"
     fi
@@ -119,7 +120,8 @@ if [[ -f "$OUTCOMES_LOG" && -s "$OUTCOMES_LOG" ]]; then
     LINE=$(tail -1 "$OUTCOMES_LOG")
     RESULT_FIELD=$(echo "$LINE" | awk -F'\t' '{print $3}')
     TOOL_FIELD=$(echo "$LINE" | awk -F'\t' '{print $2}')
-    if [[ "$RESULT_FIELD" == "failure" && "$TOOL_FIELD" == "Edit" ]]; then
+    COVERAGE_FIELD=$(echo "$LINE" | awk -F'\t' '{print $5}')
+    if [[ "$RESULT_FIELD" == "failure" && "$TOOL_FIELD" == "Edit" && "$COVERAGE_FIELD" == "covered" ]]; then
         pass "capture-tool-failure.sh logs failure outcome"
     else
         fail "Expected failure/Edit, got: $RESULT_FIELD/$TOOL_FIELD"
@@ -190,7 +192,33 @@ else
     fail "Setup error: expected 1050 lines, got $LINE_COUNT"
 fi
 
-# ---- Test 7: show_telemetry.sh with sample data ----
+# ---- Test 7: success telemetry records uncovered writes ----
+echo "Test 7: post-edit-check.sh logs uncovered file writes"
+
+UNCOVERED_DIR=$(mktemp -d)
+mkdir -p "$UNCOVERED_DIR/.intent-layer"
+MISSING_PATH="$UNCOVERED_DIR/src/utils/new_file.ts"
+CLAUDE_PROJECT_DIR="$UNCOVERED_DIR" \
+"$PLUGIN_DIR/scripts/post-edit-check.sh" \
+    "{\"file_path\": \"$MISSING_PATH\", \"content\": \"hello\"}" \
+    >/dev/null 2>&1 || true
+
+UNCOVERED_LOG="$UNCOVERED_DIR/.intent-layer/hooks/outcomes.log"
+if [[ -f "$UNCOVERED_LOG" ]]; then
+    LINE=$(tail -1 "$UNCOVERED_LOG")
+    COVERAGE_FIELD=$(echo "$LINE" | awk -F'\t' '{print $5}')
+    DETAIL_FIELD=$(echo "$LINE" | awk -F'\t' '{print $7}')
+    if [[ "$COVERAGE_FIELD" == "uncovered" && "$DETAIL_FIELD" == "path-missing-after-write" ]]; then
+        pass "Uncovered missing-path write logged with diagnostic detail"
+    else
+        fail "Unexpected uncovered-write row: $LINE"
+    fi
+else
+    fail "No outcomes.log after uncovered write test"
+fi
+rm -rf "$UNCOVERED_DIR"
+
+# ---- Test 8: show_telemetry.sh with sample data ----
 echo "Test 7: show_telemetry.sh displays dashboard"
 
 # Set up clean log data
@@ -200,16 +228,17 @@ TS="2026-02-15T10:00:00Z"
 
 # Injections: some edits were covered
 cat > "$TEST_DIR/.intent-layer/hooks/injections.log" << EOF
-${TS}	${TEST_DIR}/src/api/handlers.ts	${TEST_DIR}/src/api/AGENTS.md	Pitfalls
-${TS}	${TEST_DIR}/src/api/handlers.ts	${TEST_DIR}/src/api/AGENTS.md	Pitfalls
+${TS}	Edit	${TEST_DIR}/src/api/handlers.ts	covered	${TEST_DIR}/src/api/AGENTS.md	Pitfalls
+${TS}	Edit	${TEST_DIR}/src/api/handlers.ts	covered	${TEST_DIR}/src/api/AGENTS.md	Pitfalls
 EOF
 
 # Outcomes: mix of success/failure, covered/uncovered
 cat > "$TEST_DIR/.intent-layer/hooks/outcomes.log" << EOF
-${TS}	Edit	success	${TEST_DIR}/src/api/handlers.ts
-${TS}	Edit	failure	${TEST_DIR}/src/api/handlers.ts
-2026-02-15T10:01:00Z	Write	success	${TEST_DIR}/src/utils/helper.ts
-2026-02-15T10:02:00Z	Edit	success	${TEST_DIR}/src/utils/helper.ts
+${TS}	Edit	success	${TEST_DIR}/src/api/handlers.ts	covered	${TEST_DIR}/src/api/AGENTS.md	post-edit-check
+${TS}	Edit	failure	${TEST_DIR}/src/api/handlers.ts	covered	${TEST_DIR}/src/api/AGENTS.md	old_string not found
+2026-02-15T10:01:00Z	Write	success	${TEST_DIR}/src/utils/helper.ts	uncovered	None	path-missing-after-write
+2026-02-15T10:02:00Z	Edit	success	${TEST_DIR}/src/utils/helper.ts	uncovered	None	post-edit-check
+malformed-line
 EOF
 
 output=$("$PLUGIN_DIR/scripts/show_telemetry.sh" "$TEST_DIR" 2>&1)
@@ -224,6 +253,11 @@ fi
 
 if ! echo "$output" | grep -q "Total edits: 4"; then
     fail "Wrong total edits in: $output"
+    CHECKS_PASSED=false
+fi
+
+if ! echo "$output" | grep -q "Malformed rows skipped: outcomes=1, injections=0"; then
+    fail "Missing malformed row count in: $output"
     CHECKS_PASSED=false
 fi
 
@@ -246,8 +280,8 @@ if $CHECKS_PASSED; then
     pass "show_telemetry.sh displays complete dashboard"
 fi
 
-# ---- Test 8: show_telemetry.sh with empty/missing logs ----
-echo "Test 8: show_telemetry.sh handles missing data"
+# ---- Test 9: show_telemetry.sh handles missing data ----
+echo "Test 9: show_telemetry.sh handles missing data"
 
 EMPTY_DIR=$(mktemp -d)
 output=$("$PLUGIN_DIR/scripts/show_telemetry.sh" "$EMPTY_DIR" 2>&1 || true)
@@ -261,8 +295,8 @@ else
 fi
 rm -rf "$EMPTY_DIR"
 
-# ---- Test 9: show_telemetry.sh --help ----
-echo "Test 9: show_telemetry.sh --help"
+# ---- Test 10: show_telemetry.sh --help ----
+echo "Test 10: show_telemetry.sh --help"
 
 output=$("$PLUGIN_DIR/scripts/show_telemetry.sh" --help 2>&1 || true)
 if echo "$output" | grep -q "USAGE"; then
@@ -271,8 +305,23 @@ else
     fail "--help should show USAGE"
 fi
 
-# ---- Test 10: show_telemetry.sh bad args ----
-echo "Test 10: show_telemetry.sh rejects bad args"
+# ---- Test 11: NotebookEdit success logging ----
+echo "Test 11: NotebookEdit success logging"
+
+"$PLUGIN_DIR/scripts/post-edit-check.sh" \
+    "{\"tool_name\":\"NotebookEdit\",\"notebook_path\":\"$TEST_DIR/src/api/demo.ipynb\",\"content\":\"{}\"}" \
+    >/dev/null 2>&1 || true
+
+LINE=$(tail -1 "$OUTCOMES_LOG")
+TOOL_FIELD=$(echo "$LINE" | awk -F'\t' '{print $2}')
+if [[ "$TOOL_FIELD" == "NotebookEdit" ]]; then
+    pass "NotebookEdit logged with explicit tool name"
+else
+    fail "Expected NotebookEdit row, got: $LINE"
+fi
+
+# ---- Test 12: show_telemetry.sh bad args ----
+echo "Test 12: show_telemetry.sh rejects bad args"
 
 exit_code=0
 "$PLUGIN_DIR/scripts/show_telemetry.sh" --bogus 2>/dev/null || exit_code=$?

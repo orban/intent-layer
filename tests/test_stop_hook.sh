@@ -119,7 +119,7 @@ echo "Test 7: Non-empty injection log is detected as signal"
 TEMP_PROJECT=$(mktemp -d)
 trap "rm -rf $TEMP_PROJECT" EXIT
 mkdir -p "$TEMP_PROJECT/.intent-layer/hooks"
-echo -e "2026-02-15T10:00:00Z\tsrc/main.ts\tsrc/AGENTS.md\tPitfalls" > "$TEMP_PROJECT/.intent-layer/hooks/injections.log"
+echo -e "2026-02-15T10:00:00Z\tEdit\tsrc/main.ts\tcovered\tsrc/AGENTS.md\tPitfalls" > "$TEMP_PROJECT/.intent-layer/hooks/injections.log"
 output=$(echo '{"stop_hook_active": false}' | \
     ANTHROPIC_API_KEY="" CLAUDE_PROJECT_DIR="$TEMP_PROJECT" "$STOP_HOOK" 2>&1 || true)
 if [[ -z "$output" ]]; then
