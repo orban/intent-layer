@@ -332,6 +332,21 @@ declare -A FILE_ADDS
 declare -A FILE_DELS
 declare -A FILE_DIFFS
 
+add_file_to_node() {
+    local node="$1"
+    local file="$2"
+
+    if [[ -z "${NODE_FILES[$node]:-}" ]]; then
+        NODE_FILES["$node"]="$file"
+        NODE_DEPTH["$node"]=$(echo "$node" | tr -cd '/' | wc -c | tr -d ' ')
+        return
+    fi
+
+    if ! echo "${NODE_FILES[$node]}" | grep -Fxq "$file"; then
+        NODE_FILES["$node"]="${NODE_FILES[$node]}"$'\n'"$file"
+    fi
+}
+
 CHANGED_FILES="$(get_changed_files)"
 
 if [[ -z "$CHANGED_FILES" ]]; then
@@ -350,18 +365,14 @@ while IFS= read -r file; do
     FILE_DIFFS["$file"]="$(get_file_diff "$file")"
 
     if is_intent_node "$file"; then
+        add_file_to_node "$file" "$file"
         continue
     fi
 
     node=$("$FIND_COVERING_NODE" "$REPO_ROOT/$file" 2>/dev/null | sed "s|^$REPO_ROOT/||") || true
     [[ -z "$node" ]] && continue
 
-    if [[ -z "${NODE_FILES[$node]:-}" ]]; then
-        NODE_FILES["$node"]="$file"
-        NODE_DEPTH["$node"]=$(echo "$node" | tr -cd '/' | wc -c | tr -d ' ')
-    else
-        NODE_FILES["$node"]="${NODE_FILES[$node]}"$'\n'"$file"
-    fi
+    add_file_to_node "$node" "$file"
 done <<< "$CHANGED_FILES"
 
 DIRECT_NODES=()

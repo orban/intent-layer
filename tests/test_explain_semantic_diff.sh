@@ -174,6 +174,40 @@ else
     fail "Expected contract impact language, got status=$status: $output"
 fi
 
+git checkout -q main
+git checkout -q -b feature/direct-node-only
+
+cat > CLAUDE.md << 'MD'
+# Test Project
+
+## Entry Points
+
+| Task | Start Here |
+|------|------------|
+| API | `src/api.ts` |
+
+## Review Notes
+
+- Root node guidance changed.
+MD
+
+git add CLAUDE.md
+git commit -q -m "update root intent node"
+
+echo "Test 7: Direct Intent-node-only changes produce a semantic explanation"
+status=0
+output=$(ANTHROPIC_API_KEY="" "$EXPLAIN" main HEAD 2>&1) || status=$?
+
+if [[ $status -eq 0 ]] && \
+   echo "$output" | grep -q "## Directly Modified Nodes" && \
+   echo "$output" | grep -q -- "- CLAUDE.md" && \
+   echo "$output" | grep -q "## CLAUDE.md" && \
+   echo "$output" | grep -q "Behavioral impact:"; then
+    pass "Direct Intent-node-only changes are explained"
+else
+    fail "Expected semantic explanation for direct node-only change, got status=$status: $output"
+fi
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
