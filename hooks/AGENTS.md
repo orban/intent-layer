@@ -28,7 +28,7 @@ Stop ──────────── stop-learning-check.sh → Tier 1: heu
 
 ### Injection log
 
-`pre-edit-check.sh` writes to `.intent-layer/hooks/injections.log` on every Edit/Write. Tab-separated format: `timestamp\tfile_path\tcovering_node\tinjected_sections`. `capture-tool-failure.sh` reads this log to determine if a failure happened despite active AGENTS.md guidance. Auto-rotates at 1000 lines (keeps last 500).
+`pre-edit-check.sh` writes to `.intent-layer/hooks/injections.log` on every Edit/Write. Tab-separated format: `timestamp\tfile_path\tcovering_node\tinjected_sections`. `post-edit-check.sh` and `capture-tool-failure.sh` write `.intent-layer/hooks/outcomes.log` as `timestamp\ttool\tresult\tfile_path`. Telemetry fields are backslash-escaped before writing: `\\` for a literal backslash, `\t`, `\n`, and `\r` for control characters. `capture-tool-failure.sh` and `show_telemetry.sh` read the escaped format, and the dashboard decodes it for display. Logs auto-rotate at 1000 lines (keeps last 500).
 
 ## Entry Points
 

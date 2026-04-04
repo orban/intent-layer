@@ -164,3 +164,54 @@ extract_section_entries() {
         in_section && in_entry { print }
     ' "$file"
 }
+
+# Escape telemetry TSV fields so tabs/newlines don't corrupt the log format.
+telemetry_escape_field() {
+    local value="${1-}"
+    value="${value//\\/\\\\}"
+    value="${value//$'\t'/\\t}"
+    value="${value//$'\n'/\\n}"
+    value="${value//$'\r'/\\r}"
+    printf '%s' "$value"
+}
+
+# Decode telemetry TSV escapes for operator-facing display.
+telemetry_unescape_field() {
+    local value="${1-}"
+    local result=""
+    local i=0
+    local length=${#value}
+
+    while (( i < length )); do
+        local ch="${value:i:1}"
+        if [[ "$ch" == '\' ]] && (( i + 1 < length )); then
+            local next="${value:i+1:1}"
+            case "$next" in
+                n)
+                    result+=$'\n'
+                    ((i += 2))
+                    continue
+                    ;;
+                t)
+                    result+=$'\t'
+                    ((i += 2))
+                    continue
+                    ;;
+                r)
+                    result+=$'\r'
+                    ((i += 2))
+                    continue
+                    ;;
+                '\')
+                    result+=$'\\'
+                    ((i += 2))
+                    continue
+                    ;;
+            esac
+        fi
+        result+="$ch"
+        ((i++))
+    done
+
+    printf '%s' "$result"
+}

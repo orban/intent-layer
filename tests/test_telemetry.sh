@@ -25,6 +25,7 @@ echo ""
 TEST_DIR=$(mktemp -d)
 export CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR"
 export CLAUDE_PROJECT_DIR="$TEST_DIR"
+source "$PLUGIN_DIR/lib/common.sh"
 
 # Create a minimal project
 cat > "$TEST_DIR/CLAUDE.md" << 'EOF'
@@ -245,6 +246,66 @@ fi
 if $CHECKS_PASSED; then
     pass "show_telemetry.sh displays complete dashboard"
 fi
+
+# ---- Test 7b: telemetry escaping is reversible for literals and control chars ----
+echo "Test 7b: Telemetry escaping preserves literal backslashes"
+
+literal_value='literal\ntext\tpath\\tail'
+actual_control_value=$'line1\nline2\tcol\rreturn'
+
+escaped_literal=$(telemetry_escape_field "$literal_value")
+escaped_control=$(telemetry_escape_field "$actual_control_value")
+
+if [[ "$(telemetry_unescape_field "$escaped_literal")" != "$literal_value" ]]; then
+    fail "Literal backslash escape sequences were not preserved"
+else
+    pass "Literal backslash escape sequences round-trip"
+fi
+
+if [[ "$(telemetry_unescape_field "$escaped_control")" != "$actual_control_value" ]]; then
+    fail "Control characters were not preserved through telemetry escaping"
+else
+    pass "Control characters round-trip through telemetry escaping"
+fi
+
+DASH_DIR=$(mktemp -d)
+mkdir -p "$DASH_DIR/.intent-layer/hooks"
+
+literal_file='src/literal\nname.ts'
+literal_node='src/docs\\notes/AGENTS.md'
+control_file=$'src/line1\nline2\tname.ts'
+
+printf '%s\t%s\t%s\t%s\n' \
+    "$TS" \
+    "$(telemetry_escape_field "$literal_file")" \
+    "$(telemetry_escape_field "$literal_node")" \
+    "Pitfalls" \
+    > "$DASH_DIR/.intent-layer/hooks/injections.log"
+
+printf '%s\t%s\t%s\t%s\n' \
+    "$TS" \
+    "Edit" \
+    "success" \
+    "$(telemetry_escape_field "$literal_file")" \
+    > "$DASH_DIR/.intent-layer/hooks/outcomes.log"
+printf '%s\t%s\t%s\t%s\n' \
+    "2026-02-15T10:03:00Z" \
+    "Edit" \
+    "failure" \
+    "$(telemetry_escape_field "$control_file")" \
+    >> "$DASH_DIR/.intent-layer/hooks/outcomes.log"
+
+output=$("$PLUGIN_DIR/scripts/show_telemetry.sh" "$DASH_DIR" 2>&1)
+
+if ! echo "$output" | grep -Fq "$literal_node"; then
+    fail "Dashboard did not preserve literal backslash sequences"
+elif ! printf '%s' "$output" | grep -Fq "$control_file"; then
+    fail "Dashboard did not decode control characters for display"
+else
+    pass "Dashboard preserves escaped literals and control characters"
+fi
+
+rm -rf "$DASH_DIR"
 
 # ---- Test 8: show_telemetry.sh with empty/missing logs ----
 echo "Test 8: show_telemetry.sh handles missing data"

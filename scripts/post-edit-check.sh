@@ -15,6 +15,9 @@
 
 set -euo pipefail
 
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
+source "$PLUGIN_ROOT/lib/common.sh"
+
 # Parse the file path from tool input JSON
 # Expected format: {"file_path": "/path/to/file", ...}
 TOOL_INPUT="${1:-}"
@@ -183,7 +186,11 @@ if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
         TOOL_NAME="Write"
     fi
     OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
-    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "success" "$FILE_PATH" \
+    printf '%s\t%s\t%s\t%s\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        "$(telemetry_escape_field "$TOOL_NAME")" \
+        "success" \
+        "$(telemetry_escape_field "$FILE_PATH")" \
         >> "$OUTCOME_LOG" 2>/dev/null || true
     # Rotate log when it exceeds 1000 lines
     LOG_LINES=$(wc -l < "$OUTCOME_LOG" 2>/dev/null || echo 0)
