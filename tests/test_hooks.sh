@@ -89,6 +89,14 @@ else
     fail "hooks.json missing hook events"
 fi
 
+if jq -e '.hooks.PostToolUse[0].matcher == "Edit|Write|NotebookEdit"' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
+   jq -e '.hooks.PreToolUse[0].matcher == "Edit|Write|NotebookEdit"' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1 && \
+   jq -e 'has("hooks") and (.hooks.SessionStart[0] | has("matcher") | not) and (.hooks.Stop[0] | has("matcher") | not)' "$PLUGIN_DIR/hooks/hooks.json" >/dev/null 2>&1; then
+    pass "hooks.json uses canonical matcher semantics"
+else
+    fail "hooks.json matcher semantics drifted from the canonical hook taxonomy"
+fi
+
 # Test 8: hooks.json uses CLAUDE_PLUGIN_ROOT
 echo "Test 8: hooks.json uses CLAUDE_PLUGIN_ROOT"
 if grep -q 'CLAUDE_PLUGIN_ROOT' "$PLUGIN_DIR/hooks/hooks.json"; then
@@ -133,6 +141,20 @@ if echo "$output" | grep -q "📁 New directory"; then
     pass "PostToolUse detects new directory"
 else
     fail "PostToolUse should detect new directory: $output"
+fi
+rm -rf "$TEMP_PROJECT"
+
+# Test 11b: PostToolUse handles NotebookEdit payloads
+echo "Test 11b: PostToolUse handles NotebookEdit payloads"
+TEMP_PROJECT=$(mktemp -d)
+mkdir -p "$TEMP_PROJECT/src"
+echo "# AGENTS.md" > "$TEMP_PROJECT/src/AGENTS.md"
+touch "$TEMP_PROJECT/src/notebook.ipynb"
+output=$("$PLUGIN_DIR/scripts/post-edit-check.sh" "{\"notebook_path\": \"$TEMP_PROJECT/src/notebook.ipynb\", \"old_string\": \"a\", \"new_string\": \"b\"}" 2>&1 || true)
+if echo "$output" | grep -q "Intent Layer"; then
+    pass "PostToolUse accepts notebook_path payloads"
+else
+    fail "PostToolUse should accept notebook_path payloads: $output"
 fi
 rm -rf "$TEMP_PROJECT"
 

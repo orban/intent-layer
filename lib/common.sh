@@ -54,6 +54,70 @@ json_get() {
     fi
 }
 
+# Extract the canonical tool name from a hook payload.
+# Expects the full stdin JSON for PreToolUse/PostToolUseFailure hooks.
+extract_hook_tool_name() {
+    local json="$1"
+    if command -v jq &>/dev/null; then
+        json_get "$json" '.tool_name' ''
+    else
+        echo "$json" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+    fi
+}
+
+# Extract the canonical file path from hook JSON.
+# Supports both full hook payloads (`.tool_input.*`) and the PostToolUse
+# CLI-arg exception (`file_path` / `path` / `notebook_path` at the top level).
+extract_hook_file_path() {
+    local json="$1"
+    local file_path
+
+    if command -v jq &>/dev/null; then
+        file_path=$(json_get "$json" '.tool_input.file_path' '')
+        file_path=${file_path:-$(json_get "$json" '.tool_input.path' '')}
+        file_path=${file_path:-$(json_get "$json" '.tool_input.notebook_path' '')}
+        file_path=${file_path:-$(json_get "$json" '.file_path' '')}
+        file_path=${file_path:-$(json_get "$json" '.path' '')}
+        file_path=${file_path:-$(json_get "$json" '.notebook_path' '')}
+    else
+        file_path=$(echo "$json" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        file_path=${file_path:-$(echo "$json" | sed -n 's/.*"path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')}
+        file_path=${file_path:-$(echo "$json" | sed -n 's/.*"notebook_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')}
+    fi
+
+    echo "$file_path"
+}
+
+# PostToolUse only passes `tool_input` as a CLI arg, so infer the tool name
+# from the canonical payload fields.
+infer_post_tool_use_tool_name() {
+    local tool_input_json="$1"
+    local file_path
+    local notebook_path
+    local old_string
+
+    file_path=$(extract_hook_file_path "$tool_input_json")
+    notebook_path=$(json_get "$tool_input_json" '.notebook_path' '')
+    old_string=$(json_get "$tool_input_json" '.old_string' '')
+
+    if [[ -z "$notebook_path" ]]; then
+        notebook_path=$(echo "$tool_input_json" | sed -n 's/.*"notebook_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    fi
+    if [[ -z "$old_string" ]]; then
+        old_string=$(echo "$tool_input_json" | sed -n 's/.*"old_string"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    fi
+
+    if [[ -n "$notebook_path" ]]; then
+        echo "NotebookEdit"
+    elif [[ -n "$old_string" ]]; then
+        echo "Edit"
+    elif [[ -n "$file_path" ]]; then
+        echo "Write"
+    else
+        echo "unknown"
+    fi
+}
+
 # Cross-platform date arithmetic
 date_days_ago() {
     local days="$1"

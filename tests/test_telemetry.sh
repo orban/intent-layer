@@ -106,6 +106,26 @@ else
     fail "No outcomes.log after Write test"
 fi
 
+# ---- Test 3b: NotebookEdit detected from notebook_path ----
+echo "Test 3b: NotebookEdit detected from notebook_path"
+
+touch "$TEST_DIR/src/api/analysis.ipynb"
+"$PLUGIN_DIR/scripts/post-edit-check.sh" \
+    "{\"notebook_path\": \"$TEST_DIR/src/api/analysis.ipynb\", \"old_string\": \"foo\", \"new_string\": \"bar\"}" \
+    >/dev/null 2>&1 || true
+
+if [[ -f "$OUTCOMES_LOG" ]]; then
+    LINE=$(tail -1 "$OUTCOMES_LOG")
+    TOOL_FIELD=$(echo "$LINE" | awk -F'\t' '{print $2}')
+    if [[ "$TOOL_FIELD" == "NotebookEdit" ]]; then
+        pass "NotebookEdit detected from notebook_path"
+    else
+        fail "Expected NotebookEdit, got: $TOOL_FIELD"
+    fi
+else
+    fail "No outcomes.log after NotebookEdit test"
+fi
+
 # ---- Test 4: capture-tool-failure.sh writes failure to outcomes.log ----
 echo "Test 4: capture-tool-failure.sh logs failure outcome"
 

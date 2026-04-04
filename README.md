@@ -80,11 +80,13 @@ Automatic event handlers that keep the Intent Layer active during development:
 
 | Hook | Event | Purpose |
 |------|-------|---------|
-| `post-edit-check` | PostToolUse | Remind about Intent Layer coverage after edits |
+| `post-edit-check` | PostToolUse | Remind about Intent Layer coverage after `Edit`/`Write`/`NotebookEdit` |
 | `pre-edit-check` | PreToolUse | Inject pitfalls before edits, warn about uncovered dirs |
 | `inject-learnings` | SessionStart | Inject recent learnings, suggest setup if no Intent Layer |
-| `capture-tool-failure` | PostToolUseFailure | Auto-create skeleton mistake reports on Edit/Write failures |
+| `capture-tool-failure` | PostToolUseFailure | Auto-create skeleton mistake reports on `Edit`/`Write`/`NotebookEdit`/file-modifying `Bash` failures |
 | Stop prompt | Stop | LLM evaluates session for learnings to capture |
+
+Canonical hook-slot taxonomy lives in [`hooks/hooks.json`](hooks/hooks.json) for config and [`hooks/AGENTS.md`](hooks/AGENTS.md) for payload contracts. `matcher` values are tool names within a slot, not extra hook events.
 
 ### Learning Loop
 
@@ -174,7 +176,7 @@ intent-layer-plugin/
 │   ├── validator.md
 │   └── auditor.md
 ├── hooks/
-│   └── hooks.json            # PostToolUse hook config
+│   └── hooks.json            # Canonical 5-slot hook config
 ├── scripts/                  # Shared bash scripts
 └── references/               # Templates and guides
 ```

@@ -73,6 +73,7 @@ intent-layer-plugin/
 
 - **Injection log**: `.intent-layer/hooks/injections.log` — tracks which AGENTS.md entries were injected before edits
 - **Outcome log**: `.intent-layer/hooks/outcomes.log` — tracks edit success/failure (telemetry). Opt out with `.intent-layer/disable-telemetry`
+- **Canonical hook taxonomy**: `hooks/hooks.json` defines the slot/matcher config; `hooks/AGENTS.md` defines stdin/stdout and payload shape; `lib/common.sh` owns shared extraction helpers.
 
 ### Scripts
 
@@ -240,7 +241,7 @@ Starter templates in `references/templates/` applied via `apply_template.sh`. v1
 | Export to Cursor | `scripts/generate_adapter.sh <project> --format cursor` |
 | View telemetry | `scripts/show_telemetry.sh <project>` |
 | Add new agent | Create `agents/<name>.md` with frontmatter |
-| Modify hook behavior | Edit `hooks/hooks.json` or `scripts/post-edit-check.sh` |
+| Modify hook behavior | Edit `hooks/hooks.json`, then align payload handling in `lib/common.sh` / affected hook scripts |
 | Test a script | Run directly: `./scripts/detect_state.sh --help` |
 
 ## Contracts

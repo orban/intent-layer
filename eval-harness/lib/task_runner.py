@@ -44,6 +44,36 @@ TEST_HEARTBEAT_INTERVAL = 20
 
 # Intent Layer plugin root — two levels up from lib/task_runner.py
 PLUGIN_ROOT = str(Path(__file__).resolve().parents[2])
+HOOKS_CONFIG_PATH = Path(PLUGIN_ROOT) / "hooks" / "hooks.json"
+
+
+def build_intent_layer_hooks_config(
+    plugin_root: str = PLUGIN_ROOT,
+    include_events: tuple[str, ...] = ("PreToolUse", "SessionStart"),
+) -> dict:
+    """Load the canonical hook config and return the subset used by the harness."""
+    config = json.loads(HOOKS_CONFIG_PATH.read_text())
+    hooks = config.get("hooks", {})
+    selected: dict[str, list[dict]] = {}
+
+    for event_name in include_events:
+        entries = []
+        for entry in hooks.get(event_name, []):
+            normalized = {"hooks": []}
+            if "matcher" in entry:
+                normalized["matcher"] = entry["matcher"]
+            for hook in entry.get("hooks", []):
+                normalized_hook = dict(hook)
+                normalized_hook["command"] = normalized_hook["command"].replace(
+                    "${CLAUDE_PLUGIN_ROOT}",
+                    plugin_root,
+                )
+                normalized["hooks"].append(normalized_hook)
+            entries.append(normalized)
+        if entries:
+            selected[event_name] = entries
+
+    return {"hooks": selected}
 
 
 class PreValidationCache:
@@ -756,26 +786,7 @@ class TaskRunner:
             # - SessionStart: injects learnings, pending mistakes, and
             #   resolved project context
             if condition == Condition.INTENT_LAYER:
-                hooks_config = {
-                    "hooks": {
-                        "PreToolUse": [{
-                            "matcher": "Edit|Write|NotebookEdit",
-                            "hooks": [{
-                                "type": "command",
-                                "command": f"{PLUGIN_ROOT}/scripts/pre-edit-check.sh",
-                                "timeout": 10,
-                            }]
-                        }],
-                        "SessionStart": [{
-                            "matcher": "",
-                            "hooks": [{
-                                "type": "command",
-                                "command": f"{PLUGIN_ROOT}/scripts/inject-learnings.sh",
-                                "timeout": 15,
-                            }]
-                        }],
-                    }
-                }
+                hooks_config = build_intent_layer_hooks_config()
                 claude_dir = Path(workspace) / ".claude"
                 claude_dir.mkdir(exist_ok=True)
                 (claude_dir / "settings.local.json").write_text(

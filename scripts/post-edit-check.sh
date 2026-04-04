@@ -15,17 +15,18 @@
 
 set -euo pipefail
 
-# Parse the file path from tool input JSON
-# Expected format: {"file_path": "/path/to/file", ...}
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
+source "$PLUGIN_ROOT/lib/common.sh"
+
+# Parse the file path from the PostToolUse CLI payload.
+# Claude passes `tool_input` as a JSON string argument for PostToolUse.
 TOOL_INPUT="${1:-}"
 
 if [[ -z "$TOOL_INPUT" ]]; then
     exit 0  # No input, silently exit
 fi
 
-# Extract file_path from JSON (simple extraction, avoids jq dependency)
-# Use POSIX character classes for cross-platform compatibility
-FILE_PATH=$(echo "$TOOL_INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || true)
+FILE_PATH=$(extract_hook_file_path "$TOOL_INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0  # No file path found, silently exit
@@ -84,7 +85,7 @@ is_likely_relevant() {
 
     # Source files are relevant
     case "$file" in
-        *.ts|*.js|*.tsx|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.sh)
+        *.ts|*.js|*.tsx|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.sh|*.ipynb)
             return 0
             ;;
     esac
@@ -175,13 +176,7 @@ TELEMETRY_DIR="$PROJECT_ROOT/.intent-layer/hooks"
 if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
    [[ ! -f "$PROJECT_ROOT/.intent-layer/disable-telemetry" ]]; then
     mkdir -p "$TELEMETRY_DIR"
-    # Infer tool name from JSON input fields (matcher is "Write|Edit")
-    # Edit has old_string; Write does not
-    if echo "$TOOL_INPUT" | grep -q '"old_string"' 2>/dev/null; then
-        TOOL_NAME="Edit"
-    else
-        TOOL_NAME="Write"
-    fi
+    TOOL_NAME=$(infer_post_tool_use_tool_name "$TOOL_INPUT")
     OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
     printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "success" "$FILE_PATH" \
         >> "$OUTCOME_LOG" 2>/dev/null || true

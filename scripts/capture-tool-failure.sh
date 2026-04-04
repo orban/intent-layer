@@ -19,9 +19,9 @@ if [[ -z "$INPUT" ]]; then
 fi
 
 # Extract fields
-TOOL_NAME=$(json_get "$INPUT" '.tool_name' 'unknown')
-FILE_PATH=$(json_get "$INPUT" '.tool_input.file_path' '')
-FILE_PATH=${FILE_PATH:-$(json_get "$INPUT" '.tool_input.notebook_path' '')}
+TOOL_NAME=$(extract_hook_tool_name "$INPUT")
+TOOL_NAME=${TOOL_NAME:-unknown}
+FILE_PATH=$(extract_hook_file_path "$INPUT")
 COMMAND=$(json_get "$INPUT" '.tool_input.command' '')
 OLD_STRING=$(json_get "$INPUT" '.tool_input.old_string' '')
 NEW_STRING=$(json_get "$INPUT" '.tool_input.new_string' '')
