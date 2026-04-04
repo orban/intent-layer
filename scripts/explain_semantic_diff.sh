@@ -130,7 +130,7 @@ is_contract_file() {
 get_changed_files() {
     if [[ -z "$BASE_REF" ]]; then
         {
-            git diff --name-only HEAD 2>/dev/null || true
+            git diff --name-only 2>/dev/null || true
             git diff --name-only --cached 2>/dev/null || true
         } | awk 'NF' | sort -u
     else
@@ -144,7 +144,7 @@ get_file_numstat() {
 
     if [[ -z "$BASE_REF" ]]; then
         output=$({
-            git diff --numstat HEAD -- "$path" 2>/dev/null || true
+            git diff --numstat -- "$path" 2>/dev/null || true
             git diff --cached --numstat -- "$path" 2>/dev/null || true
         } | awk -v target="$path" '$3 == target {add += $1; del += $2} END {printf "%s %s\n", add + 0, del + 0}')
     else
@@ -162,7 +162,7 @@ get_file_diff() {
     local path="$1"
     if [[ -z "$BASE_REF" ]]; then
         {
-            git diff HEAD -- "$path" 2>/dev/null || true
+            git diff -- "$path" 2>/dev/null || true
             git diff --cached -- "$path" 2>/dev/null || true
         }
     else
@@ -446,6 +446,7 @@ for node in $ordered_nodes; do
     test_files=0
     config_files=0
     doc_files=0
+    internal_artifact_files=0
     sensitive_files=0
     contract_signals=0
     behavior_signals=0
@@ -467,7 +468,7 @@ for node in $ordered_nodes; do
             sensitive_files=$((sensitive_files + 1))
         fi
         if is_internal_artifact_file "$file"; then
-            config_files=$((config_files + 1))
+            internal_artifact_files=$((internal_artifact_files + 1))
         elif is_test_file "$file"; then
             test_files=$((test_files + 1))
         elif is_doc_file "$file"; then
@@ -531,15 +532,20 @@ for node in $ordered_nodes; do
     internal_only="No clear internal-only signal."
     confidence="medium"
 
-    if [[ $prod_files -eq 0 && $test_files -gt 0 && $config_files -eq 0 && $doc_files -eq 0 ]]; then
+    if [[ $prod_files -eq 0 && $test_files -gt 0 && $config_files -eq 0 && $doc_files -eq 0 && $internal_artifact_files -eq 0 ]]; then
         summary="This node changed only through tests."
         behavior_change="Runtime behavior is probably unchanged; the diff mainly adjusts verification around existing logic."
         internal_only="The changed files are test-only, so this looks internal unless the tests were updated to match a new contract."
         confidence="high"
-    elif [[ $prod_files -eq 0 && $doc_files -gt 0 && $config_files -eq 0 ]]; then
+    elif [[ $prod_files -eq 0 && $doc_files -gt 0 && $config_files -eq 0 && $internal_artifact_files -eq 0 ]]; then
         summary="This node changed only through documentation."
         behavior_change="No material behavioral change detected."
         internal_only="The diff is documentation-only, so the semantic impact is likely explanatory rather than executable."
+        confidence="high"
+    elif [[ $prod_files -eq 0 && $internal_artifact_files -gt 0 && $test_files -eq 0 && $config_files -eq 0 && $doc_files -eq 0 ]]; then
+        summary="This node changed only through internal artifacts."
+        behavior_change="No material behavioral change detected."
+        internal_only="The diff is limited to generated or internal tracking artifacts, so runtime semantics are likely unchanged."
         confidence="high"
     elif [[ $behavior_signals -gt 0 || ${#major_files[@]} -gt 0 ]]; then
         behavior_change="Behavior likely changed in code paths covered by this node, not just formatting or comments."
@@ -551,14 +557,18 @@ for node in $ordered_nodes; do
         contract_change="Interfaces, invariants, or caller expectations likely changed and should be reviewed against the node guidance."
     elif [[ $config_files -gt 0 && $prod_files -eq 0 ]]; then
         contract_change="No code-level contract change detected, but configuration defaults may have shifted."
+    elif [[ $internal_artifact_files -gt 0 && $prod_files -eq 0 && $test_files -eq 0 && $config_files -eq 0 && $doc_files -eq 0 ]]; then
+        contract_change="No contract change detected; the diff appears limited to internal bookkeeping artifacts."
     fi
 
     if [[ $internal_signals -gt 0 && $behavior_signals -eq 0 && $contract_signals -eq 0 ]]; then
         internal_only="The diff has refactor-style signals and may be internal-only, but review is still warranted for hidden behavior changes."
     elif [[ $test_files -gt 0 && $prod_files -eq 0 ]]; then
         internal_only="Changes are isolated to tests, which is a strong internal-only signal."
-    elif [[ $doc_files -gt 0 && $prod_files -eq 0 && $config_files -eq 0 ]]; then
+    elif [[ $doc_files -gt 0 && $prod_files -eq 0 && $config_files -eq 0 && $internal_artifact_files -eq 0 ]]; then
         internal_only="Changes are isolated to docs, which is a strong internal-only signal."
+    elif [[ $internal_artifact_files -gt 0 && $prod_files -eq 0 && $test_files -eq 0 && $config_files -eq 0 && $doc_files -eq 0 ]]; then
+        internal_only="Changes are isolated to internal artifacts, which is a strong internal-only signal."
     fi
 
     if [[ ${#major_files[@]} -gt 0 ]]; then

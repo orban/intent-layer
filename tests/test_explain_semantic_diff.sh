@@ -208,6 +208,53 @@ else
     fail "Expected semantic explanation for direct node-only change, got status=$status: $output"
 fi
 
+git checkout -q main
+git checkout -q -b feature/staged-only-uncommitted
+
+for i in $(seq 0 44); do
+  printf 'export const stagedLine%s = %s;\n' "$i" "$i" >> src/api.ts
+done
+
+git add src/api.ts
+
+echo "Test 8: Uncommitted staged-only changes are not double-counted"
+status=0
+output=$(ANTHROPIC_API_KEY="" "$EXPLAIN" 2>&1) || status=$?
+
+if [[ $status -eq 0 ]] && \
+   ! echo "$output" | grep -q "Review larger diffs" && \
+   echo "$output" | grep -q "Range: uncommitted changes"; then
+    pass "Staged-only changes are counted once in uncommitted mode"
+else
+    fail "Expected uncommitted staged-only diff to avoid large-diff warning, got status=$status: $output"
+fi
+
+git reset -q HEAD src/api.ts
+git checkout -q -- src/api.ts
+
+git checkout -q main
+git checkout -q -b feature/internal-artifact-only
+
+mkdir -p .intent-layer/hooks
+cat > .intent-layer/hooks/injections.log << 'LOG'
+2026-02-15T10:00:00Z	src/api.ts	src/AGENTS.md	Pitfalls
+LOG
+
+git add .intent-layer/hooks/injections.log
+git commit -q -m "add injection log"
+
+echo "Test 9: Internal artifact-only changes are not misreported as config drift"
+status=0
+output=$(ANTHROPIC_API_KEY="" "$EXPLAIN" main HEAD 2>&1) || status=$?
+
+if [[ $status -eq 0 ]] && \
+   echo "$output" | grep -q "internal bookkeeping artifacts" && \
+   ! echo "$output" | grep -q "configuration defaults may have shifted"; then
+    pass "Internal artifact-only changes are classified separately from config drift"
+else
+    fail "Expected internal-artifact classification without config drift, got status=$status: $output"
+fi
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
