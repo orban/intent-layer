@@ -473,8 +473,25 @@ class TaskRunner:
             if cache_entry and cache_entry.agents_files:
                 # Cache hit with actual files: restore them
                 start = time.time()
+                self._append_log_marker(
+                    stderr_log,
+                    "start",
+                    "intent-layer generation",
+                    commit=commit,
+                    condition=condition or "intent_layer",
+                    cache_hit=True,
+                    source="cache",
+                )
                 self.index_cache.restore(cache_entry, workspace)
                 elapsed = time.time() - start
+                self._append_log_marker(
+                    stderr_log,
+                    "finish",
+                    "intent-layer generation complete",
+                    cache_hit=True,
+                    files=len(cache_entry.agents_files),
+                    wall_clock_seconds=f"{elapsed:.1f}",
+                )
 
                 return SkillGenerationMetrics(
                     wall_clock_seconds=elapsed,
@@ -550,8 +567,25 @@ class TaskRunner:
                 cache_entry = self.index_cache.lookup(repo_url, commit, "flat_llm")
             if cache_entry:
                 start = time.time()
+                self._append_log_marker(
+                    stderr_log,
+                    "start",
+                    "flat context generation",
+                    commit=commit,
+                    condition="flat_llm",
+                    cache_hit=True,
+                    source="cache",
+                )
                 self.index_cache.restore(cache_entry, workspace)
                 elapsed = time.time() - start
+                self._append_log_marker(
+                    stderr_log,
+                    "finish",
+                    "flat context generation complete",
+                    cache_hit=True,
+                    files=len(cache_entry.agents_files),
+                    wall_clock_seconds=f"{elapsed:.1f}",
+                )
                 return SkillGenerationMetrics(
                     wall_clock_seconds=elapsed,
                     input_tokens=0,

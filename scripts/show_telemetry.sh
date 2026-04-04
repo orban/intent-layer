@@ -16,6 +16,10 @@ set -euo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
 source "$PLUGIN_ROOT/lib/common.sh"
 
+display_field() {
+    telemetry_unescape_field "$1" | tr '\n\r' '  '
+}
+
 show_help() {
     cat << 'EOF'
 show_telemetry.sh - Intent Layer context telemetry dashboard
@@ -244,7 +248,7 @@ if [[ -s "$TMPDIR_WORK/per_node.tsv" ]]; then
     echo ""
     printf "%-40s %-8s %-10s %s\n" "Node" "Edits" "Success" "Rate"
     while IFS=$'\t' read -r node edits success rate; do
-        printf "%-40s %-8s %-10s %s%%\n" "$node" "$edits" "$success" "$rate"
+        printf "%-40s %-8s %-10s %s%%\n" "$(display_field "$node")" "$edits" "$success" "$rate"
     done < "$TMPDIR_WORK/per_node.tsv"
 fi
 
@@ -255,7 +259,7 @@ if [[ -s "$TMPDIR_WORK/gaps.tsv" ]]; then
     echo ""
     printf "%-50s %s\n" "File" "Edits"
     while IFS=$'\t' read -r file count; do
-        printf "%-50s %s\n" "$file" "$count"
+        printf "%-50s %s\n" "$(display_field "$file")" "$count"
     done < "$TMPDIR_WORK/gaps.tsv"
 fi
 

@@ -129,6 +129,24 @@ rotate_log_if_needed() {
     fi
 }
 
+telemetry_escape_field() {
+    local value="${1-}"
+    value=${value//\\/\\\\}
+    value=${value//$'\t'/\\t}
+    value=${value//$'\n'/\\n}
+    value=${value//$'\r'/\\r}
+    printf '%s' "$value"
+}
+
+telemetry_unescape_field() {
+    local value="${1-}"
+    value=${value//\\r/$'\r'}
+    value=${value//\\n/$'\n'}
+    value=${value//\\t/$'\t'}
+    value=${value//\\\\/\\}
+    printf '%s' "$value"
+}
+
 append_injection_telemetry() {
     local project_root="$1"
     local tool_name="$2"
@@ -146,11 +164,11 @@ append_injection_telemetry() {
     mkdir -p "$log_dir"
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$timestamp" \
-        "${tool_name:-unknown}" \
-        "${file_path:-unknown}" \
-        "${coverage_status:-unknown}" \
-        "${covering_node:-None}" \
-        "${injected_sections:-none}" >> "$log_file" 2>/dev/null || true
+        "$(telemetry_escape_field "${tool_name:-unknown}")" \
+        "$(telemetry_escape_field "${file_path:-unknown}")" \
+        "$(telemetry_escape_field "${coverage_status:-unknown}")" \
+        "$(telemetry_escape_field "${covering_node:-None}")" \
+        "$(telemetry_escape_field "${injected_sections:-none}")" >> "$log_file" 2>/dev/null || true
     rotate_log_if_needed "$log_file"
 }
 
@@ -172,12 +190,12 @@ append_outcome_telemetry() {
     mkdir -p "$log_dir"
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$timestamp" \
-        "${tool_name:-unknown}" \
-        "${result:-unknown}" \
-        "${file_path:-unknown}" \
-        "${coverage_status:-unknown}" \
-        "${covering_node:-None}" \
-        "${detail:-none}" >> "$log_file" 2>/dev/null || true
+        "$(telemetry_escape_field "${tool_name:-unknown}")" \
+        "$(telemetry_escape_field "${result:-unknown}")" \
+        "$(telemetry_escape_field "${file_path:-unknown}")" \
+        "$(telemetry_escape_field "${coverage_status:-unknown}")" \
+        "$(telemetry_escape_field "${covering_node:-None}")" \
+        "$(telemetry_escape_field "${detail:-none}")" >> "$log_file" 2>/dev/null || true
     rotate_log_if_needed "$log_file"
 }
 

@@ -218,8 +218,35 @@ else
 fi
 rm -rf "$UNCOVERED_DIR"
 
-# ---- Test 8: show_telemetry.sh with sample data ----
-echo "Test 7: show_telemetry.sh displays dashboard"
+# ---- Test 8: telemetry fields escape tabs/newlines ----
+echo "Test 8: telemetry escapes tabs and newlines"
+
+NORMALIZE_DIR=$(mktemp -d)
+mkdir -p "$NORMALIZE_DIR/.intent-layer"
+
+bash -lc '
+set -euo pipefail
+source "'"$PLUGIN_DIR"'/lib/common.sh"
+append_outcome_telemetry "'"$NORMALIZE_DIR"'" "Edit" "failure" "/tmp/example.ts" "covered" "/tmp/AGENTS.md" $'"'"'line one\tline two\nline three'"'"'
+append_injection_telemetry "'"$NORMALIZE_DIR"'" "Edit" "/tmp/example.ts" "covered" "/tmp/AGENTS.md" $'"'"'Checks,\tPitfalls\nContext'"'"'
+' >/dev/null 2>&1
+
+NORMALIZED_OUTCOME=$(tail -1 "$NORMALIZE_DIR/.intent-layer/hooks/outcomes.log")
+NORMALIZED_INJECTION=$(tail -1 "$NORMALIZE_DIR/.intent-layer/hooks/injections.log")
+OUTCOME_FIELDS=$(echo "$NORMALIZED_OUTCOME" | awk -F'\t' '{print NF}')
+INJECTION_FIELDS=$(echo "$NORMALIZED_INJECTION" | awk -F'\t' '{print NF}')
+OUTCOME_DETAIL=$(echo "$NORMALIZED_OUTCOME" | awk -F'\t' '{print $7}')
+INJECTION_DETAIL=$(echo "$NORMALIZED_INJECTION" | awk -F'\t' '{print $6}')
+
+if [[ "$OUTCOME_FIELDS" -eq 7 && "$INJECTION_FIELDS" -eq 6 && "$OUTCOME_DETAIL" == 'line one\tline two\nline three' && "$INJECTION_DETAIL" == 'Checks,\tPitfalls\nContext' ]]; then
+    pass "Telemetry rows keep stable TSV field counts after escaping control characters"
+else
+    fail "Telemetry normalization failed: outcome=[$NORMALIZED_OUTCOME] injection=[$NORMALIZED_INJECTION]"
+fi
+rm -rf "$NORMALIZE_DIR"
+
+# ---- Test 9: show_telemetry.sh with sample data ----
+echo "Test 9: show_telemetry.sh displays dashboard"
 
 # Set up clean log data
 mkdir -p "$TEST_DIR/.intent-layer/hooks"
@@ -280,8 +307,8 @@ if $CHECKS_PASSED; then
     pass "show_telemetry.sh displays complete dashboard"
 fi
 
-# ---- Test 9: show_telemetry.sh handles missing data ----
-echo "Test 9: show_telemetry.sh handles missing data"
+# ---- Test 10: show_telemetry.sh handles missing data ----
+echo "Test 10: show_telemetry.sh handles missing data"
 
 EMPTY_DIR=$(mktemp -d)
 output=$("$PLUGIN_DIR/scripts/show_telemetry.sh" "$EMPTY_DIR" 2>&1 || true)
@@ -295,8 +322,8 @@ else
 fi
 rm -rf "$EMPTY_DIR"
 
-# ---- Test 10: show_telemetry.sh --help ----
-echo "Test 10: show_telemetry.sh --help"
+# ---- Test 11: show_telemetry.sh --help ----
+echo "Test 11: show_telemetry.sh --help"
 
 output=$("$PLUGIN_DIR/scripts/show_telemetry.sh" --help 2>&1 || true)
 if echo "$output" | grep -q "USAGE"; then
@@ -305,8 +332,8 @@ else
     fail "--help should show USAGE"
 fi
 
-# ---- Test 11: NotebookEdit success logging ----
-echo "Test 11: NotebookEdit success logging"
+# ---- Test 12: NotebookEdit success logging ----
+echo "Test 12: NotebookEdit success logging"
 
 "$PLUGIN_DIR/scripts/post-edit-check.sh" \
     "{\"tool_name\":\"NotebookEdit\",\"notebook_path\":\"$TEST_DIR/src/api/demo.ipynb\",\"content\":\"{}\"}" \
@@ -320,8 +347,8 @@ else
     fail "Expected NotebookEdit row, got: $LINE"
 fi
 
-# ---- Test 12: show_telemetry.sh bad args ----
-echo "Test 12: show_telemetry.sh rejects bad args"
+# ---- Test 13: show_telemetry.sh bad args ----
+echo "Test 13: show_telemetry.sh rejects bad args"
 
 exit_code=0
 "$PLUGIN_DIR/scripts/show_telemetry.sh" --bogus 2>/dev/null || exit_code=$?
@@ -332,8 +359,8 @@ else
     fail "Expected exit 1 for bad args, got $exit_code"
 fi
 
-# ---- Test 11: No .intent-layer directory skips logging ----
-echo "Test 11: No logging without .intent-layer directory"
+# ---- Test 14: No .intent-layer directory skips logging ----
+echo "Test 14: No logging without .intent-layer directory"
 
 CLEAN_DIR=$(mktemp -d)
 export CLAUDE_PROJECT_DIR="$CLEAN_DIR"

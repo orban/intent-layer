@@ -32,6 +32,8 @@ Stop ──────────── stop-learning-check.sh → Tier 1: heu
 
 `post-edit-check.sh` and `capture-tool-failure.sh` write to `.intent-layer/hooks/outcomes.log` with the normalized format `timestamp\ttool\tresult\tfile_path\tcoverage_status\tcovering_node\tdetail`. Success and failure rows now carry the same coverage metadata, and successful writes are logged even when the target path does not exist yet.
 
+Telemetry fields are escaped before writing (`\t`, `\n`, `\r`, `\\`) so tool errors and diagnostics cannot corrupt TSV parsing. `show_telemetry.sh` decodes those values for display.
+
 Both logs auto-rotate at 1000 lines and keep the newest 500 lines. Touch `.intent-layer/disable-telemetry` to opt out.
 
 ## Entry Points

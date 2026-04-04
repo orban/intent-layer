@@ -620,6 +620,79 @@ def test_append_log_marker_writes_metadata(sample_repo):
         assert "rep=2" in contents
 
 
+def test_intent_layer_cache_hit_writes_generation_phase_markers(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = os.path.join(tmpdir, ".cache")
+        runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
+        seed_workspace = os.path.join(tmpdir, "seed")
+        restore_workspace = os.path.join(tmpdir, "restore")
+        os.makedirs(seed_workspace)
+        os.makedirs(restore_workspace)
+
+        with open(os.path.join(seed_workspace, "CLAUDE.md"), "w") as f:
+            f.write("# cached context")
+
+        runner.index_cache.save(
+            "https://github.com/test/repo",
+            "abc123def",
+            seed_workspace,
+            ["CLAUDE.md"],
+            "intent_layer",
+        )
+
+        log_path = Path(tmpdir) / "logs" / "intent-layer-cache.log"
+        metrics = runner._check_or_generate_index(
+            workspace=restore_workspace,
+            repo_url="https://github.com/test/repo",
+            commit="abc123def",
+            condition="intent_layer",
+            stderr_log=log_path,
+        )
+
+        contents = log_path.read_text()
+        assert metrics.cache_hit is True
+        assert "start: intent-layer generation" in contents
+        assert "finish: intent-layer generation complete" in contents
+        assert "cache_hit=True" in contents
+        assert "source=cache" in contents
+
+
+def test_flat_cache_hit_writes_generation_phase_markers(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = os.path.join(tmpdir, ".cache")
+        runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
+        seed_workspace = os.path.join(tmpdir, "seed")
+        restore_workspace = os.path.join(tmpdir, "restore")
+        os.makedirs(seed_workspace)
+        os.makedirs(restore_workspace)
+
+        with open(os.path.join(seed_workspace, "CLAUDE.md"), "w") as f:
+            f.write("# cached flat context")
+
+        runner.index_cache.save(
+            "https://github.com/test/repo",
+            "abc123def",
+            seed_workspace,
+            ["CLAUDE.md"],
+            "flat_llm",
+        )
+
+        log_path = Path(tmpdir) / "logs" / "flat-cache.log"
+        metrics = runner._generate_flat_context(
+            workspace=restore_workspace,
+            repo_url="https://github.com/test/repo",
+            commit="abc123def",
+            stderr_log=log_path,
+        )
+
+        contents = log_path.read_text()
+        assert metrics.cache_hit is True
+        assert "start: flat context generation" in contents
+        assert "finish: flat context generation complete" in contents
+        assert "cache_hit=True" in contents
+        assert "source=cache" in contents
+
+
 def test_build_error_message_includes_log_path(sample_repo):
     with tempfile.TemporaryDirectory() as tmpdir:
         runner = TaskRunner(sample_repo, tmpdir)
