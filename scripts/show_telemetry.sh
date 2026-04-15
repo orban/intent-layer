@@ -13,6 +13,13 @@
 
 set -euo pipefail
 
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
+source "$PLUGIN_ROOT/lib/common.sh"
+
+display_field() {
+    telemetry_unescape_field "$1" | tr '\n\r' '  '
+}
+
 show_help() {
     cat << 'EOF'
 show_telemetry.sh - Intent Layer context telemetry dashboard
@@ -28,9 +35,9 @@ OPTIONS:
 
 OUTPUT:
     Dashboard showing:
-    - Per-node success/failure rates (which AGENTS.md nodes correlate best)
-    - Coverage gaps (files edited without any AGENTS.md injection)
-    - Summary stats and daily trend
+    - Per-node success/failure rates from normalized outcome rows
+    - Coverage gaps (files edited without AGENTS.md coverage)
+    - Completeness / malformed-row metrics and daily trend
 
 DATA SOURCES:
     .intent-layer/hooks/injections.log   (written by pre-edit-check.sh)
@@ -93,14 +100,50 @@ fi
 TMPDIR_WORK=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_WORK"' EXIT
 
-cp "$OUTCOMES_LOG" "$TMPDIR_WORK/outcomes.tsv"
+awk -F'\t' '
+BEGIN { malformed=0 }
+NF >= 7 {
+    coverage = $5
+    node = $6
+    if (coverage == "" || coverage == "unknown") {
+        coverage = (node != "" && node != "None") ? "covered" : "uncovered"
+    }
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, coverage, node, $7
+    next
+}
+NF == 4 {
+    printf "%s\t%s\t%s\t%s\tunknown\tNone\tlegacy-format\n", $1, $2, $3, $4
+    next
+}
+{ malformed++ }
+END {
+    printf "%d\n", malformed > "'"$TMPDIR_WORK"'/outcomes_malformed.count"
+}
+' "$OUTCOMES_LOG" > "$TMPDIR_WORK/outcomes.tsv"
 
-# Copy injections if available
 if [[ -f "$INJECTIONS_LOG" && -s "$INJECTIONS_LOG" ]]; then
-    cp "$INJECTIONS_LOG" "$TMPDIR_WORK/injections.tsv"
+    awk -F'\t' '
+    BEGIN { malformed=0 }
+    NF >= 6 {
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5, $6
+        next
+    }
+    NF == 4 {
+        printf "%s\tunknown\t%s\tcovered\t%s\t%s\n", $1, $2, $3, $4
+        next
+    }
+    { malformed++ }
+    END {
+        printf "%d\n", malformed > "'"$TMPDIR_WORK"'/injections_malformed.count"
+    }
+    ' "$INJECTIONS_LOG" > "$TMPDIR_WORK/injections.tsv"
 else
     touch "$TMPDIR_WORK/injections.tsv"
+    printf '0\n' > "$TMPDIR_WORK/injections_malformed.count"
 fi
+
+OUTCOME_MALFORMED=$(cat "$TMPDIR_WORK/outcomes_malformed.count")
+INJECTION_MALFORMED=$(cat "$TMPDIR_WORK/injections_malformed.count")
 
 # === Summary stats ===
 
@@ -108,61 +151,12 @@ TOTAL_EDITS=$(wc -l < "$TMPDIR_WORK/outcomes.tsv" | tr -d ' ')
 SUCCESS_EDITS=$(awk -F'\t' '$3 == "success"' "$TMPDIR_WORK/outcomes.tsv" | wc -l | tr -d ' ')
 FAILURE_EDITS=$(awk -F'\t' '$3 == "failure"' "$TMPDIR_WORK/outcomes.tsv" | wc -l | tr -d ' ')
 
-# === Join: match outcomes to injections ===
-# For each outcome line, find an injection with the same file path
-# and timestamp within 1 second (injection happens right before the edit).
-#
-# Strategy: convert timestamps to epoch seconds, compare.
-# We build a lookup from injections keyed by file path, then scan outcomes.
-
-# Join outcomes to injections entirely in awk (avoids shelling out to date per line).
-# Converts ISO 8601 timestamps to approximate seconds for comparison.
-# The approximation (365-day year, 30-day month) is fine since we only compare
-# timestamps within seconds of each other.
-
-awk -F'\t' '
-function iso_to_secs(ts,    parts, dp, tp) {
-    # Input: 2026-02-15T10:30:00Z → approximate seconds
-    split(ts, parts, "T")
-    split(parts[1], dp, "-")
-    gsub(/Z$/, "", parts[2])
-    split(parts[2], tp, ":")
-    return ((dp[1] * 365 + dp[2] * 30 + dp[3]) * 86400) + tp[1] * 3600 + tp[2] * 60 + tp[3]
-}
-
-# Pass 1: load injections (file 1)
-NR == FNR {
-    inj_epoch[NR] = iso_to_secs($1)
-    inj_file[NR] = $2
-    inj_node[NR] = $3
-    inj_count = NR
-    next
-}
-
-# Pass 2: process outcomes (file 2)
-{
-    o_epoch = iso_to_secs($1)
-    o_result = $3
-    o_file = $4
-    matched = "UNCOVERED"
-    for (i = 1; i <= inj_count; i++) {
-        if (inj_file[i] == o_file) {
-            diff = o_epoch - inj_epoch[i]
-            # Injection happens 0-5 seconds before the outcome
-            if (diff >= 0 && diff <= 5) {
-                matched = inj_node[i]
-                break
-            }
-        }
-    }
-    printf "%s\t%s\t%s\n", o_result, matched, o_file
-}
-' "$TMPDIR_WORK/injections.tsv" "$TMPDIR_WORK/outcomes.tsv" > "$TMPDIR_WORK/joined.tsv"
-
 # === Compute metrics ===
 
-COVERED_EDITS=$(awk -F'\t' '$2 != "UNCOVERED"' "$TMPDIR_WORK/joined.tsv" | wc -l | tr -d ' ')
-UNCOVERED_EDITS=$(awk -F'\t' '$2 == "UNCOVERED"' "$TMPDIR_WORK/joined.tsv" | wc -l | tr -d ' ')
+COVERED_EDITS=$(awk -F'\t' '$5 == "covered"' "$TMPDIR_WORK/outcomes.tsv" | wc -l | tr -d ' ')
+UNCOVERED_EDITS=$(awk -F'\t' '$5 == "uncovered"' "$TMPDIR_WORK/outcomes.tsv" | wc -l | tr -d ' ')
+UNKNOWN_COVERAGE_EDITS=$(awk -F'\t' '$5 == "unknown"' "$TMPDIR_WORK/outcomes.tsv" | wc -l | tr -d ' ')
+TOTAL_INJECTIONS=$(wc -l < "$TMPDIR_WORK/injections.tsv" | tr -d ' ')
 
 if [[ "$TOTAL_EDITS" -gt 0 ]]; then
     COVERED_PCT=$(( COVERED_EDITS * 100 / TOTAL_EDITS ))
@@ -179,13 +173,10 @@ FIRST_DATE=$(awk -F'\t' '{split($1,a,"T"); print a[1]}' "$TMPDIR_WORK/outcomes.t
 LAST_DATE=$(awk -F'\t' '{split($1,a,"T"); print a[1]}' "$TMPDIR_WORK/outcomes.tsv" | sort | tail -1)
 
 # === Per-node success rates ===
-# From joined.tsv: result \t node \t file
-# Group by node (excluding UNCOVERED), count success/total
-
-awk -F'\t' '$2 != "UNCOVERED" {
-    node = $2
+awk -F'\t' '$5 == "covered" && $6 != "" && $6 != "None" {
+    node = $6
     total[node]++
-    if ($1 == "success") success[node]++
+    if ($3 == "success") success[node]++
 }
 END {
     for (node in total) {
@@ -196,35 +187,35 @@ END {
             rate = 0
         printf "%s\t%d\t%d\t%d\n", node, total[node], s, rate
     }
-}' "$TMPDIR_WORK/joined.tsv" | sort -t$'\t' -k2 -rn > "$TMPDIR_WORK/per_node.tsv"
+}' "$TMPDIR_WORK/outcomes.tsv" | sort -t$'\t' -k2 -rn > "$TMPDIR_WORK/per_node.tsv"
 
 # === Coverage gaps ===
 # Files edited without AGENTS.md context, grouped by file
 
-awk -F'\t' '$2 == "UNCOVERED" {
-    files[$3]++
+awk -F'\t' '$5 == "uncovered" {
+    files[$4]++
 }
 END {
     for (f in files) {
         printf "%s\t%d\n", f, files[f]
     }
-}' "$TMPDIR_WORK/joined.tsv" | sort -t$'\t' -k2 -rn > "$TMPDIR_WORK/gaps.tsv"
+}' "$TMPDIR_WORK/outcomes.tsv" | sort -t$'\t' -k2 -rn > "$TMPDIR_WORK/gaps.tsv"
 
 # === Daily trend ===
 # Group outcomes by date, compute covered% and success%
 # Paste date column from outcomes alongside joined results
 
 paste <(awk -F'\t' '{split($1,a,"T"); print a[1]}' "$TMPDIR_WORK/outcomes.tsv") \
-      "$TMPDIR_WORK/joined.tsv" > "$TMPDIR_WORK/trend_raw.tsv"
+      "$TMPDIR_WORK/outcomes.tsv" > "$TMPDIR_WORK/trend_raw.tsv"
 
 # Aggregate per-date stats, then sort externally (avoids gawk's asorti)
 awk -F'\t' '{
     date = $1
-    result = $2
-    node = $3
+    result = $4
+    coverage = $6
     total[date]++
     if (result == "success") success[date]++
-    if (node != "UNCOVERED") covered[date]++
+    if (coverage == "covered") covered[date]++
 }
 END {
     for (d in total) {
@@ -243,9 +234,12 @@ echo "=== Intent Layer Telemetry ==="
 echo ""
 echo "Period: ${FIRST_DATE:-?} to ${LAST_DATE:-?}"
 echo "Total edits: $TOTAL_EDITS"
+echo "Total injections: $TOTAL_INJECTIONS"
 echo "Covered edits: $COVERED_EDITS (${COVERED_PCT}%)"
 echo "Uncovered edits: $UNCOVERED_EDITS (${UNCOVERED_PCT}%)"
+echo "Unknown coverage rows: $UNKNOWN_COVERAGE_EDITS"
 echo "Success rate: ${SUCCESS_RATE}%"
+echo "Malformed rows skipped: outcomes=$OUTCOME_MALFORMED, injections=$INJECTION_MALFORMED"
 
 # Per-node table
 if [[ -s "$TMPDIR_WORK/per_node.tsv" ]]; then
@@ -254,7 +248,7 @@ if [[ -s "$TMPDIR_WORK/per_node.tsv" ]]; then
     echo ""
     printf "%-40s %-8s %-10s %s\n" "Node" "Edits" "Success" "Rate"
     while IFS=$'\t' read -r node edits success rate; do
-        printf "%-40s %-8s %-10s %s%%\n" "$node" "$edits" "$success" "$rate"
+        printf "%-40s %-8s %-10s %s%%\n" "$(display_field "$node")" "$edits" "$success" "$rate"
     done < "$TMPDIR_WORK/per_node.tsv"
 fi
 
@@ -265,7 +259,7 @@ if [[ -s "$TMPDIR_WORK/gaps.tsv" ]]; then
     echo ""
     printf "%-50s %s\n" "File" "Edits"
     while IFS=$'\t' read -r file count; do
-        printf "%-50s %s\n" "$file" "$count"
+        printf "%-50s %s\n" "$(display_field "$file")" "$count"
     done < "$TMPDIR_WORK/gaps.tsv"
 fi
 

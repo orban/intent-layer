@@ -195,11 +195,11 @@ def test_missing_condition():
 
     task = eval_results.results[0]
     assert task["none"] is not None
-    assert task["flat_llm"] is None
+    assert "flat_llm" not in task  # missing condition is absent, not None
     assert task["intent_layer"] is not None
 
-    # flat_llm delta should be empty (missing condition)
-    assert task["deltas"]["flat_llm"] == {}
+    # flat_llm delta should be absent (missing condition)
+    assert "flat_llm" not in task["deltas"]
     # intent_layer delta should exist
     assert task["deltas"]["intent_layer"]["time_percent"] == "-44.4%"
 
@@ -715,18 +715,18 @@ def test_markdown_multi_run_has_ci_columns(tmp_path):
     # CI brackets appear in success column
     assert "[" in content and "]" in content
 
-    # IL vs none column header present
-    assert "IL vs none" in content
+    # Comparison rows present in per-task Fisher table
+    assert "intent_layer vs none" in content
 
     # Significance labels appear
-    assert "overlap" in content or "sig." in content
+    assert "overlap" in content or "sig." in content or "*" in content
 
     # Summary has CI notation
     assert "90% CI" in content
 
 
 def test_markdown_single_run_no_ci_column(tmp_path, three_condition_results):
-    """Single-run markdown has no IL vs none column (backward-compatible)."""
+    """Single-run markdown has no per-task Fisher section (backward-compatible)."""
     reporter = Reporter(output_dir=str(tmp_path))
     eval_results = reporter.compile_results(three_condition_results)
     md_path = reporter.write_markdown(eval_results)
@@ -734,7 +734,7 @@ def test_markdown_single_run_no_ci_column(tmp_path, three_condition_results):
     with open(md_path) as f:
         content = f.read()
 
-    assert "IL vs none" not in content
+    assert "Per-Task Analysis" not in content
     assert "90% CI" not in content
 
 
@@ -886,3 +886,134 @@ def test_mcnemar_markdown_output(tmp_path):
     assert "flat_llm vs none" in content
     assert "intent_layer vs none" in content
     assert "p-value" in content
+
+
+def _make_fisher_results():
+    """Create multi-task multi-rep results to test per-task Fisher analysis.
+
+    Task A: none 0/3 pass, flat 1/3, intent 3/3 (star result pattern)
+    Task B: none 3/3 pass, flat 3/3, intent 3/3 (ceiling-effected)
+    """
+    results = []
+    # Task A: clear signal
+    for rep in range(3):
+        results.append(TaskResult(
+            task_id="task-signal", condition=Condition.NONE, success=False,
+            test_output="FAIL", wall_clock_seconds=50.0, rep=rep,
+            input_tokens=2000, output_tokens=1000, tool_calls=10,
+            lines_changed=20, files_touched=["a.py"],
+        ))
+    for rep in range(3):
+        results.append(TaskResult(
+            task_id="task-signal", condition=Condition.FLAT_LLM,
+            success=(rep == 0),  # 1/3 pass
+            test_output="PASS" if rep == 0 else "FAIL",
+            wall_clock_seconds=50.0, rep=rep,
+            input_tokens=2000, output_tokens=1000, tool_calls=10,
+            lines_changed=20, files_touched=["a.py"],
+        ))
+    for rep in range(3):
+        results.append(TaskResult(
+            task_id="task-signal", condition=Condition.INTENT_LAYER,
+            success=True, test_output="PASS", wall_clock_seconds=50.0, rep=rep,
+            input_tokens=2000, output_tokens=1000, tool_calls=10,
+            lines_changed=20, files_touched=["a.py"],
+        ))
+
+    # Task B: ceiling-effected
+    for cond in (Condition.NONE, Condition.FLAT_LLM, Condition.INTENT_LAYER):
+        for rep in range(3):
+            results.append(TaskResult(
+                task_id="task-ceiling", condition=cond, success=True,
+                test_output="PASS", wall_clock_seconds=50.0, rep=rep,
+                input_tokens=2000, output_tokens=1000, tool_calls=10,
+                lines_changed=20, files_touched=["a.py"],
+            ))
+    return results
+
+
+def test_per_task_fisher_in_summary():
+    """Per-task Fisher tests appear in summary for multi-run data."""
+    reporter = Reporter(output_dir="/tmp")
+    results = _make_fisher_results()
+    eval_results = reporter.compile_results(results)
+    summary = eval_results.summary
+
+    assert "per_task_fisher" in summary
+    fisher = summary["per_task_fisher"]
+    assert len(fisher) == 2
+
+    # Find task-signal entry
+    signal_task = next(t for t in fisher if t["task_id"] == "task-signal")
+    assert "intent_layer_vs_none" in signal_task["comparisons"]
+    comp = signal_task["comparisons"]["intent_layer_vs_none"]
+    assert comp["a_rate"] == 1.0
+    assert comp["b_rate"] == 0.0
+    assert comp["p_value"] <= 0.10  # borderline significant
+
+    # Ceiling-effected task
+    ceiling_task = next(t for t in fisher if t["task_id"] == "task-ceiling")
+    assert ceiling_task["ceiling_effected"] is True
+    assert ceiling_task["pass_rate"] == 1.0
+
+
+def test_recommendations_generated():
+    """Recommendations section flags ceiling-effected tasks and significant results."""
+    reporter = Reporter(output_dir="/tmp")
+    results = _make_fisher_results()
+    eval_results = reporter.compile_results(results)
+    recs = eval_results.summary.get("recommendations", [])
+
+    assert len(recs) >= 1
+    # Should flag ceiling-effected task
+    ceiling_recs = [r for r in recs if "ceiling-effected" in r]
+    assert len(ceiling_recs) == 1
+    assert "task-ceiling" in ceiling_recs[0]
+
+    # task-signal has p=0.10 exactly for none vs intent (3 reps per group),
+    # which is at the boundary of our p < 0.10 threshold — not flagged.
+    # With 5 reps (0/5 vs 5/5), it would be p=0.008 and clearly flagged.
+
+
+def test_recommendations_flags_infra_only_tasks():
+    """Tasks with only infra errors get flagged in recommendations."""
+    results = [
+        TaskResult(
+            task_id="task-broken", condition=Condition.NONE, success=False,
+            test_output="", wall_clock_seconds=0, rep=0,
+            input_tokens=0, output_tokens=0, tool_calls=0,
+            lines_changed=0, files_touched=[],
+            error="[infrastructure] Docker setup timed out",
+        ),
+        TaskResult(
+            task_id="task-broken", condition=Condition.NONE, success=False,
+            test_output="", wall_clock_seconds=0, rep=1,
+            input_tokens=0, output_tokens=0, tool_calls=0,
+            lines_changed=0, files_touched=[],
+            error="[infrastructure] Docker setup timed out",
+        ),
+    ]
+    reporter = Reporter(output_dir="/tmp")
+    eval_results = reporter.compile_results(results)
+    recs = eval_results.summary.get("recommendations", [])
+
+    infra_recs = [r for r in recs if "task-broken" in r and "infrastructure" in r]
+    assert len(infra_recs) == 1
+
+
+def test_fisher_markdown_output(tmp_path):
+    """Per-Task Analysis and Recommendations sections appear in markdown."""
+    reporter = Reporter(output_dir=str(tmp_path))
+    results = _make_fisher_results()
+    eval_results = reporter.compile_results(results)
+    md_path = reporter.write_markdown(eval_results)
+
+    with open(md_path) as f:
+        content = f.read()
+
+    assert "## Per-Task Analysis (Fisher's Exact Test)" in content
+    assert "task-signal" in content
+    assert "intent_layer vs none" in content
+
+    assert "## Recommendations" in content
+    assert "ceiling-effected" in content

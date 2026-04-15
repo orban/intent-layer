@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.task_runner import TaskResult, Condition
-from lib.stats import wilson_score_interval, ci_overlap, mcnemar_test
+from lib.stats import wilson_score_interval, ci_overlap, mcnemar_test, fisher_exact_test
 from lib.budget import fmt_tokens
 
 
@@ -19,12 +19,45 @@ class EvalResults:
     results: list[dict[str, Any]]
     summary: dict[str, Any]
     budget: dict[str, Any] | None = None
+    run_config: dict[str, Any] | None = None
 
 
 class Reporter:
+    # Display names for conditions in markdown output
+    DISPLAY_NAMES = {
+        "none": "None",
+        "flat_llm": "Flat LLM",
+        "intent_layer": "Intent Layer",
+        "human": "Human",
+    }
+
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _discover_conditions(compiled_results: list[dict]) -> list[str]:
+        """Discover condition keys present in compiled result dicts.
+
+        Returns baseline ("none") first if present, then remaining keys sorted.
+        """
+        skip = {"task_id", "deltas"}
+        cond_keys: set[str] = set()
+        for r in compiled_results:
+            for key in r:
+                if key not in skip and r[key] is not None:
+                    cond_keys.add(key)
+        # Baseline first, then alphabetical
+        baseline = "none"
+        rest = sorted(k for k in cond_keys if k != baseline)
+        if baseline in cond_keys:
+            return [baseline] + rest
+        return rest
+
+    @classmethod
+    def _display_name(cls, cond_key: str) -> str:
+        """Human-readable display name for a condition key."""
+        return cls.DISPLAY_NAMES.get(cond_key, cond_key.replace("_", " ").title())
 
     def compile_results(
         self,
@@ -51,22 +84,24 @@ class Reporter:
                 grouped[r.task_id][cond] = []
             grouped[r.task_id][cond].append(r)
 
+        # Discover conditions present in this run
+        conditions_present = sorted(set(r.condition.value for r in results))
+        baseline = Condition.NONE.value
+        treatments = [c for c in conditions_present if c != baseline]
+
         compiled = []
         for task_id, conditions in grouped.items():
-            none_runs = conditions.get("none", [])
-            flat_runs = conditions.get("flat_llm", [])
-            il_runs = conditions.get("intent_layer", [])
+            task_result: dict[str, Any] = {"task_id": task_id}
+            for cond_key in conditions_present:
+                runs = conditions.get(cond_key, [])
+                task_result[cond_key] = self._serialize_condition(runs) if runs else None
 
-            task_result = {
-                "task_id": task_id,
-                "none": self._serialize_condition(none_runs) if none_runs else None,
-                "flat_llm": self._serialize_condition(flat_runs) if flat_runs else None,
-                "intent_layer": self._serialize_condition(il_runs) if il_runs else None,
-                "deltas": {
-                    "flat_llm": self._compute_delta(none_runs, flat_runs),
-                    "intent_layer": self._compute_delta(none_runs, il_runs),
-                }
-            }
+            baseline_runs = conditions.get(baseline, [])
+            deltas = {}
+            for treatment in treatments:
+                deltas[treatment] = self._compute_delta(baseline_runs, conditions.get(treatment, []))
+            task_result["deltas"] = deltas
+
             compiled.append(task_result)
 
         summary = self._compute_summary(results)
@@ -293,6 +328,8 @@ class Reporter:
         Two scoring modes:
         - Per-protocol: infra errors excluded from denominator (existing behavior)
         - ITT (intent-to-treat): all assigned tasks count, timeout/infra = fail
+
+        Condition-agnostic: iterates over whatever conditions appear in results.
         """
         def success_rate(task_results: list[TaskResult]) -> float:
             """Per-protocol: exclude infra errors from denominator."""
@@ -307,9 +344,8 @@ class Reporter:
                 return 0
             return round(sum(1 for r in task_results if r.success) / len(task_results), 2)
 
-        none_results = [r for r in results if r.condition == Condition.NONE]
-        flat_results = [r for r in results if r.condition == Condition.FLAT_LLM]
-        il_results = [r for r in results if r.condition == Condition.INTENT_LAYER]
+        conditions_present = sorted(set(r.condition for r in results), key=lambda c: c.value)
+        per_cond = {c: [r for r in results if r.condition == c] for c in conditions_present}
 
         infra_errors = sum(1 for r in results if self._is_infra_error(r))
 
@@ -323,16 +359,14 @@ class Reporter:
         summary: dict[str, Any] = {
             "total_tasks": len(set(r.task_id for r in results)),
             "infrastructure_errors": infra_errors,
-            "none_success_rate": success_rate(none_results),
-            "flat_llm_success_rate": success_rate(flat_results),
-            "intent_layer_success_rate": success_rate(il_results),
-            "none_itt_rate": itt_rate(none_results),
-            "flat_llm_itt_rate": itt_rate(flat_results),
-            "intent_layer_itt_rate": itt_rate(il_results),
-            "none_median_tokens": median_tokens(none_results),
-            "flat_llm_median_tokens": median_tokens(flat_results),
-            "intent_layer_median_tokens": median_tokens(il_results),
         }
+
+        for cond in conditions_present:
+            label = cond.value
+            cond_results = per_cond[cond]
+            summary[f"{label}_success_rate"] = success_rate(cond_results)
+            summary[f"{label}_itt_rate"] = itt_rate(cond_results)
+            summary[f"{label}_median_tokens"] = median_tokens(cond_results)
 
         # Add CIs when we have multi-run data
         has_multi_run = any(
@@ -340,12 +374,9 @@ class Reporter:
             for r in results
         )
         if has_multi_run:
-            for label, cond_results in [
-                ("none", none_results),
-                ("flat_llm", flat_results),
-                ("intent_layer", il_results),
-            ]:
-                valid = [r for r in cond_results if not self._is_infra_error(r)]
+            for cond in conditions_present:
+                label = cond.value
+                valid = [r for r in per_cond[cond] if not self._is_infra_error(r)]
                 if valid:
                     successes = sum(1 for r in valid if r.success)
                     ci_lower, ci_upper, _ = wilson_score_interval(successes, len(valid), 0.90)
@@ -354,20 +385,25 @@ class Reporter:
                         "upper": round(ci_upper, 3),
                     }
 
-            # Significance: check CI overlap between none and each treatment
-            none_ci = summary.get("none_ci_90")
-            if none_ci:
-                for treatment in ("flat_llm", "intent_layer"):
-                    t_ci = summary.get(f"{treatment}_ci_90")
-                    if t_ci:
-                        overlaps = ci_overlap(
-                            (none_ci["lower"], none_ci["upper"]),
-                            (t_ci["lower"], t_ci["upper"]),
-                        )
-                        summary[f"{treatment}_vs_none_significant"] = not overlaps
-
         # McNemar's paired analysis: compare conditions per (task, rep) pair
         summary["mcnemar"] = self._compute_mcnemar(results)
+
+        # Derive significance flags from McNemar p-values (paired test).
+        # Only for multi-run data — single-run has too few pairs to be meaningful.
+        baseline = Condition.NONE
+        treatments = [c for c in conditions_present if c != baseline]
+        if has_multi_run:
+            for treatment in treatments:
+                key = f"{treatment.value}_vs_{baseline.value}"
+                mcnemar_entry = summary["mcnemar"].get(key)
+                if mcnemar_entry and mcnemar_entry["n_discordant"] > 0:
+                    summary[f"{treatment.value}_vs_{baseline.value}_significant"] = mcnemar_entry["p_value"] < 0.05
+
+        # Per-task Fisher's exact tests + recommendations
+        if has_multi_run:
+            per_task_fisher = self._compute_per_task_fisher(results)
+            summary["per_task_fisher"] = per_task_fisher
+            summary["recommendations"] = self._compute_recommendations(per_task_fisher, results)
 
         return summary
 
@@ -391,11 +427,21 @@ class Reporter:
             for runs in conditions.values():
                 runs.sort(key=lambda r: r.rep)
 
-        comparisons = [
-            ("flat_llm", "none"),
-            ("intent_layer", "none"),
-            ("intent_layer", "flat_llm"),
-        ]
+        # Generate all unique condition pairs: (treatment, baseline).
+        # Use baseline-first ordering so keys read "treatment_vs_baseline".
+        baseline = Condition.NONE.value
+        cond_values = sorted(set(r.condition.value for r in results))
+        comparisons = []
+        for i, a in enumerate(cond_values):
+            for b in cond_values[i + 1:]:
+                # Ensure baseline is always the second element
+                if a == baseline:
+                    comparisons.append((b, a))
+                elif b == baseline:
+                    comparisons.append((a, b))
+                else:
+                    # Neither is baseline — alphabetical: later vs earlier
+                    comparisons.append((b, a))
 
         mcnemar_results = {}
         for cond_a, cond_b in comparisons:
@@ -419,6 +465,182 @@ class Reporter:
 
         return mcnemar_results
 
+    def _compute_per_task_fisher(self, results: list[TaskResult]) -> list[dict]:
+        """Run Fisher's exact test per task for each condition pair.
+
+        Unlike McNemar (which pools all tasks for paired analysis), Fisher
+        tests each task independently — useful for identifying which specific
+        tasks drive the aggregate signal and for flagging task quality issues.
+        """
+        # Group by task_id → condition → list of valid results
+        grouped: dict[str, dict[str, list[TaskResult]]] = {}
+        for r in results:
+            if self._is_infra_error(r):
+                continue
+            if r.task_id not in grouped:
+                grouped[r.task_id] = {}
+            cond = r.condition.value
+            if cond not in grouped[r.task_id]:
+                grouped[r.task_id][cond] = []
+            grouped[r.task_id][cond].append(r)
+
+        # Generate all unique condition pairs dynamically
+        cond_values = sorted(set(
+            r.condition.value for r in results if not self._is_infra_error(r)
+        ))
+        comparisons = []
+        for i, a in enumerate(cond_values):
+            for b in cond_values[i + 1:]:
+                comparisons.append((a, b))
+
+        per_task: list[dict] = []
+        for task_id, conditions in grouped.items():
+            task_entry: dict[str, Any] = {"task_id": task_id, "comparisons": {}}
+
+            for cond_a, cond_b in comparisons:
+                a_runs = conditions.get(cond_a, [])
+                b_runs = conditions.get(cond_b, [])
+                if not a_runs or not b_runs:
+                    continue
+
+                a_pass = sum(1 for r in a_runs if r.success)
+                b_pass = sum(1 for r in b_runs if r.success)
+                result = fisher_exact_test(a_pass, len(a_runs), b_pass, len(b_runs))
+                task_entry["comparisons"][f"{cond_a}_vs_{cond_b}"] = result
+
+            # Task quality flags
+            all_runs = [r for runs in conditions.values() for r in runs]
+            total_pass = sum(1 for r in all_runs if r.success)
+            task_entry["total_runs"] = len(all_runs)
+            task_entry["total_pass"] = total_pass
+            task_entry["pass_rate"] = round(total_pass / len(all_runs), 2) if all_runs else 0
+
+            # Ceiling: all conditions ~100% → no discriminative power
+            task_entry["ceiling_effected"] = total_pass == len(all_runs) and len(all_runs) >= 3
+
+            # Floor: all conditions 0% → task may be broken or too hard
+            task_entry["floor_effected"] = total_pass == 0 and len(all_runs) >= 3
+
+            per_task.append(task_entry)
+
+        return per_task
+
+    def _compute_recommendations(self, per_task_fisher: list[dict], results: list[TaskResult]) -> list[str]:
+        """Generate actionable recommendations from per-task analysis."""
+        recs: list[str] = []
+
+        # Check for tasks with all infra errors (no valid runs)
+        task_ids_with_data = {t["task_id"] for t in per_task_fisher}
+        all_task_ids = set(r.task_id for r in results)
+        infra_only = all_task_ids - task_ids_with_data
+        for tid in sorted(infra_only):
+            recs.append(f"**{tid}**: all runs were infrastructure errors. Check Docker setup and pre-validation.")
+
+        for t in per_task_fisher:
+            tid = t["task_id"]
+            if t["ceiling_effected"]:
+                recs.append(
+                    f"**{tid}**: ceiling-effected ({t['total_pass']}/{t['total_runs']} pass). "
+                    f"No discriminative power — consider replacing with a harder task."
+                )
+            if t["floor_effected"]:
+                recs.append(
+                    f"**{tid}**: floor-effected (0/{t['total_runs']} pass). "
+                    f"All conditions fail — task may be too hard or misconfigured."
+                )
+
+            # Flag significant per-task results
+            for comp_key, comp in t["comparisons"].items():
+                if comp["p_value"] < 0.10 and abs(comp["rate_diff"]) >= 0.3:
+                    direction = "+" if comp["rate_diff"] > 0 else ""
+                    recs.append(
+                        f"**{tid}** ({comp_key.replace('_vs_', ' vs ')}): "
+                        f"{direction}{comp['rate_diff']:.0%} rate difference "
+                        f"(p={comp['p_value']:.3f}). Worth deeper investigation."
+                    )
+
+        return recs
+
+    def write_checkpoint(
+        self,
+        results: list['TaskResult'],
+        eval_id: str,
+        run_config: dict | None = None,
+    ) -> str:
+        """Write incremental checkpoint after each task result.
+
+        Produces a --resume-compatible JSON file so that a killed run can
+        be continued with the same command plus --resume <checkpoint>.
+        The checkpoint is overwritten after each result, keeping only the
+        latest snapshot.
+
+        run_config: snapshot of the CLI flags (tasks, conditions, reps, timeout)
+        so --resume can detect incompatible configs before mixing results.
+        """
+        checkpoint_path = self.output_dir / f"in-progress-{eval_id}.json"
+        compiled = self.compile_results(results)
+        # Stamp with the pre-assigned eval_id so resume traces lineage
+        data = asdict(compiled)
+        data["eval_id"] = eval_id
+        data["checkpoint"] = True
+        data["completed_runs"] = len(results)
+        if run_config is not None:
+            data["run_config"] = run_config
+
+        # Atomic write: write to tmp then rename to avoid partial reads
+        tmp_path = checkpoint_path.with_suffix(f".tmp.{id(results)}")
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2)
+        tmp_path.rename(checkpoint_path)
+
+        return str(checkpoint_path)
+
+    def remove_checkpoint(self, eval_id: str) -> None:
+        """Remove checkpoint file after successful completion."""
+        checkpoint_path = self.output_dir / f"in-progress-{eval_id}.json"
+        checkpoint_path.unlink(missing_ok=True)
+
+    def write_trial(self, result: 'TaskResult') -> str:
+        """Write a per-trial result file for ls-level observability.
+
+        Creates results/trials/<task_id>-<condition>-r<rep>.json so you
+        can see exactly which trials completed by listing a directory.
+        Each file is small (~1KB) and written atomically.
+        """
+        trials_dir = self.output_dir / "trials"
+        trials_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"{result.task_id}-{result.condition.value}-r{result.rep}.json"
+        trial_path = trials_dir / filename
+
+        data = {
+            "task_id": result.task_id,
+            "condition": result.condition.value,
+            "rep": result.rep,
+            "success": result.success,
+            "wall_clock_seconds": result.wall_clock_seconds,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
+            "tool_calls": result.tool_calls,
+            "lines_changed": result.lines_changed,
+        }
+        if result.error:
+            data["error"] = result.error
+            data["error_class"] = (
+                "infra" if result.error.startswith(self.INFRA_ERROR_PREFIXES)
+                else "timeout" if result.error.startswith("[timeout]")
+                else "genuine"
+            )
+
+        # Atomic write
+        import os
+        tmp_path = trial_path.with_suffix(f".tmp.{os.getpid()}")
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2)
+        tmp_path.rename(trial_path)
+
+        return str(trial_path)
+
     def write_json(self, results: EvalResults) -> str:
         """Write results to JSON file."""
         path = self.output_dir / f"{results.eval_id}.json"
@@ -440,7 +662,12 @@ class Reporter:
         """
         path = self.output_dir / f"{results.eval_id}.md"
         summary = results.summary
-        has_cis = "none_ci_90" in summary or "intent_layer_ci_90" in summary
+
+        # Discover conditions from the compiled results
+        cond_keys = self._discover_conditions(results.results)
+        baseline = Condition.NONE.value
+        treatments = [c for c in cond_keys if c != baseline]
+        has_cis = any(f"{c}_ci_90" in summary for c in cond_keys)
 
         lines = [
             f"# Eval Results: {results.eval_id}",
@@ -454,56 +681,52 @@ class Reporter:
         ]
 
         # Per-condition summary with optional CIs
-        for label, display_name in [
-            ("none", "None"),
-            ("flat_llm", "Flat LLM"),
-            ("intent_layer", "Intent Layer"),
-        ]:
-            rate = summary[f"{label}_success_rate"]
+        for label in cond_keys:
+            display = self._display_name(label)
+            rate = summary.get(f"{label}_success_rate", 0)
             ci = summary.get(f"{label}_ci_90")
             if ci:
                 lines.append(
-                    f"- **{display_name} success rate:** {rate:.0%} "
+                    f"- **{display} success rate:** {rate:.0%} "
                     f"90% CI {self._format_ci(ci)}"
                 )
             else:
-                lines.append(f"- **{display_name} success rate:** {rate:.0%}")
+                lines.append(f"- **{display} success rate:** {rate:.0%}")
 
         # Per-condition median token usage
-        none_tok = summary.get("none_median_tokens", 0)
-        if none_tok:
+        baseline_tok = summary.get(f"{baseline}_median_tokens", 0)
+        if baseline_tok:
             lines.append("")
             lines.append("**Median tokens (input+output, fix phase only):**")
-            for label, display_name in [
-                ("none", "None"),
-                ("flat_llm", "Flat LLM"),
-                ("intent_layer", "Intent Layer"),
-            ]:
+            for label in cond_keys:
+                display = self._display_name(label)
                 tok = summary.get(f"{label}_median_tokens", 0)
                 tok_fmt = f"{tok / 1000:.0f}k" if tok else "N/A"
-                if label == "none" or not none_tok:
-                    lines.append(f"- **{display_name}:** {tok_fmt}")
+                if label == baseline or not baseline_tok:
+                    lines.append(f"- **{display}:** {tok_fmt}")
                 else:
-                    pct_diff = (tok - none_tok) / none_tok * 100
-                    lines.append(f"- **{display_name}:** {tok_fmt} ({pct_diff:+.0f}% vs none)")
+                    pct_diff = (tok - baseline_tok) / baseline_tok * 100
+                    lines.append(f"- **{display}:** {tok_fmt} ({pct_diff:+.0f}% vs {baseline})")
 
         # Significance flags
         if has_cis:
             lines.append("")
-            for treatment, display_name in [
-                ("flat_llm", "Flat LLM"),
-                ("intent_layer", "Intent Layer"),
-            ]:
-                sig_key = f"{treatment}_vs_none_significant"
-                if sig_key in summary:
+            mcnemar_data = summary.get("mcnemar", {})
+            for treatment in treatments:
+                display = self._display_name(treatment)
+                sig_key = f"{treatment}_vs_{baseline}_significant"
+                mcnemar_entry = mcnemar_data.get(f"{treatment}_vs_{baseline}")
+                if sig_key in summary and mcnemar_entry:
+                    p = mcnemar_entry["p_value"]
+                    n_disc = mcnemar_entry["n_discordant"]
                     if summary[sig_key]:
-                        lines.append(f"- **{display_name} vs None:** significant (non-overlapping CIs)")
+                        lines.append(f"- **{display} vs {self._display_name(baseline)}:** significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
                     else:
-                        lines.append(f"- **{display_name} vs None:** not significant (overlapping CIs)")
+                        lines.append(f"- **{display} vs {self._display_name(baseline)}:** not significant (McNemar p={p:.3f}, {n_disc} discordant pairs)")
 
             # CI width as variance proxy
             widths = []
-            for label in ("none", "flat_llm", "intent_layer"):
+            for label in cond_keys:
                 ci = summary.get(f"{label}_ci_90")
                 if ci:
                     widths.append((label, ci["upper"] - ci["lower"]))
@@ -519,49 +742,21 @@ class Reporter:
             "",
         ]
 
-        # Table header — add IL vs none column when multi-run CIs exist
-        if has_cis:
-            lines.append(
-                "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
-                "| \u0394 Time | \u0394 Tokens | IL vs none |"
-            )
-            lines.append(
-                "|------|-----------|---------|----------|--------|------------|-------"
-                "|--------|----------|------------|"
-            )
-        else:
-            lines.append(
-                "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
-                "| \u0394 Time | \u0394 Tokens |"
-            )
-            lines.append(
-                "|------|-----------|---------|----------|--------|------------|-------"
-                "|--------|----------|"
-            )
+        # Table header
+        lines.append(
+            "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
+            "| \u0394 Time | \u0394 Tokens |"
+        )
+        lines.append(
+            "|------|-----------|---------|----------|--------|------------|-------"
+            "|--------|----------|"
+        )
 
         for r in results.results:
             task_id = r["task_id"]
             deltas = r.get("deltas", {})
 
-            # Pre-compute per-task CI comparison for IL vs none
-            none_data = r.get("none")
-            il_data = r.get("intent_layer")
-            il_vs_none = ""
-            if has_cis and none_data and il_data:
-                none_ci = none_data.get("ci_90")
-                il_ci = il_data.get("ci_90")
-                if none_ci and il_ci:
-                    none_rate = none_data.get("success_rate", 0)
-                    il_rate = il_data.get("success_rate", 0)
-                    diff = il_rate - none_rate
-                    overlaps = ci_overlap(
-                        (none_ci["lower"], none_ci["upper"]),
-                        (il_ci["lower"], il_ci["upper"]),
-                    )
-                    sig_label = "overlap" if overlaps else "sig."
-                    il_vs_none = f"{diff:+.0%} ({sig_label})"
-
-            for cond_key in ("none", "flat_llm", "intent_layer"):
+            for cond_key in cond_keys:
                 cond_data = r.get(cond_key)
                 if cond_data is None:
                     continue
@@ -589,8 +784,8 @@ class Reporter:
 
                 tokens_fmt = f"{tokens / 1000:.1f}k"
 
-                # Deltas: none is baseline, shows "—"
-                if cond_key == "none":
+                # Deltas: baseline shows "—"
+                if cond_key == baseline:
                     d_time = "\u2014"
                     d_tokens = "\u2014"
                 else:
@@ -601,21 +796,13 @@ class Reporter:
                 row = (
                     f"| {task_id} | {cond_key} | {success} | {time_s:.1f} | "
                     f"{tokens_fmt} | {tool_calls} | {lines_changed} | "
-                    f"{d_time} | {d_tokens}"
+                    f"{d_time} | {d_tokens} |"
                 )
-
-                if has_cis:
-                    # Show IL vs none comparison on the intent_layer row
-                    comparison = il_vs_none if cond_key == "intent_layer" else ""
-                    row += f" | {comparison} |"
-                else:
-                    row += " |"
 
                 lines.append(row)
 
             # Blank row between tasks
-            blank = "|  |  |  |  |  |  |  |  |  |" + ("  |" if has_cis else "")
-            lines.append(blank)
+            lines.append("|  |  |  |  |  |  |  |  |  |")
 
         # Remove trailing blank row
         if lines and lines[-1].strip().replace("|", "").replace(" ", "") == "":
@@ -640,6 +827,51 @@ class Reporter:
                     f"{data['a_wins']} | {data['b_wins']} | "
                     f"{data['p_value']:.3f} | {sig} |"
                 )
+
+        # Per-Task Fisher's Exact Test section
+        per_task_fisher = summary.get("per_task_fisher", [])
+        tasks_with_comparisons = [t for t in per_task_fisher if t["comparisons"]]
+        if tasks_with_comparisons:
+            lines += [
+                "",
+                "",
+                "## Per-Task Analysis (Fisher's Exact Test)",
+                "",
+                "| Task | Comparison | A rate | B rate | Diff | p-value | Sig. |",
+                "|------|------------|--------|--------|------|---------|------|",
+            ]
+            for t in tasks_with_comparisons:
+                tid = t["task_id"]
+                for comp_key, comp in t["comparisons"].items():
+                    label = comp_key.replace("_vs_", " vs ")
+                    sig = "*" if comp["p_value"] < 0.05 else ("~" if comp["p_value"] < 0.10 else "")
+                    lines.append(
+                        f"| {tid} | {label} | {comp['a_rate']:.0%} | "
+                        f"{comp['b_rate']:.0%} | {comp['rate_diff']:+.0%} | "
+                        f"{comp['p_value']:.3f} | {sig} |"
+                    )
+
+            # Quality flags
+            ceiling = [t for t in per_task_fisher if t["ceiling_effected"]]
+            floor = [t for t in per_task_fisher if t["floor_effected"]]
+            if ceiling or floor:
+                lines.append("")
+                for t in ceiling:
+                    lines.append(f"- **{t['task_id']}**: ceiling-effected (100% all conditions)")
+                for t in floor:
+                    lines.append(f"- **{t['task_id']}**: floor-effected (0% all conditions)")
+
+        # Recommendations section
+        recs = summary.get("recommendations", [])
+        if recs:
+            lines += [
+                "",
+                "",
+                "## Recommendations",
+                "",
+            ]
+            for rec in recs:
+                lines.append(f"- {rec}")
 
         # Budget Impact section (when budget data is available)
         if results.budget:

@@ -49,9 +49,11 @@ if [[ ! -f "$FIND_NODE" ]]; then
 fi
 
 NODE_PATH=$("$FIND_NODE" "$FILE_PATH" 2>/dev/null || true)
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
 
 # If no covering node found, warn about uncovered directory
 if [[ -z "$NODE_PATH" ]]; then
+    append_injection_telemetry "$PROJECT_ROOT" "$TOOL_NAME" "$FILE_PATH" "uncovered" "None" "none"
     # Only warn for source files, not configs/docs
     case "$FILE_PATH" in
         *.ts|*.js|*.tsx|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.sh)
@@ -106,6 +108,7 @@ fi
 
 # Exit if no learnings found
 if [[ -z "$PITFALLS" && -z "$CHECKS" && -z "$PATTERNS" && -z "$CONTEXT_SECTION" ]]; then
+    append_injection_telemetry "$PROJECT_ROOT" "$TOOL_NAME" "$FILE_PATH" "covered" "$NODE_PATH" "none"
     exit 0
 fi
 
@@ -173,21 +176,10 @@ fi
 output_context "PreToolUse" "$CONTEXT"
 
 # Injection audit log (feedback data trail)
-LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.intent-layer/hooks"
-if [[ -d "${CLAUDE_PROJECT_DIR:-.}/.intent-layer" ]]; then
-    mkdir -p "$LOG_DIR"
-    INJECTED_SECTIONS=""
-    [[ -n "$PITFALLS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Pitfalls,"
-    [[ -n "$CHECKS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Checks,"
-    [[ -n "$PATTERNS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Patterns,"
-    [[ -n "$CONTEXT_SECTION" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Context,"
-    INJECTED_SECTIONS="${INJECTED_SECTIONS%,}"  # trim trailing comma
-    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$FILE_PATH" "$NODE_PATH" "$INJECTED_SECTIONS" \
-        >> "$LOG_DIR/injections.log" 2>/dev/null || true
-    # Rotate log when it exceeds 1000 lines to stay within hook latency budget
-    LOG_LINES=$(wc -l < "$LOG_DIR/injections.log" 2>/dev/null || echo 0)
-    if [[ "${LOG_LINES// /}" -gt 1000 ]]; then
-        tail -500 "$LOG_DIR/injections.log" > "$LOG_DIR/injections.log.tmp" && \
-            mv "$LOG_DIR/injections.log.tmp" "$LOG_DIR/injections.log"
-    fi
-fi
+INJECTED_SECTIONS=""
+[[ -n "$PITFALLS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Pitfalls,"
+[[ -n "$CHECKS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Checks,"
+[[ -n "$PATTERNS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Patterns,"
+[[ -n "$CONTEXT_SECTION" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Context,"
+INJECTED_SECTIONS="${INJECTED_SECTIONS%,}"  # trim trailing comma
+append_injection_telemetry "$PROJECT_ROOT" "$TOOL_NAME" "$FILE_PATH" "covered" "$NODE_PATH" "${INJECTED_SECTIONS:-none}"

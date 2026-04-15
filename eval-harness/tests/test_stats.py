@@ -1,6 +1,6 @@
 # tests/test_stats.py
 import pytest
-from lib.stats import _inverse_normal_cdf, wilson_score_interval, ci_overlap, mcnemar_test
+from lib.stats import _inverse_normal_cdf, wilson_score_interval, ci_overlap, mcnemar_test, fisher_exact_test
 
 
 class TestInverseNormalCDF:
@@ -169,3 +169,46 @@ class TestMcNemarTest:
         assert result["n_discordant"] == 1
         assert result["a_wins"] == 0
         assert result["b_wins"] == 1
+
+
+class TestFisherExactTest:
+    def test_identical_rates(self):
+        """Same pass rates — not significant."""
+        result = fisher_exact_test(3, 5, 3, 5)
+        assert result["p_value"] == 1.0
+        assert result["rate_diff"] == 0.0
+
+    def test_extreme_difference(self):
+        """0/5 vs 5/5 — highly significant."""
+        result = fisher_exact_test(0, 5, 5, 5)
+        assert result["p_value"] < 0.01
+        assert result["a_rate"] == 0.0
+        assert result["b_rate"] == 1.0
+        assert result["rate_diff"] == 1.0
+
+    def test_our_star_result(self):
+        """0/3 vs 3/3 — the ansible star result (Fisher p=0.05)."""
+        result = fisher_exact_test(0, 3, 3, 3)
+        assert result["p_value"] <= 0.10  # borderline significant
+        assert result["a_rate"] == 0.0
+        assert result["b_rate"] == 1.0
+
+    def test_moderate_difference(self):
+        """3/5 vs 1/5 — not enough power to detect."""
+        result = fisher_exact_test(3, 5, 1, 5)
+        assert result["p_value"] > 0.10
+        assert result["rate_diff"] < 0
+
+    def test_empty_groups(self):
+        """Both empty — p=1.0."""
+        result = fisher_exact_test(0, 0, 0, 0)
+        assert result["p_value"] == 1.0
+
+    def test_returns_all_fields(self):
+        """Verify all expected fields are present."""
+        result = fisher_exact_test(2, 5, 4, 5)
+        assert "p_value" in result
+        assert "a_rate" in result
+        assert "b_rate" in result
+        assert "rate_diff" in result
+        assert 0 <= result["p_value"] <= 1.0

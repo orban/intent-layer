@@ -102,10 +102,11 @@ def wilson_score_interval(
 
 
 def ci_overlap(ci_a: tuple[float, float], ci_b: tuple[float, float]) -> bool:
-    """Check if two confidence intervals overlap.
+    """Check if two confidence intervals overlap (visual heuristic only).
 
-    Returns True if the intervals share any range. Non-overlapping CIs
-    at 90% confidence suggest a statistically meaningful difference.
+    Returns True if the intervals share any range. Used for dashboard
+    display, NOT as a significance test. For significance decisions, use
+    McNemar's exact test (paired data) or Fisher's exact test (unpaired).
     """
     return ci_a[0] <= ci_b[1] and ci_b[0] <= ci_a[1]
 
@@ -131,3 +132,57 @@ def mcnemar_test(b: int, c: int) -> dict:
     p_value = min(p_value * 2, 1.0)  # two-sided
 
     return {"p_value": p_value, "n_discordant": n, "a_wins": b, "b_wins": c}
+
+
+def fisher_exact_test(a_pass: int, a_total: int, b_pass: int, b_total: int) -> dict:
+    """Fisher's exact test for 2x2 contingency table (two-sided).
+
+    Compares pass rates between two independent groups (e.g., condition A
+    vs condition B for a single task). Uses hypergeometric distribution
+    to compute exact p-value without scipy.
+
+    Args:
+        a_pass, a_total: successes and total trials for group A
+        b_pass, b_total: successes and total trials for group B
+
+    Returns:
+        dict with p_value, a_rate, b_rate, rate_diff
+    """
+    a_fail = a_total - a_pass
+    b_fail = b_total - b_pass
+    n = a_total + b_total
+    row1 = a_pass + b_pass  # total passes
+    row2 = a_fail + b_fail  # total fails
+
+    if n == 0:
+        return {"p_value": 1.0, "a_rate": 0.0, "b_rate": 0.0, "rate_diff": 0.0}
+
+    # Probability of a specific table under H0 (hypergeometric)
+    def table_prob(a_p: int) -> float:
+        b_p = row1 - a_p
+        a_f = a_total - a_p
+        b_f = b_total - b_p
+        if any(x < 0 for x in (a_p, b_p, a_f, b_f)):
+            return 0.0
+        return (
+            math.comb(a_total, a_p)
+            * math.comb(b_total, b_p)
+            / math.comb(n, row1)
+        )
+
+    # Two-sided: sum probabilities of tables as extreme or more extreme
+    observed_prob = table_prob(a_pass)
+    p_value = 0.0
+    for i in range(max(0, row1 - b_total), min(row1, a_total) + 1):
+        prob = table_prob(i)
+        if prob <= observed_prob + 1e-12:  # tolerance for float comparison
+            p_value += prob
+
+    a_rate = a_pass / a_total if a_total else 0.0
+    b_rate = b_pass / b_total if b_total else 0.0
+    return {
+        "p_value": round(min(p_value, 1.0), 4),
+        "a_rate": round(a_rate, 4),
+        "b_rate": round(b_rate, 4),
+        "rate_diff": round(b_rate - a_rate, 4),
+    }
