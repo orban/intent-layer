@@ -17,6 +17,7 @@ def three_condition_results():
             wall_clock_seconds=100.0,
             input_tokens=5000,
             output_tokens=2000,
+            cost_usd=0.12,
             tool_calls=20,
             lines_changed=50,
             files_touched=["a.py", "b.py"]
@@ -29,6 +30,7 @@ def three_condition_results():
             wall_clock_seconds=80.0,
             input_tokens=4000,
             output_tokens=1500,
+            cost_usd=0.08,
             tool_calls=15,
             lines_changed=30,
             files_touched=["a.py"],
@@ -36,6 +38,8 @@ def three_condition_results():
                 wall_clock_seconds=20.0,
                 input_tokens=1000,
                 output_tokens=300
+                ,
+                cost_usd=0.02,
             )
         ),
         TaskResult(
@@ -46,6 +50,7 @@ def three_condition_results():
             wall_clock_seconds=60.0,
             input_tokens=3000,
             output_tokens=1000,
+            cost_usd=0.06,
             tool_calls=10,
             lines_changed=25,
             files_touched=["a.py"],
@@ -53,6 +58,8 @@ def three_condition_results():
                 wall_clock_seconds=30.0,
                 input_tokens=2000,
                 output_tokens=500
+                ,
+                cost_usd=0.03,
             )
         ),
     ]
@@ -80,11 +87,13 @@ def test_three_condition_compilation(three_condition_results):
     assert task["flat_llm"]["success"] is True
     assert "fix_only" in task["flat_llm"]
     assert task["flat_llm"]["fix_only"]["wall_clock_seconds"] == 80.0
+    assert task["flat_llm"]["cost_breakdown"]["total_usd"] == 0.1
 
     # intent_layer should have three-level structure
     assert task["intent_layer"]["success"] is True
     assert "fix_only" in task["intent_layer"]
     assert task["intent_layer"]["fix_only"]["wall_clock_seconds"] == 60.0
+    assert task["intent_layer"]["cost_breakdown"]["skill_generation_usd"] == 0.03
 
 
 def test_deltas_relative_to_none(three_condition_results):
@@ -219,6 +228,7 @@ def test_summary_three_success_rates(three_condition_results):
     assert summary["none_itt_rate"] == 0.0
     assert summary["flat_llm_itt_rate"] == 1.0
     assert summary["intent_layer_itt_rate"] == 1.0
+    assert summary["cost_attribution"]["overall"]["total_usd"] == 0.31
 
 
 def test_markdown_multi_row_layout(tmp_path, three_condition_results):
@@ -238,6 +248,8 @@ def test_markdown_multi_row_layout(tmp_path, three_condition_results):
     assert "None success rate" in content
     assert "Flat LLM success rate" in content
     assert "Intent Layer success rate" in content
+    assert "Estimated cost attribution" in content
+    assert "Cost (USD)" in content
 
     lines = content.split("\n")
 
@@ -283,6 +295,8 @@ def test_json_output(tmp_path, three_condition_results):
     assert "flat_llm" in task
     assert "intent_layer" in task
     assert "deltas" in task
+    assert task["flat_llm"]["cost_breakdown"]["fix_only_usd"] == 0.08
+    assert data["summary"]["cost_attribution"]["by_condition"]["intent_layer"]["total_usd"] == 0.09
 
 
 def test_infrastructure_errors_excluded_from_success_rate():
@@ -432,6 +446,7 @@ def test_multi_run_serialize_condition():
     # Median efficiency (sorted: 90, 100, 120 → median 100)
     assert result["median"]["wall_clock_seconds"] == 100.0
     assert result["median"]["tool_calls"] == 20
+    assert result["cost_breakdown"]["total_usd"] == 0.0
 
     # Individual runs preserved
     assert len(result["runs"]) == 3
@@ -480,6 +495,7 @@ def test_multi_run_delta():
     assert delta["time_percent"] == "-20.0%"
     # Tokens: (5500 - 7000) / 7000 = -21.4%
     assert delta["tokens_percent"] == "-21.4%"
+    assert delta["cost_percent"] == "+0.0%"
 
 
 def test_get_fix_metrics_all_formats():
@@ -493,6 +509,7 @@ def test_get_fix_metrics_all_formats():
     m = Reporter._get_fix_metrics(multi)
     assert m["wall_clock_seconds"] == 50.0
     assert m["tokens"] == 4000
+    assert m["cost_usd"] == 0.0
     assert m["tool_calls"] == 10
     assert m["lines_changed"] == 25
 
@@ -505,6 +522,7 @@ def test_get_fix_metrics_all_formats():
     s = Reporter._get_fix_metrics(single_sg)
     assert s["wall_clock_seconds"] == 80.0
     assert s["tokens"] == 5500
+    assert s["cost_usd"] == 0.0
 
     # Single-run flat (no skill_generation)
     flat = {
@@ -515,6 +533,7 @@ def test_get_fix_metrics_all_formats():
     f = Reporter._get_fix_metrics(flat)
     assert f["wall_clock_seconds"] == 100.0
     assert f["tokens"] == 7000
+    assert f["cost_usd"] == 0.0
 
 
 def test_serialize_includes_exit_code_and_timeout():

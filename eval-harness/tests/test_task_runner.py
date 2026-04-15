@@ -81,6 +81,22 @@ def test_task_result_with_agents_files():
     assert result.agents_files_read == ["CLAUDE.md", "src/AGENTS.md"]
 
 
+def test_task_result_defaults_cost_to_zero():
+    result = TaskResult(
+        task_id="fix-123",
+        condition=Condition.NONE,
+        success=True,
+        test_output="All tests passed",
+        wall_clock_seconds=45.0,
+        input_tokens=1000,
+        output_tokens=500,
+        tool_calls=10,
+        lines_changed=25,
+        files_touched=["src/main.py"],
+    )
+    assert result.cost_usd == 0.0
+
+
 def test_skill_generation_metrics():
     metrics = SkillGenerationMetrics(
         wall_clock_seconds=120.0,
@@ -111,6 +127,7 @@ def test_skill_generation_metrics_with_cache_hit():
         cache_hit=True
     )
     assert metrics_cached.cache_hit is True
+    assert metrics_cached.cost_usd == 0.0
 
 
 def test_skill_generation_prompt_content():
@@ -1128,6 +1145,262 @@ def test_no_plugin_env_for_none_condition(sample_repo, monkeypatch):
 
         assert len(captured_calls) == 1
         assert captured_calls[0]["extra_env"] is None
+
+
+def test_run_propagates_fix_and_skill_costs(sample_repo, monkeypatch):
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        return type("ClaudeResult", (), {
+            "exit_code": 0,
+            "wall_clock_seconds": 10.0,
+            "input_tokens": 1000,
+            "output_tokens": 500,
+            "tool_calls": 5,
+            "stdout": "{}",
+            "stderr": "",
+            "timed_out": False,
+            "cost_usd": 0.07,
+            "num_turns": 3,
+        })()
+
+    def fake_run_in_docker(workspace, image, command, timeout=180, **kwargs):
+        return type("Result", (), {
+            "exit_code": 0,
+            "stdout": "PASSED",
+            "stderr": "",
+            "timed_out": False,
+        })()
+
+    def fake_get_diff_stats(workspace):
+        return type("DiffStats", (), {
+            "lines_changed": 5,
+            "files": ["src/main.py"],
+        })()
+
+    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None, stderr_log=None):
+        workspace_path = Path(workspace)
+        (workspace_path / "CLAUDE.md").write_text("# flat context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=1.0,
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=0.03,
+            cache_hit=False,
+            files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr("lib.task_runner.run_in_docker", fake_run_in_docker)
+    monkeypatch.setattr("lib.task_runner.get_diff_stats", fake_get_diff_stats)
+    monkeypatch.setattr(TaskRunner, "_generate_flat_context", fake_generate_flat_context)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-cost-test",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        result = runner.run(task, Condition.FLAT_LLM)
+
+    assert result.cost_usd == 0.07
+    assert result.skill_generation is not None
+    assert result.skill_generation.cost_usd == 0.03
+
+
+def test_skill_generation_failure_retains_generation_cost(sample_repo, monkeypatch):
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr(TaskRunner, "_pre_validate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        TaskRunner,
+        "_check_or_generate_index",
+        lambda *args, **kwargs: SkillGenerationMetrics(
+            wall_clock_seconds=2.0,
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.04,
+            cache_hit=False,
+            files_created=[],
+        ),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-skill-cost-fail",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        result = runner.run(task, Condition.INTENT_LAYER)
+
+    assert result.error is not None
+    assert result.error.startswith("[skill-generation]")
+    assert result.skill_generation is not None
+    assert result.skill_generation.cost_usd == 0.04
+
+
+def test_timeout_retains_skill_generation_cost(sample_repo, monkeypatch):
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        return type("ClaudeResult", (), {
+            "exit_code": -1,
+            "wall_clock_seconds": 30.0,
+            "input_tokens": 700,
+            "output_tokens": 80,
+            "tool_calls": 4,
+            "stdout": "",
+            "stderr": "",
+            "timed_out": True,
+            "cost_usd": 0.05,
+            "num_turns": 2,
+        })()
+
+    def fake_check_or_generate_index(self, workspace, repo_url, commit,
+                                      condition="", model=None, timeout=600,
+                                      repo_level=False, stderr_log=None):
+        workspace_path = Path(workspace)
+        (workspace_path / "CLAUDE.md").write_text("# intent context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=2.0,
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.04,
+            cache_hit=False,
+            files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr(TaskRunner, "_check_or_generate_index", fake_check_or_generate_index)
+    monkeypatch.setattr(TaskRunner, "_pre_validate", lambda *args, **kwargs: None)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-timeout-cost",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        result = runner.run(task, Condition.INTENT_LAYER)
+
+    assert result.error is not None
+    assert result.error.startswith("[timeout]")
+    assert result.cost_usd == 0.05
+    assert result.skill_generation is not None
+    assert result.skill_generation.cost_usd == 0.04
+
+
+def test_empty_run_retains_skill_generation_cost(sample_repo, monkeypatch):
+    def fake_clone(url, workspace, shallow=False, reference=None):
+        os.makedirs(workspace, exist_ok=True)
+
+    def fake_checkout(workspace, commit):
+        pass
+
+    def fake_create_baseline(workspace):
+        pass
+
+    def fake_get_commit_message(workspace, commit):
+        return "fix: something"
+
+    def fake_run_claude(workspace, prompt, timeout=300, model=None,
+                        extra_env=None, stderr_log=None, max_turns=50):
+        return type("ClaudeResult", (), {
+            "exit_code": 1,
+            "wall_clock_seconds": 3.0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "tool_calls": 0,
+            "stdout": "",
+            "stderr": "cli failed",
+            "timed_out": False,
+            "cost_usd": 0.0,
+            "num_turns": 0,
+        })()
+
+    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None, stderr_log=None):
+        workspace_path = Path(workspace)
+        (workspace_path / "CLAUDE.md").write_text("# flat context")
+        return SkillGenerationMetrics(
+            wall_clock_seconds=1.0,
+            input_tokens=10,
+            output_tokens=5,
+            cost_usd=0.02,
+            cache_hit=False,
+            files_created=["CLAUDE.md"],
+        )
+
+    monkeypatch.setattr("lib.task_runner.clone_repo", fake_clone)
+    monkeypatch.setattr("lib.task_runner.checkout_commit", fake_checkout)
+    monkeypatch.setattr("lib.task_runner.create_baseline_commit", fake_create_baseline)
+    monkeypatch.setattr("lib.task_runner.get_commit_message", fake_get_commit_message)
+    monkeypatch.setattr("lib.task_runner.run_claude", fake_run_claude)
+    monkeypatch.setattr(TaskRunner, "_generate_flat_context", fake_generate_flat_context)
+    monkeypatch.setattr(TaskRunner, "_pre_validate", lambda *args, **kwargs: None)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir, use_cache=False)
+        task = Task(
+            id="fix-empty-cost",
+            category="simple_fix",
+            pre_fix_commit="abc123",
+            fix_commit="def456",
+            prompt_source="commit_message",
+        )
+
+        result = runner.run(task, Condition.FLAT_LLM)
+
+    assert result.error is not None
+    assert result.error.startswith("[empty-run]")
+    assert result.skill_generation is not None
+    assert result.skill_generation.cost_usd == 0.02
 
 
 def test_no_plugin_hooks_for_flat_llm(sample_repo, monkeypatch):

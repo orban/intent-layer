@@ -119,6 +119,7 @@ class SkillGenerationMetrics:
     wall_clock_seconds: float
     input_tokens: int
     output_tokens: int
+    cost_usd: float = 0.0
     cache_hit: bool = False
     files_created: list[str] = field(default_factory=list)
 
@@ -135,6 +136,7 @@ class TaskResult:
     tool_calls: int
     lines_changed: int
     files_touched: list[str]
+    cost_usd: float = 0.0
     rep: int = 0
     skill_generation: SkillGenerationMetrics | None = None
     agents_files_read: list[str] | None = None
@@ -497,6 +499,7 @@ class TaskRunner:
                     wall_clock_seconds=elapsed,
                     input_tokens=0,
                     output_tokens=0,
+                    cost_usd=0.0,
                     cache_hit=True,
                     files_created=cache_entry.agents_files
                 )
@@ -541,6 +544,7 @@ class TaskRunner:
             wall_clock_seconds=result.wall_clock_seconds,
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
+            cost_usd=result.cost_usd,
             cache_hit=False,
             files_created=agents_files
         )
@@ -590,6 +594,7 @@ class TaskRunner:
                     wall_clock_seconds=elapsed,
                     input_tokens=0,
                     output_tokens=0,
+                    cost_usd=0.0,
                     cache_hit=True,
                     files_created=cache_entry.agents_files
                 )
@@ -637,6 +642,7 @@ class TaskRunner:
             wall_clock_seconds=result.wall_clock_seconds,
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
+            cost_usd=result.cost_usd,
             cache_hit=False,
             files_created=agents_files
         )
@@ -738,6 +744,7 @@ class TaskRunner:
         generation_log: Path | None = None
         fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
         test_log = self._build_run_log_path(task, cond_str, "test", rep)
+        skill_metrics: SkillGenerationMetrics | None = None
 
         try:
             # Setup: clone and checkout
@@ -812,8 +819,6 @@ class TaskRunner:
                 self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
-            skill_metrics = None
-
             if condition == Condition.INTENT_LAYER:
                 generation_log = self._build_run_log_path(task, cond_str, "skill-gen", rep)
                 self._progress(task.id, cond_str, "skill_gen", f"checking cache or generating Intent Layer... (tail -f {generation_log})")
@@ -952,6 +957,7 @@ class TaskRunner:
                     wall_clock_seconds=claude_result.wall_clock_seconds,
                     input_tokens=0,
                     output_tokens=0,
+                    cost_usd=claude_result.cost_usd,
                     tool_calls=0,
                     lines_changed=0,
                     files_touched=[],
@@ -967,6 +973,7 @@ class TaskRunner:
                         ),
                     ),
                     exit_code=claude_result.exit_code,
+                    skill_generation=skill_metrics,
                 )
 
             # Detect timeout: Claude ran out of time
@@ -980,6 +987,7 @@ class TaskRunner:
                     wall_clock_seconds=claude_result.wall_clock_seconds,
                     input_tokens=claude_result.input_tokens,
                     output_tokens=claude_result.output_tokens,
+                    cost_usd=claude_result.cost_usd,
                     tool_calls=claude_result.tool_calls,
                     lines_changed=0,
                     files_touched=[],
@@ -991,6 +999,7 @@ class TaskRunner:
                     ),
                     exit_code=claude_result.exit_code,
                     is_timeout=True,
+                    skill_generation=skill_metrics,
                 )
 
             # Run tests — use targeted test file when available (~150s → ~15s)
@@ -1049,6 +1058,7 @@ class TaskRunner:
                 wall_clock_seconds=claude_result.wall_clock_seconds,
                 input_tokens=claude_result.input_tokens,
                 output_tokens=claude_result.output_tokens,
+                cost_usd=claude_result.cost_usd,
                 tool_calls=claude_result.tool_calls,
                 lines_changed=diff_stats.lines_changed,
                 files_touched=diff_stats.files,
@@ -1068,6 +1078,7 @@ class TaskRunner:
                 wall_clock_seconds=0,
                 input_tokens=0,
                 output_tokens=0,
+                cost_usd=0.0,
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
@@ -1085,10 +1096,12 @@ class TaskRunner:
                 wall_clock_seconds=0,
                 input_tokens=0,
                 output_tokens=0,
+                cost_usd=0.0,
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
                 rep=rep,
+                skill_generation=skill_metrics,
                 error=self._build_error_message("[skill-generation]", str(e), generation_log)
             )
         except Exception as e:
@@ -1103,10 +1116,12 @@ class TaskRunner:
                 wall_clock_seconds=0,
                 input_tokens=0,
                 output_tokens=0,
+                cost_usd=0.0,
                 tool_calls=0,
                 lines_changed=0,
                 files_touched=[],
                 rep=rep,
+                skill_generation=skill_metrics,
                 error=self._build_error_message("[infrastructure]", str(e), fix_log)
             )
 

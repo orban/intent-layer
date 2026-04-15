@@ -127,12 +127,27 @@ class Reporter:
             budget=budget_data,
         )
 
+    @staticmethod
+    def _build_cost_breakdown(
+        fix_cost_usd: float,
+        skill_cost_usd: float = 0.0,
+    ) -> dict[str, float]:
+        return {
+            "fix_only_usd": round(fix_cost_usd, 6),
+            "skill_generation_usd": round(skill_cost_usd, 6),
+            "total_usd": round(fix_cost_usd + skill_cost_usd, 6),
+        }
+
     def _serialize_single_result(self, r: TaskResult) -> dict:
         """Serialize a single TaskResult to dict."""
         result = {
             "success": r.success,
             "rep": r.rep,
             "test_output": r.test_output[:1000],  # Truncate
+            "cost_breakdown": self._build_cost_breakdown(
+                r.cost_usd,
+                r.skill_generation.cost_usd if r.skill_generation else 0.0,
+            ),
         }
 
         if r.skill_generation:
@@ -140,6 +155,7 @@ class Reporter:
                 "wall_clock_seconds": r.wall_clock_seconds,
                 "input_tokens": r.input_tokens,
                 "output_tokens": r.output_tokens,
+                "cost_usd": round(r.cost_usd, 6),
                 "tool_calls": r.tool_calls,
                 "lines_changed": r.lines_changed,
                 "files_touched": r.files_touched,
@@ -148,6 +164,7 @@ class Reporter:
                 "wall_clock_seconds": r.skill_generation.wall_clock_seconds,
                 "input_tokens": r.skill_generation.input_tokens,
                 "output_tokens": r.skill_generation.output_tokens,
+                "cost_usd": round(r.skill_generation.cost_usd, 6),
                 "cache_hit": r.skill_generation.cache_hit,
             }
             result["total"] = {
@@ -160,11 +177,13 @@ class Reporter:
                 "output_tokens": (
                     r.output_tokens + r.skill_generation.output_tokens
                 ),
+                "cost_usd": round(r.cost_usd + r.skill_generation.cost_usd, 6),
             }
         else:
             result["wall_clock_seconds"] = r.wall_clock_seconds
             result["input_tokens"] = r.input_tokens
             result["output_tokens"] = r.output_tokens
+            result["cost_usd"] = round(r.cost_usd, 6)
             result["tool_calls"] = r.tool_calls
             result["lines_changed"] = r.lines_changed
             result["files_touched"] = r.files_touched
@@ -214,9 +233,24 @@ class Reporter:
                 "wall_clock_seconds": round(statistics.median(r.wall_clock_seconds for r in valid_runs), 1),
                 "input_tokens": int(statistics.median(r.input_tokens for r in valid_runs)),
                 "output_tokens": int(statistics.median(r.output_tokens for r in valid_runs)),
+                "cost_usd": round(statistics.median(r.cost_usd for r in valid_runs), 6),
                 "tool_calls": int(statistics.median(r.tool_calls for r in valid_runs)),
                 "lines_changed": int(statistics.median(r.lines_changed for r in valid_runs)),
             }
+            result["cost_breakdown"] = self._build_cost_breakdown(
+                statistics.median(r.cost_usd for r in valid_runs),
+                statistics.median(
+                    r.skill_generation.cost_usd if r.skill_generation else 0.0
+                    for r in valid_runs
+                ),
+            )
+            result["cost_totals"] = self._build_cost_breakdown(
+                sum(r.cost_usd for r in valid_runs),
+                sum(
+                    r.skill_generation.cost_usd if r.skill_generation else 0.0
+                    for r in valid_runs
+                ),
+            )
 
         # Individual runs for drill-down
         result["runs"] = [self._serialize_single_result(r) for r in runs]
@@ -237,6 +271,7 @@ class Reporter:
             return {
                 "wall_clock_seconds": m["wall_clock_seconds"],
                 "tokens": m["input_tokens"] + m["output_tokens"],
+                "cost_usd": m.get("cost_usd", 0.0),
                 "tool_calls": m["tool_calls"],
                 "lines_changed": m["lines_changed"],
             }
@@ -246,6 +281,7 @@ class Reporter:
             return {
                 "wall_clock_seconds": fix["wall_clock_seconds"],
                 "tokens": fix["input_tokens"] + fix["output_tokens"],
+                "cost_usd": fix.get("cost_usd", 0.0),
                 "tool_calls": fix["tool_calls"],
                 "lines_changed": fix["lines_changed"],
             }
@@ -253,6 +289,7 @@ class Reporter:
         return {
             "wall_clock_seconds": cond_data.get("wall_clock_seconds", 0),
             "tokens": cond_data.get("input_tokens", 0) + cond_data.get("output_tokens", 0),
+            "cost_usd": cond_data.get("cost_usd", 0.0),
             "tool_calls": cond_data.get("tool_calls", 0),
             "lines_changed": cond_data.get("lines_changed", 0),
         }
@@ -283,6 +320,8 @@ class Reporter:
         t_time = statistics.median(r.wall_clock_seconds for r in t_valid)
         b_tokens = statistics.median(r.input_tokens + r.output_tokens for r in b_valid)
         t_tokens = statistics.median(r.input_tokens + r.output_tokens for r in t_valid)
+        b_cost = statistics.median(r.cost_usd for r in b_valid)
+        t_cost = statistics.median(r.cost_usd for r in t_valid)
         b_tools = statistics.median(r.tool_calls for r in b_valid)
         t_tools = statistics.median(r.tool_calls for r in t_valid)
         b_lines = statistics.median(r.lines_changed for r in b_valid)
@@ -299,6 +338,7 @@ class Reporter:
             ),
             "time_percent": f"{pct(b_time, t_time):+.1f}%",
             "tokens_percent": f"{pct(b_tokens, t_tokens):+.1f}%",
+            "cost_percent": f"{pct(b_cost, t_cost):+.1f}%",
             "tool_calls_percent": f"{pct(b_tools, t_tools):+.1f}%",
             "lines_changed_percent": f"{pct(b_lines, t_lines):+.1f}%"
         }
@@ -356,6 +396,35 @@ class Reporter:
                 return 0
             return int(statistics.median(r.input_tokens + r.output_tokens for r in valid))
 
+        def median_fix_cost(task_results: list[TaskResult]) -> float:
+            valid = [r for r in task_results if not self._is_infra_error(r)]
+            if not valid:
+                return 0.0
+            return round(statistics.median(r.cost_usd for r in valid), 6)
+
+        def median_skill_cost(task_results: list[TaskResult]) -> float:
+            valid = [r for r in task_results if not self._is_infra_error(r)]
+            if not valid:
+                return 0.0
+            return round(
+                statistics.median(
+                    r.skill_generation.cost_usd if r.skill_generation else 0.0
+                    for r in valid
+                ),
+                6,
+            )
+
+        def total_fix_cost(task_results: list[TaskResult]) -> float:
+            valid = [r for r in task_results if not self._is_infra_error(r)]
+            return round(sum(r.cost_usd for r in valid), 6)
+
+        def total_skill_cost(task_results: list[TaskResult]) -> float:
+            valid = [r for r in task_results if not self._is_infra_error(r)]
+            return round(
+                sum(r.skill_generation.cost_usd if r.skill_generation else 0.0 for r in valid),
+                6,
+            )
+
         summary: dict[str, Any] = {
             "total_tasks": len(set(r.task_id for r in results)),
             "infrastructure_errors": infra_errors,
@@ -367,6 +436,33 @@ class Reporter:
             summary[f"{label}_success_rate"] = success_rate(cond_results)
             summary[f"{label}_itt_rate"] = itt_rate(cond_results)
             summary[f"{label}_median_tokens"] = median_tokens(cond_results)
+            summary[f"{label}_median_cost_usd"] = median_fix_cost(cond_results)
+
+        summary["cost_attribution"] = {"by_condition": {}, "overall": {}}
+        overall_fix_cost = 0.0
+        overall_skill_cost = 0.0
+        for cond in conditions_present:
+            label = cond.value
+            cond_results = per_cond[cond]
+            cond_fix_cost = total_fix_cost(cond_results)
+            cond_skill_cost = total_skill_cost(cond_results)
+            summary["cost_attribution"]["by_condition"][label] = {
+                "median_fix_only_usd": median_fix_cost(cond_results),
+                "median_skill_generation_usd": median_skill_cost(cond_results),
+                "median_total_usd": round(
+                    median_fix_cost(cond_results) + median_skill_cost(cond_results), 6
+                ),
+                "total_fix_only_usd": cond_fix_cost,
+                "total_skill_generation_usd": cond_skill_cost,
+                "total_usd": round(cond_fix_cost + cond_skill_cost, 6),
+            }
+            overall_fix_cost += cond_fix_cost
+            overall_skill_cost += cond_skill_cost
+        summary["cost_attribution"]["overall"] = {
+            "total_fix_only_usd": round(overall_fix_cost, 6),
+            "total_skill_generation_usd": round(overall_skill_cost, 6),
+            "total_usd": round(overall_fix_cost + overall_skill_cost, 6),
+        }
 
         # Add CIs when we have multi-run data
         has_multi_run = any(
@@ -621,8 +717,13 @@ class Reporter:
             "wall_clock_seconds": result.wall_clock_seconds,
             "input_tokens": result.input_tokens,
             "output_tokens": result.output_tokens,
+            "cost_usd": round(result.cost_usd, 6),
             "tool_calls": result.tool_calls,
             "lines_changed": result.lines_changed,
+            "cost_breakdown": self._build_cost_breakdown(
+                result.cost_usd,
+                result.skill_generation.cost_usd if result.skill_generation else 0.0,
+            ),
         }
         if result.error:
             data["error"] = result.error
@@ -708,6 +809,26 @@ class Reporter:
                     pct_diff = (tok - baseline_tok) / baseline_tok * 100
                     lines.append(f"- **{display}:** {tok_fmt} ({pct_diff:+.0f}% vs {baseline})")
 
+        cost_summary = summary.get("cost_attribution", {})
+        by_condition = cost_summary.get("by_condition", {})
+        overall_cost = cost_summary.get("overall", {})
+        if by_condition:
+            lines.append("")
+            lines.append("**Estimated cost attribution (USD):**")
+            for label in cond_keys:
+                display = self._display_name(label)
+                cond_cost = by_condition.get(label, {})
+                lines.append(
+                    f"- **{display}:** fix ${cond_cost.get('total_fix_only_usd', 0.0):.4f}, "
+                    f"skill_generation ${cond_cost.get('total_skill_generation_usd', 0.0):.4f}, "
+                    f"total ${cond_cost.get('total_usd', 0.0):.4f}"
+                )
+            lines.append(
+                f"- **Overall:** fix ${overall_cost.get('total_fix_only_usd', 0.0):.4f}, "
+                f"skill_generation ${overall_cost.get('total_skill_generation_usd', 0.0):.4f}, "
+                f"total ${overall_cost.get('total_usd', 0.0):.4f}"
+            )
+
         # Significance flags
         if has_cis:
             lines.append("")
@@ -745,11 +866,11 @@ class Reporter:
         # Table header
         lines.append(
             "| Task | Condition | Success | Time (s) | Tokens | Tool Calls | Lines "
-            "| \u0394 Time | \u0394 Tokens |"
+            "| Cost (USD) | \u0394 Time | \u0394 Tokens | \u0394 Cost |"
         )
         lines.append(
             "|------|-----------|---------|----------|--------|------------|-------"
-            "|--------|----------|"
+            "|------------|--------|----------|--------|"
         )
 
         for r in results.results:
@@ -779,30 +900,34 @@ class Reporter:
                 metrics = self._get_fix_metrics(cond_data)
                 time_s = metrics["wall_clock_seconds"]
                 tokens = metrics["tokens"]
+                cost_usd = metrics["cost_usd"]
                 tool_calls = metrics["tool_calls"]
                 lines_changed = metrics["lines_changed"]
 
                 tokens_fmt = f"{tokens / 1000:.1f}k"
+                cost_fmt = f"${cost_usd:.4f}"
 
                 # Deltas: baseline shows "—"
                 if cond_key == baseline:
                     d_time = "\u2014"
                     d_tokens = "\u2014"
+                    d_cost = "\u2014"
                 else:
                     delta = deltas.get(cond_key, {})
                     d_time = delta.get("time_percent", "N/A")
                     d_tokens = delta.get("tokens_percent", "N/A")
+                    d_cost = delta.get("cost_percent", "N/A")
 
                 row = (
                     f"| {task_id} | {cond_key} | {success} | {time_s:.1f} | "
                     f"{tokens_fmt} | {tool_calls} | {lines_changed} | "
-                    f"{d_time} | {d_tokens} |"
+                    f"{cost_fmt} | {d_time} | {d_tokens} | {d_cost} |"
                 )
 
                 lines.append(row)
 
             # Blank row between tasks
-            lines.append("|  |  |  |  |  |  |  |  |  |")
+            lines.append("|  |  |  |  |  |  |  |  |  |  |  |")
 
         # Remove trailing blank row
         if lines and lines[-1].strip().replace("|", "").replace(" ", "") == "":
