@@ -202,6 +202,53 @@ class TaskRunner:
             f"{condition}-r{rep}-{phase}.log"
         )
 
+    def _ensure_log_dir(self) -> Path:
+        log_dir = Path(self.workspaces_dir).parent / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        return log_dir
+
+    def _append_log_marker(
+        self,
+        log_path: str | Path | None,
+        event: str,
+        message: str,
+        **metadata: object,
+    ) -> None:
+        if log_path is None:
+            return
+
+        path = Path(log_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        meta = " ".join(f"{key}={value}" for key, value in metadata.items() if value is not None)
+        suffix = f" {meta}" if meta else ""
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(f"[intent-layer {stamp}] {event}: {message}{suffix}\n")
+
+    def _tail_snippet(self, text: str | None, limit: int = 240) -> str:
+        if not text:
+            return ""
+        compact = " ".join(text.strip().split())
+        if len(compact) <= limit:
+            return compact
+        return f"{compact[:limit - 3]}..."
+
+    def _build_error_message(
+        self,
+        prefix: str,
+        message: str,
+        log_path: str | Path | None = None,
+        detail: str | None = None,
+    ) -> str:
+        extras = []
+        if detail:
+            extras.append(detail)
+        if log_path is not None:
+            extras.append(f"log={log_path}")
+        if not extras:
+            return f"{prefix} {message}"
+        return f"{prefix} {message} ({', '.join(extras)})"
+
     def _make_docker_heartbeat_callback(
         self, task_id: str, condition: str, step: str
     ) -> Callable[[float, int, int], None]:
@@ -404,7 +451,8 @@ class TaskRunner:
         condition: str = "",
         model: str | None = None,
         timeout: int = 600,
-        repo_level: bool = False
+        repo_level: bool = False,
+        stderr_log: str | Path | None = None,
     ) -> SkillGenerationMetrics:
         """Check cache or generate index. Returns metrics.
 
@@ -427,8 +475,25 @@ class TaskRunner:
             if cache_entry and cache_entry.agents_files:
                 # Cache hit with actual files: restore them
                 start = time.time()
+                self._append_log_marker(
+                    stderr_log,
+                    "start",
+                    "intent-layer generation",
+                    commit=commit,
+                    condition=condition or "intent_layer",
+                    cache_hit=True,
+                    source="cache",
+                )
                 self.index_cache.restore(cache_entry, workspace)
                 elapsed = time.time() - start
+                self._append_log_marker(
+                    stderr_log,
+                    "finish",
+                    "intent-layer generation complete",
+                    cache_hit=True,
+                    files=len(cache_entry.agents_files),
+                    wall_clock_seconds=f"{elapsed:.1f}",
+                )
 
                 return SkillGenerationMetrics(
                     wall_clock_seconds=elapsed,
@@ -446,11 +511,13 @@ class TaskRunner:
         plugin_root = str(Path(__file__).resolve().parent.parent.parent)
 
         # Write stderr to a log file so callers can tail for live progress
-        log_dir = Path(self.workspaces_dir).parent / "logs"
-        repo_slug = repo_url.split("/")[-1].replace(".git", "")
-        stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-skill_gen.log"
+        if stderr_log is None:
+            log_dir = self._ensure_log_dir()
+            repo_slug = repo_url.split("/")[-1].replace(".git", "")
+            stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-skill_gen.log"
 
         prompt = build_skill_generation_prompt(plugin_root)
+        self._append_log_marker(stderr_log, "start", "intent-layer generation", commit=commit, condition=condition or "intent_layer")
         result = run_claude(
             workspace, prompt, timeout=timeout, model=model,
             extra_env={"CLAUDE_PLUGIN_ROOT": plugin_root},
@@ -463,6 +530,15 @@ class TaskRunner:
         # Save to cache if enabled
         if self.index_cache:
             self.index_cache.save(repo_url, commit, workspace, agents_files, condition, repo_level=repo_level)
+
+        self._append_log_marker(
+            stderr_log,
+            "finish",
+            "intent-layer generation complete",
+            cache_hit=False,
+            files=len(agents_files),
+            wall_clock_seconds=f"{result.wall_clock_seconds:.1f}",
+        )
 
         return SkillGenerationMetrics(
             wall_clock_seconds=result.wall_clock_seconds,
@@ -480,7 +556,8 @@ class TaskRunner:
         commit: str,
         model: str | None = None,
         timeout: int = 600,
-        repo_level: bool = False
+        repo_level: bool = False,
+        stderr_log: str | Path | None = None,
     ) -> SkillGenerationMetrics:
         """Generate a flat CLAUDE.md using the paper's prompt. Returns metrics.
 
@@ -494,8 +571,25 @@ class TaskRunner:
                 cache_entry = self.index_cache.lookup(repo_url, commit, "flat_llm")
             if cache_entry:
                 start = time.time()
+                self._append_log_marker(
+                    stderr_log,
+                    "start",
+                    "flat context generation",
+                    commit=commit,
+                    condition="flat_llm",
+                    cache_hit=True,
+                    source="cache",
+                )
                 self.index_cache.restore(cache_entry, workspace)
                 elapsed = time.time() - start
+                self._append_log_marker(
+                    stderr_log,
+                    "finish",
+                    "flat context generation complete",
+                    cache_hit=True,
+                    files=len(cache_entry.agents_files),
+                    wall_clock_seconds=f"{elapsed:.1f}",
+                )
                 return SkillGenerationMetrics(
                     wall_clock_seconds=elapsed,
                     input_tokens=0,
@@ -508,11 +602,13 @@ class TaskRunner:
         from lib.prompt_builder import build_flat_generation_prompt
 
         # Write stderr to a log file so callers can tail for live progress
-        log_dir = Path(self.workspaces_dir).parent / "logs"
-        repo_slug = repo_url.split("/")[-1].replace(".git", "")
-        stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-flat_gen.log"
+        if stderr_log is None:
+            log_dir = self._ensure_log_dir()
+            repo_slug = repo_url.split("/")[-1].replace(".git", "")
+            stderr_log = log_dir / f"{repo_slug}-{commit[:8]}-flat_gen.log"
 
         prompt = build_flat_generation_prompt()
+        self._append_log_marker(stderr_log, "start", "flat context generation", commit=commit, condition="flat_llm")
         result = run_claude(workspace, prompt, timeout=timeout, model=model,
                             stderr_log=str(stderr_log))
 
@@ -532,6 +628,15 @@ class TaskRunner:
         # Save to cache
         if self.index_cache:
             self.index_cache.save(repo_url, commit, workspace, agents_files, "flat_llm", repo_level=repo_level)
+
+        self._append_log_marker(
+            stderr_log,
+            "finish",
+            "flat context generation complete",
+            cache_hit=False,
+            files=len(agents_files),
+            wall_clock_seconds=f"{result.wall_clock_seconds:.1f}",
+        )
 
         return SkillGenerationMetrics(
             wall_clock_seconds=result.wall_clock_seconds,
@@ -635,6 +740,10 @@ class TaskRunner:
         cond_str = condition.value
         self._progress(task.id, cond_str, "setup", "creating workspace")
         workspace = self.setup_workspace(task, condition, rep=rep)
+        precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
+        generation_log: Path | None = None
+        fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
+        test_log = self._build_run_log_path(task, cond_str, "test", rep)
         skill_metrics: SkillGenerationMetrics | None = None
 
         try:
@@ -672,13 +781,13 @@ class TaskRunner:
                 self._progress(task.id, cond_str, "pre_validate", "skipped (passed in prior run)")
                 pre_validate_output = None
             elif self.pre_val_cache is not None:
-                precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
                 self._progress(
                     task.id,
                     cond_str,
                     "pre_validate",
                     f"checking pre-validation cache (tail -f {precheck_log})",
                 )
+                self._append_log_marker(precheck_log, "start", "pre-validation", mode="cache")
                 pre_validate_output = self.pre_val_cache.get_or_compute(
                     task.id,
                     lambda: self._pre_validate(
@@ -689,15 +798,16 @@ class TaskRunner:
                         stream_log=precheck_log,
                     ),
                 )
+                self._append_log_marker(precheck_log, "finish", "pre-validation passed")
                 self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
             else:
-                precheck_log = self._build_run_log_path(task, cond_str, "precheck", rep)
                 self._progress(
                     task.id,
                     cond_str,
                     "pre_validate",
                     f"verifying test fails at pre_fix_commit (tail -f {precheck_log})",
                 )
+                self._append_log_marker(precheck_log, "start", "pre-validation", mode="direct")
                 pre_validate_output = self._pre_validate(
                     task,
                     workspace,
@@ -705,20 +815,20 @@ class TaskRunner:
                     condition=cond_str,
                     stream_log=precheck_log,
                 )
+                self._append_log_marker(precheck_log, "finish", "pre-validation passed")
                 self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
             # Generate context based on condition
             if condition == Condition.INTENT_LAYER:
-                log_dir = Path(self.workspaces_dir).parent / "logs"
-                repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
-                skill_log = log_dir / f"{repo_slug}-{task.pre_fix_commit[:8]}-skill_gen.log"
-                self._progress(task.id, cond_str, "skill_gen", f"checking cache or generating Intent Layer... (tail -f {skill_log})")
+                generation_log = self._build_run_log_path(task, cond_str, "skill-gen", rep)
+                self._progress(task.id, cond_str, "skill_gen", f"checking cache or generating Intent Layer... (tail -f {generation_log})")
                 skill_metrics = self._check_or_generate_index(
                     workspace=workspace,
                     repo_url=self.repo.url,
                     commit=task.pre_fix_commit,
                     condition=condition.value,
-                    model=model
+                    model=model,
+                    stderr_log=generation_log,
                 )
                 if not skill_metrics.cache_hit and not skill_metrics.files_created:
                     raise SkillGenerationError(
@@ -727,18 +837,24 @@ class TaskRunner:
                         f"Likely timed out or failed silently."
                     )
                 cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
+                self._append_log_marker(
+                    generation_log,
+                    "finish",
+                    "intent-layer generation ready",
+                    cache_hit=skill_metrics.cache_hit,
+                    files=len(skill_metrics.files_created),
+                )
                 self._progress(task.id, cond_str, "skill_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
             elif condition == Condition.FLAT_LLM:
-                log_dir = Path(self.workspaces_dir).parent / "logs"
-                repo_slug = self.repo.url.split("/")[-1].replace(".git", "")
-                flat_log = log_dir / f"{repo_slug}-{task.pre_fix_commit[:8]}-flat_gen.log"
-                self._progress(task.id, cond_str, "flat_gen", f"checking cache or generating flat CLAUDE.md... (tail -f {flat_log})")
+                generation_log = self._build_run_log_path(task, cond_str, "flat-gen", rep)
+                self._progress(task.id, cond_str, "flat_gen", f"checking cache or generating flat CLAUDE.md... (tail -f {generation_log})")
                 skill_metrics = self._generate_flat_context(
                     workspace=workspace,
                     repo_url=self.repo.url,
                     commit=task.pre_fix_commit,
-                    model=model
+                    model=model,
+                    stderr_log=generation_log,
                 )
                 if not skill_metrics.cache_hit and not skill_metrics.files_created:
                     raise SkillGenerationError(
@@ -747,6 +863,13 @@ class TaskRunner:
                         f"Likely timed out or failed silently."
                     )
                 cache_status = "restored from cache" if skill_metrics.cache_hit else "generated"
+                self._append_log_marker(
+                    generation_log,
+                    "finish",
+                    "flat context ready",
+                    cache_hit=skill_metrics.cache_hit,
+                    files=len(skill_metrics.files_created),
+                )
                 self._progress(task.id, cond_str, "flat_gen_done", f"{cache_status} {len(skill_metrics.files_created)} file(s) in {skill_metrics.wall_clock_seconds:.1f}s")
 
             # NONE: no generation, stripping already happened
@@ -797,14 +920,23 @@ class TaskRunner:
             prompt = self._build_prompt(task, workspace, condition, cached_test_output=pre_validate_output)
 
             # Run Claude on the task
-            fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
             self._progress(task.id, cond_str, "claude", f"running Claude to fix the bug... (tail -f {fix_log})")
+            self._append_log_marker(fix_log, "start", "claude fix run", workspace=workspace)
             fix_extra_env = None
             if condition == Condition.INTENT_LAYER:
                 fix_extra_env = {"CLAUDE_PLUGIN_ROOT": PLUGIN_ROOT}
             claude_result = run_claude(workspace, prompt, timeout=self.claude_timeout,
                                        model=model, stderr_log=str(fix_log),
                                        extra_env=fix_extra_env)
+            self._append_log_marker(
+                fix_log,
+                "finish",
+                "claude fix run complete",
+                exit_code=claude_result.exit_code,
+                tool_calls=claude_result.tool_calls,
+                timed_out=claude_result.timed_out,
+                wall_clock_seconds=f"{claude_result.wall_clock_seconds:.1f}",
+            )
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Detect empty runs: Claude returned without doing any work
@@ -816,6 +948,7 @@ class TaskRunner:
                 stderr_snippet = claude_result.stderr.strip()[:200] if claude_result.stderr else ""
                 stderr_info = f", stderr={stderr_snippet!r}" if stderr_snippet else ""
                 prompt_size = len(prompt.encode("utf-8"))
+                self._append_log_marker(fix_log, "diagnostic", "empty Claude run", exit_code=claude_result.exit_code, prompt_bytes=prompt_size)
                 return TaskResult(
                     task_id=task.id,
                     condition=condition,
@@ -829,18 +962,23 @@ class TaskRunner:
                     lines_changed=0,
                     files_touched=[],
                     rep=rep,
-                    skill_generation=skill_metrics,
-                    error=(
-                        f"[empty-run] Claude produced no output "
-                        f"(exit_code={claude_result.exit_code}, "
-                        f"{claude_result.wall_clock_seconds:.1f}s, "
-                        f"prompt_bytes={prompt_size}{stderr_info})"
+                    error=self._build_error_message(
+                        "[empty-run]",
+                        "Claude produced no output",
+                        fix_log,
+                        detail=(
+                            f"exit_code={claude_result.exit_code}, "
+                            f"{claude_result.wall_clock_seconds:.1f}s, "
+                            f"prompt_bytes={prompt_size}{stderr_info}"
+                        ),
                     ),
                     exit_code=claude_result.exit_code,
+                    skill_generation=skill_metrics,
                 )
 
             # Detect timeout: Claude ran out of time
             if claude_result.timed_out:
+                self._append_log_marker(fix_log, "diagnostic", "Claude timed out", timeout_seconds=self.claude_timeout)
                 return TaskResult(
                     task_id=task.id,
                     condition=condition,
@@ -854,13 +992,14 @@ class TaskRunner:
                     lines_changed=0,
                     files_touched=[],
                     rep=rep,
-                    skill_generation=skill_metrics,
-                    error=(
-                        f"[timeout] Claude timed out after "
-                        f"{claude_result.wall_clock_seconds:.1f}s"
+                    error=self._build_error_message(
+                        "[timeout]",
+                        f"Claude timed out after {claude_result.wall_clock_seconds:.1f}s",
+                        fix_log,
                     ),
                     exit_code=claude_result.exit_code,
                     is_timeout=True,
+                    skill_generation=skill_metrics,
                 )
 
             # Run tests — use targeted test file when available (~150s → ~15s)
@@ -872,13 +1011,13 @@ class TaskRunner:
             if self.repo.docker.setup:
                 setup_chain = " && ".join(self.repo.docker.setup)
                 test_cmd = f"{setup_chain} && {test_cmd}"
-            test_log = self._build_run_log_path(task, cond_str, "test", rep)
             self._progress(
                 task.id,
                 cond_str,
                 "test",
                 f"running tests: {test_cmd} (tail -f {test_log})",
             )
+            self._append_log_marker(test_log, "start", "post-fix test run", command=test_cmd)
             test_result = run_in_docker(
                 workspace,
                 self.repo.docker.image,
@@ -889,6 +1028,15 @@ class TaskRunner:
                 heartbeat_callback=self._make_docker_heartbeat_callback(
                     task.id, cond_str, "test_live"
                 ),
+            )
+            self._append_log_marker(
+                test_log,
+                "finish",
+                "post-fix test run complete",
+                exit_code=test_result.exit_code,
+                timed_out=test_result.timed_out,
+                stdout_lines=len(test_result.stdout.splitlines()),
+                stderr_lines=len(test_result.stderr.splitlines()),
             )
             test_status = "PASSED" if test_result.exit_code == 0 else "FAILED"
             self._progress(task.id, cond_str, "test_done", f"tests {test_status}")
@@ -921,6 +1069,7 @@ class TaskRunner:
             )
         except PreValidationError as e:
             logger.warning("Pre-validation failed for %s (%s): %s", task.id, cond_str, e)
+            self._append_log_marker(precheck_log, "error", "pre-validation failed", reason=str(e))
             return TaskResult(
                 task_id=task.id,
                 condition=condition,
@@ -934,10 +1083,11 @@ class TaskRunner:
                 lines_changed=0,
                 files_touched=[],
                 rep=rep,
-                error=f"[pre-validation] {e}"
+                error=self._build_error_message("[pre-validation]", str(e), precheck_log)
             )
         except SkillGenerationError as e:
             logger.warning("Skill generation failed for %s (%s): %s", task.id, cond_str, e)
+            self._append_log_marker(generation_log, "error", "skill generation failed", reason=str(e))
             return TaskResult(
                 task_id=task.id,
                 condition=condition,
@@ -952,10 +1102,12 @@ class TaskRunner:
                 files_touched=[],
                 rep=rep,
                 skill_generation=skill_metrics,
-                error=f"[skill-generation] {e}"
+                error=self._build_error_message("[skill-generation]", str(e), generation_log)
             )
         except Exception as e:
             logger.error("Infrastructure error in task %s (%s): %s", task.id, cond_str, e, exc_info=True)
+            detail = self._tail_snippet(str(e))
+            self._append_log_marker(fix_log, "error", "infrastructure failure", reason=detail or type(e).__name__)
             return TaskResult(
                 task_id=task.id,
                 condition=condition,
@@ -970,7 +1122,7 @@ class TaskRunner:
                 files_touched=[],
                 rep=rep,
                 skill_generation=skill_metrics,
-                error=f"[infrastructure] {e}"
+                error=self._build_error_message("[infrastructure]", str(e), fix_log)
             )
 
     def setup_workspace(self, task: Task, condition: Condition, rep: int = 0) -> str:
