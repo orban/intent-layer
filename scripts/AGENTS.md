@@ -1,12 +1,12 @@
 # scripts/
 
-> 28 standalone bash scripts. CLI tools and hook handlers for the Intent Layer lifecycle.
+> 29 standalone bash scripts. CLI tools and hook handlers for the Intent Layer lifecycle.
 
 ## Purpose
 
-28 standalone bash scripts covering the Intent Layer lifecycle. Scripts fall into five categories:
+29 standalone bash scripts covering the Intent Layer lifecycle. Scripts fall into five categories:
 
-- **Detection** (7): `detect_state.sh`, `detect_changes.sh`, `detect_staleness.sh`, `audit_intent_layer.sh`, `analyze_structure.sh`, `estimate_tokens.sh`, `estimate_all_candidates.sh`
+- **Detection** (8): `detect_state.sh`, `detect_changes.sh`, `detect_staleness.sh`, `audit_intent_layer.sh`, `analyze_structure.sh`, `estimate_tokens.sh`, `estimate_all_candidates.sh`, `explain_semantic_diff.sh`
 - **Capture & Learning** (5): `learn.sh`, `report_learning.sh`, `capture_mistake.sh`, `capture_pain_points.sh`, `capture_state.sh`
 - **Display & Retrieval** (6): `show_status.sh`, `show_hierarchy.sh`, `walk_ancestors.sh`, `query_intent.sh`, `resolve_context.sh`, `generate_orientation.sh`
 - **Hook handlers** (5): `inject-learnings.sh`, `pre-edit-check.sh`, `post-edit-check.sh`, `capture-tool-failure.sh`, `stop-learning-check.sh`
@@ -17,6 +17,7 @@
 | Task | Start Here |
 |------|------------|
 | Add a new CLI script | Copy an existing script, follow the arg parsing pattern below |
+| Explain what a diff means | `./scripts/explain_semantic_diff.sh [base_ref] [head_ref]` |
 | Add a new hook script | See `hooks/AGENTS.md` for stdin/stdout contracts |
 | Debug a script | Run with `--help`, then test directly: `./scripts/detect_state.sh` |
 | Add a learning mode | Decide: `learn.sh` (direct) vs `report_learning.sh` (queued) |
