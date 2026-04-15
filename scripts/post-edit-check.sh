@@ -26,47 +26,41 @@ if [[ -z "$TOOL_INPUT" ]]; then
     exit 0  # No input, silently exit
 fi
 
+TOOL_NAME=$(json_get "$TOOL_INPUT" '.tool_name' '')
 FILE_PATH=$(extract_hook_file_path "$TOOL_INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0  # No file path found, silently exit
 fi
 
-# Check if file exists
-if [[ ! -f "$FILE_PATH" ]]; then
-    exit 0  # File doesn't exist (maybe being created), skip
+if [[ -z "$TOOL_NAME" ]]; then
+    if echo "$TOOL_INPUT" | grep -q '"notebook_path"' 2>/dev/null; then
+        TOOL_NAME="NotebookEdit"
+    elif echo "$TOOL_INPUT" | grep -q '"old_string"' 2>/dev/null; then
+        TOOL_NAME="Edit"
+    else
+        TOOL_NAME="Write"
+    fi
 fi
 
-# Find covering AGENTS.md by walking up the directory tree
-find_covering_node() {
-    local dir="$1"
-    local max_depth=20  # Prevent infinite loops
-    local depth=0
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
 
-    while [[ "$dir" != "/" && $depth -lt $max_depth ]]; do
-        # Check for AGENTS.md in this directory
-        if [[ -f "$dir/AGENTS.md" ]]; then
-            echo "$dir/AGENTS.md"
-            return 0
-        fi
-        # Also check for CLAUDE.md at root level
-        if [[ -f "$dir/CLAUDE.md" && ! -f "$dir/../CLAUDE.md" ]]; then
-            echo "$dir/CLAUDE.md"
-            return 0
-        fi
-        dir=$(dirname "$dir")
-        ((depth++))
-    done
-
-    return 1  # No covering node found
-}
+FIND_NODE="$PLUGIN_ROOT/lib/find_covering_node.sh"
 
 # Get the directory of the edited file
 FILE_DIR=$(dirname "$FILE_PATH")
 FILE_NAME=$(basename "$FILE_PATH")
 
 # Find covering node
-COVERING_NODE=$(find_covering_node "$FILE_DIR") || exit 0
+COVERING_NODE=""
+if [[ -x "$FIND_NODE" ]]; then
+    COVERING_NODE=$("$FIND_NODE" "$FILE_PATH" 2>/dev/null || true)
+fi
+
+COVERAGE_STATUS="uncovered"
+if [[ -n "$COVERING_NODE" ]]; then
+    COVERAGE_STATUS="covered"
+fi
 
 # Quick relevance check based on file type/name
 # Files that likely affect documented behavior
@@ -101,17 +95,25 @@ is_likely_relevant() {
 }
 
 # Check relevance
+REMINDER_ALLOWED=true
 if ! is_likely_relevant "$FILE_NAME"; then
-    exit 0  # Not relevant, silent exit
+    REMINDER_ALLOWED=false
 fi
 
-# Calculate relative path from covering node to edited file
-NODE_DIR=$(dirname "$COVERING_NODE")
-RELATIVE_PATH="${FILE_PATH#$NODE_DIR/}"
+OUTCOME_DETAIL="post-edit-check"
+if [[ ! -e "$FILE_PATH" ]]; then
+    OUTCOME_DETAIL="path-missing-after-write"
+fi
 
-# Output reminder (this is what Claude sees)
-echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
-echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+if [[ "$COVERAGE_STATUS" == "covered" ]] && $REMINDER_ALLOWED; then
+    # Calculate relative path from covering node to edited file
+    NODE_DIR=$(dirname "$COVERING_NODE")
+    RELATIVE_PATH="${FILE_PATH#$NODE_DIR/}"
+
+    # Output reminder (this is what Claude sees)
+    echo "ℹ️ Intent Layer: $RELATIVE_PATH is covered by $COVERING_NODE"
+    echo "   Review if behavior changed: Contracts, Entry Points, Pitfalls"
+fi
 
 # --- New Directory Detection ---
 # Check if this file was written to a new directory that may need AGENTS.md
@@ -158,7 +160,8 @@ DIR_NAME=$(basename "$FILE_DIR")
 # 2. Directory is not excluded
 # 3. Directory is "new" (≤2 files)
 # 4. Parent has coverage (we're extending hierarchy, not starting fresh)
-if [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
+if [[ -d "$FILE_DIR" ]] && \
+   [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
    ! is_excluded_directory "$DIR_NAME" && \
    is_new_directory "$FILE_DIR" && \
    parent_has_coverage "$FILE_DIR"; then
@@ -167,23 +170,4 @@ if [[ ! -f "$FILE_DIR/AGENTS.md" ]] && \
     echo "   Run \`/intent-layer-maintenance\` when ready to extend the hierarchy."
 fi
 
-# --- Outcome Telemetry ---
-# Log successful edit outcome for telemetry correlation with pre-edit injections
-
-PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-.}"
-TELEMETRY_DIR="$PROJECT_ROOT/.intent-layer/hooks"
-
-if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
-   [[ ! -f "$PROJECT_ROOT/.intent-layer/disable-telemetry" ]]; then
-    mkdir -p "$TELEMETRY_DIR"
-    TOOL_NAME=$(infer_post_tool_use_tool_name "$TOOL_INPUT")
-    OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
-    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "success" "$FILE_PATH" \
-        >> "$OUTCOME_LOG" 2>/dev/null || true
-    # Rotate log when it exceeds 1000 lines
-    LOG_LINES=$(wc -l < "$OUTCOME_LOG" 2>/dev/null || echo 0)
-    if [[ "${LOG_LINES// /}" -gt 1000 ]]; then
-        tail -500 "$OUTCOME_LOG" > "$OUTCOME_LOG.tmp" && \
-            mv "$OUTCOME_LOG.tmp" "$OUTCOME_LOG"
-    fi
-fi
+append_outcome_telemetry "$PROJECT_ROOT" "$TOOL_NAME" "success" "$FILE_PATH" "$COVERAGE_STATUS" "${COVERING_NODE:-None}" "$OUTCOME_DETAIL"

@@ -168,6 +168,101 @@ output_block() {
     jq -n --arg reason "$reason" '{decision: "block", reason: $reason}'
 }
 
+telemetry_root() {
+    local project_root="${1:-${CLAUDE_PROJECT_DIR:-.}}"
+    echo "$project_root/.intent-layer/hooks"
+}
+
+telemetry_enabled() {
+    local project_root="${1:-${CLAUDE_PROJECT_DIR:-.}}"
+    [[ -d "$project_root/.intent-layer" ]] || return 1
+    [[ ! -f "$project_root/.intent-layer/disable-telemetry" ]]
+}
+
+rotate_log_if_needed() {
+    local log_file="$1"
+    local max_lines="${2:-1000}"
+    local keep_lines="${3:-500}"
+
+    [[ -f "$log_file" ]] || return 0
+
+    local log_lines
+    log_lines=$(wc -l < "$log_file" 2>/dev/null || echo 0)
+    if [[ "${log_lines// /}" -gt "$max_lines" ]]; then
+        tail -"$keep_lines" "$log_file" > "$log_file.tmp" && mv "$log_file.tmp" "$log_file"
+    fi
+}
+
+telemetry_escape_field() {
+    local value="${1-}"
+    value=${value//\\/\\\\}
+    value=${value//$'\t'/\\t}
+    value=${value//$'\n'/\\n}
+    value=${value//$'\r'/\\r}
+    printf '%s' "$value"
+}
+
+telemetry_unescape_field() {
+    local value="${1-}"
+    value=${value//\\r/$'\r'}
+    value=${value//\\n/$'\n'}
+    value=${value//\\t/$'\t'}
+    value=${value//\\\\/\\}
+    printf '%s' "$value"
+}
+
+append_injection_telemetry() {
+    local project_root="$1"
+    local tool_name="$2"
+    local file_path="$3"
+    local coverage_status="$4"
+    local covering_node="$5"
+    local injected_sections="$6"
+
+    telemetry_enabled "$project_root" || return 0
+
+    local log_dir log_file timestamp
+    log_dir="$(telemetry_root "$project_root")"
+    log_file="$log_dir/injections.log"
+    timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    mkdir -p "$log_dir"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$timestamp" \
+        "$(telemetry_escape_field "${tool_name:-unknown}")" \
+        "$(telemetry_escape_field "${file_path:-unknown}")" \
+        "$(telemetry_escape_field "${coverage_status:-unknown}")" \
+        "$(telemetry_escape_field "${covering_node:-None}")" \
+        "$(telemetry_escape_field "${injected_sections:-none}")" >> "$log_file" 2>/dev/null || true
+    rotate_log_if_needed "$log_file"
+}
+
+append_outcome_telemetry() {
+    local project_root="$1"
+    local tool_name="$2"
+    local result="$3"
+    local file_path="$4"
+    local coverage_status="$5"
+    local covering_node="$6"
+    local detail="$7"
+
+    telemetry_enabled "$project_root" || return 0
+
+    local log_dir log_file timestamp
+    log_dir="$(telemetry_root "$project_root")"
+    log_file="$log_dir/outcomes.log"
+    timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    mkdir -p "$log_dir"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$timestamp" \
+        "$(telemetry_escape_field "${tool_name:-unknown}")" \
+        "$(telemetry_escape_field "${result:-unknown}")" \
+        "$(telemetry_escape_field "${file_path:-unknown}")" \
+        "$(telemetry_escape_field "${coverage_status:-unknown}")" \
+        "$(telemetry_escape_field "${covering_node:-None}")" \
+        "$(telemetry_escape_field "${detail:-none}")" >> "$log_file" 2>/dev/null || true
+    rotate_log_if_needed "$log_file"
+}
+
 # Calculate word overlap between two strings
 # Returns percentage (0-100) of matching significant words
 # Significant words are 3+ characters, lowercased, alphanumeric only

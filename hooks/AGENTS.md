@@ -26,9 +26,15 @@ Stop ──────────── stop-learning-check.sh → Tier 1: heu
                                            Blocks only on explicit should_capture: true
 ```
 
-### Injection log
+### Telemetry logs
 
-`pre-edit-check.sh` writes to `.intent-layer/hooks/injections.log` on every Edit/Write. Tab-separated format: `timestamp\tfile_path\tcovering_node\tinjected_sections`. `capture-tool-failure.sh` reads this log to determine if a failure happened despite active AGENTS.md guidance. Auto-rotates at 1000 lines (keeps last 500).
+`pre-edit-check.sh` writes to `.intent-layer/hooks/injections.log` for every `Edit`, `Write`, and `NotebookEdit` attempt when telemetry is enabled. Tab-separated format: `timestamp\ttool\tfile_path\tcoverage_status\tcovering_node\tinjected_sections`. Uncovered paths and covered paths with no extracted sections are still logged so the audit trail stays complete.
+
+`post-edit-check.sh` and `capture-tool-failure.sh` write to `.intent-layer/hooks/outcomes.log` with the normalized format `timestamp\ttool\tresult\tfile_path\tcoverage_status\tcovering_node\tdetail`. Success and failure rows now carry the same coverage metadata, and successful writes are logged even when the target path does not exist yet.
+
+Telemetry fields are escaped before writing (`\t`, `\n`, `\r`, `\\`) so tool errors and diagnostics cannot corrupt TSV parsing. `show_telemetry.sh` decodes those values for display.
+
+Both logs auto-rotate at 1000 lines and keep the newest 500 lines. Touch `.intent-layer/disable-telemetry` to opt out.
 
 ## Entry Points
 

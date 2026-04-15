@@ -607,6 +607,107 @@ def test_build_run_log_path_is_unique_per_rep(sample_repo):
         assert "intent_layer-r0-fix.log" in str(p2)
 
 
+def test_append_log_marker_writes_metadata(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        log_path = Path(tmpdir) / "logs" / "phase.log"
+
+        runner._append_log_marker(log_path, "start", "phase begins", task="t1", rep=2)
+
+        contents = log_path.read_text()
+        assert "start: phase begins" in contents
+        assert "task=t1" in contents
+        assert "rep=2" in contents
+
+
+def test_intent_layer_cache_hit_writes_generation_phase_markers(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = os.path.join(tmpdir, ".cache")
+        runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
+        seed_workspace = os.path.join(tmpdir, "seed")
+        restore_workspace = os.path.join(tmpdir, "restore")
+        os.makedirs(seed_workspace)
+        os.makedirs(restore_workspace)
+
+        with open(os.path.join(seed_workspace, "CLAUDE.md"), "w") as f:
+            f.write("# cached context")
+
+        runner.index_cache.save(
+            "https://github.com/test/repo",
+            "abc123def",
+            seed_workspace,
+            ["CLAUDE.md"],
+            "intent_layer",
+        )
+
+        log_path = Path(tmpdir) / "logs" / "intent-layer-cache.log"
+        metrics = runner._check_or_generate_index(
+            workspace=restore_workspace,
+            repo_url="https://github.com/test/repo",
+            commit="abc123def",
+            condition="intent_layer",
+            stderr_log=log_path,
+        )
+
+        contents = log_path.read_text()
+        assert metrics.cache_hit is True
+        assert "start: intent-layer generation" in contents
+        assert "finish: intent-layer generation complete" in contents
+        assert "cache_hit=True" in contents
+        assert "source=cache" in contents
+
+
+def test_flat_cache_hit_writes_generation_phase_markers(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cache_dir = os.path.join(tmpdir, ".cache")
+        runner = TaskRunner(sample_repo, tmpdir, cache_dir=cache_dir, use_cache=True)
+        seed_workspace = os.path.join(tmpdir, "seed")
+        restore_workspace = os.path.join(tmpdir, "restore")
+        os.makedirs(seed_workspace)
+        os.makedirs(restore_workspace)
+
+        with open(os.path.join(seed_workspace, "CLAUDE.md"), "w") as f:
+            f.write("# cached flat context")
+
+        runner.index_cache.save(
+            "https://github.com/test/repo",
+            "abc123def",
+            seed_workspace,
+            ["CLAUDE.md"],
+            "flat_llm",
+        )
+
+        log_path = Path(tmpdir) / "logs" / "flat-cache.log"
+        metrics = runner._generate_flat_context(
+            workspace=restore_workspace,
+            repo_url="https://github.com/test/repo",
+            commit="abc123def",
+            stderr_log=log_path,
+        )
+
+        contents = log_path.read_text()
+        assert metrics.cache_hit is True
+        assert "start: flat context generation" in contents
+        assert "finish: flat context generation complete" in contents
+        assert "cache_hit=True" in contents
+        assert "source=cache" in contents
+
+
+def test_build_error_message_includes_log_path(sample_repo):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runner = TaskRunner(sample_repo, tmpdir)
+        message = runner._build_error_message(
+            "[timeout]",
+            "Claude timed out after 30.0s",
+            Path("/tmp/example.log"),
+            detail="exit_code=124",
+        )
+
+        assert message.startswith("[timeout] Claude timed out after 30.0s")
+        assert "exit_code=124" in message
+        assert "log=/tmp/example.log" in message
+
+
 def test_warm_cache_none_condition_returns_none(sample_repo):
     """warm_cache for the NONE condition is a no-op (nothing to generate)."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -906,7 +1007,7 @@ def test_plugin_hooks_env_for_intent_layer(sample_repo, monkeypatch):
 
     def fake_check_or_generate_index(self, workspace, repo_url, commit,
                                       condition="", model=None, timeout=600,
-                                      repo_level=False):
+                                      repo_level=False, stderr_log=None):
         import pathlib
         (pathlib.Path(workspace) / "CLAUDE.md").write_text("# context")
         return SkillGenerationMetrics(
@@ -1064,7 +1165,7 @@ def test_no_plugin_hooks_for_flat_llm(sample_repo, monkeypatch):
             "files": ["src/main.py"],
         })()
 
-    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None):
+    def fake_generate_flat_context(self, workspace, repo_url, commit, model=None, stderr_log=None):
         # Create a CLAUDE.md so _find_agents_files has something
         import pathlib
         workspace_path = pathlib.Path(workspace)
@@ -1125,7 +1226,7 @@ def test_intent_layer_writes_hooks_to_workspace(sample_repo, monkeypatch):
 
     def fake_check_or_generate_index(self, workspace, repo_url, commit,
                                       condition="", model=None, timeout=600,
-                                      repo_level=False):
+                                      repo_level=False, stderr_log=None):
         import pathlib
         # Create a CLAUDE.md so the runner is satisfied
         (pathlib.Path(workspace) / "CLAUDE.md").write_text("# intent layer context")

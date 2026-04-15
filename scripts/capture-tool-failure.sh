@@ -25,6 +25,7 @@ FILE_PATH=$(extract_hook_file_path "$INPUT")
 COMMAND=$(json_get "$INPUT" '.tool_input.command' '')
 OLD_STRING=$(json_get "$INPUT" '.tool_input.old_string' '')
 NEW_STRING=$(json_get "$INPUT" '.tool_input.new_string' '')
+TOOL_ERROR=$(json_get "$INPUT" '.tool_error' '')
 
 # Skip expected/exploratory failures
 case "$TOOL_NAME" in
@@ -128,7 +129,7 @@ EOF
 INJECTION_LOG="$PROJECT_ROOT/.intent-layer/hooks/injections.log"
 INJECTED_CONTEXT=""
 if [[ -f "$INJECTION_LOG" && -n "$FILE_PATH" ]]; then
-    RECENT=$(awk -F'\t' -v file="$FILE_PATH" '$2 == file' "$INJECTION_LOG" 2>/dev/null | tail -3 || true)
+    RECENT=$(awk -F'\t' -v file="$FILE_PATH" '($3 == file) || ($2 == file)' "$INJECTION_LOG" 2>/dev/null | tail -3 || true)
     if [[ -n "$RECENT" ]]; then
         INJECTED_CONTEXT="
 **Injection history**: Entries from covering AGENTS.md were injected before this edit.
@@ -161,19 +162,9 @@ output_context "PostToolUseFailure" "$CONTEXT"
 
 # --- Outcome Telemetry ---
 # Log failure outcome for telemetry correlation with pre-edit injections
-
-TELEMETRY_DIR="$PROJECT_ROOT/.intent-layer/hooks"
-
-if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
-   [[ ! -f "$PROJECT_ROOT/.intent-layer/disable-telemetry" ]]; then
-    mkdir -p "$TELEMETRY_DIR"
-    OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
-    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "failure" "${FILE_PATH:-unknown}" \
-        >> "$OUTCOME_LOG" 2>/dev/null || true
-    # Rotate log when it exceeds 1000 lines
-    LOG_LINES=$(wc -l < "$OUTCOME_LOG" 2>/dev/null || echo 0)
-    if [[ "${LOG_LINES// /}" -gt 1000 ]]; then
-        tail -500 "$OUTCOME_LOG" > "$OUTCOME_LOG.tmp" && \
-            mv "$OUTCOME_LOG.tmp" "$OUTCOME_LOG"
-    fi
+COVERAGE_STATUS="uncovered"
+if [[ "$COVERING_NODE" != "None" ]]; then
+    COVERAGE_STATUS="covered"
 fi
+DETAIL="${TOOL_ERROR:-auto-captured}"
+append_outcome_telemetry "$PROJECT_ROOT" "$TOOL_NAME" "failure" "${FILE_PATH:-unknown}" "$COVERAGE_STATUS" "$COVERING_NODE" "$DETAIL"
