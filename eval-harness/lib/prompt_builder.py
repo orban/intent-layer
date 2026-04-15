@@ -16,6 +16,10 @@ INTENT_LAYER_PREAMBLE = """Before making changes:
 
 """
 
+TEST_AFTER_EDIT_PREAMBLE = """CONSTRAINT: Every time you edit a source file, you must immediately run the relevant tests before making any further edits. Read the full test output and use it to decide your next action. Do not batch multiple edits before testing.
+
+"""
+
 
 def build_prompt_from_commit_message(message: str, preamble: str | None = None) -> str:
     """Build a prompt from a git commit message."""
