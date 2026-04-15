@@ -57,6 +57,14 @@ This outputs:
 - Which Intent Nodes cover those files
 - Files per node count
 
+When reviewers need more than node coverage, run:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/explain_semantic_diff.sh [base_ref] [head_ref]
+```
+
+Use that output to understand which changes look behavioral, which appear internal-only, and which nodes need closer semantic review before updating guidance.
+
 ### 3. Map Files to Covering Nodes
 
 For each changed file, find its covering node:
@@ -179,9 +187,10 @@ Before merging, PR review invokes ChangeTracker:
 
 ```
 1. ChangeTracker(main..HEAD)
-2. Generate merge checklist
-3. Include checklist in PR review report
-4. Optionally run targeted validation
+2. explain_semantic_diff.sh main HEAD
+3. Generate merge checklist
+4. Include checklist in PR review report
+5. Optionally run targeted validation
 ```
 
 ## Severity Decision Tree

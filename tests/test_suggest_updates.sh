@@ -50,6 +50,7 @@ cd "$TEST_DIR"
 git init -q
 git config user.email "test@test.com"
 git config user.name "Test"
+git config commit.gpgsign false
 
 # Create root CLAUDE.md with Intent Layer
 cat > CLAUDE.md << 'MD'
