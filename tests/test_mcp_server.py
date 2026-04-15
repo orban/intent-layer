@@ -7,28 +7,34 @@ so these are pure unit tests.
 
 from __future__ import annotations
 
+import asyncio
+import importlib.util
 import os
 import subprocess
-import tempfile
 from pathlib import Path
 from unittest import mock
 
 import pytest
 
-# We need to set INTENT_LAYER_ALLOWED_PROJECTS before importing the server
-# module so that tool calls don't fail during import. We'll override per-test.
-
-# Ensure the import can find the plugin root by patching _find_plugin_root
-# if needed. In practice the repo checkout already has .claude-plugin/.
-
 import sys
 
-# Add the mcp/ directory so we can import server
-MCP_DIR = str(Path(__file__).resolve().parent.parent / "mcp")
-if MCP_DIR not in sys.path:
-    sys.path.insert(0, MCP_DIR)
+try:
+    import mcp.server.fastmcp  # noqa: F401
+except ModuleNotFoundError as exc:
+    raise RuntimeError(
+        "tests/test_mcp_server.py requires the MCP SDK. "
+        "Install it with `python -m pip install -r mcp/requirements.txt`."
+    ) from exc
+
+SERVER_PATH = Path(__file__).resolve().parent.parent / "mcp" / "server.py"
+SPEC = importlib.util.spec_from_file_location("server", SERVER_PATH)
+assert SPEC is not None and SPEC.loader is not None
+SERVER_MODULE = importlib.util.module_from_spec(SPEC)
+sys.modules["server"] = SERVER_MODULE
+SPEC.loader.exec_module(SERVER_MODULE)
 
 from server import (
+    INTENT_RESOURCE_URI_TEMPLATE,
     _find_plugin_root,
     _get_allowed_projects,
     _is_intent_file,
@@ -38,8 +44,9 @@ from server import (
     SUBPROCESS_TIMEOUT,
     read_intent,
     report_learning,
-    read_intent_resource,
 )
+
+MCP_SERVER = SERVER_MODULE.mcp
 
 
 # ---------------------------------------------------------------------------
@@ -299,34 +306,60 @@ class TestReportLearning:
 # ---------------------------------------------------------------------------
 
 class TestIntentResource:
-    def test_read_claude_md(self, tmp_project: str):
+    def test_fastmcp_template_reads_nested_agents_md(self, tmp_project: str):
         project_name = os.path.basename(tmp_project)
-        content = read_intent_resource(project_name, "CLAUDE.md")
-        assert "# Root" in content
-
-    def test_read_agents_md(self, tmp_project: str):
-        project_name = os.path.basename(tmp_project)
-        content = read_intent_resource(project_name, "src/AGENTS.md")
+        uri = f"intent://{project_name}/src/AGENTS.md"
+        resource = asyncio.run(MCP_SERVER._resource_manager.get_resource(uri))
+        assert resource is not None
+        content = asyncio.run(resource.read())
         assert "# Src agents" in content
+
+    def test_fastmcp_template_reads_deeply_nested_agents_md(self, tmp_project: str):
+        project_name = os.path.basename(tmp_project)
+        uri = f"intent://{project_name}/src/api/AGENTS.md"
+        resource = asyncio.run(MCP_SERVER._resource_manager.get_resource(uri))
+        assert resource is not None
+        content = asyncio.run(resource.read())
+        assert "# API agents" in content
+
+    def test_resource_template_is_listed(self):
+        templates = asyncio.run(MCP_SERVER.list_resource_templates())
+        assert any(
+            template.uriTemplate == INTENT_RESOURCE_URI_TEMPLATE
+            for template in templates
+        )
 
     def test_non_intent_file_rejected(self, tmp_project: str):
         project_name = os.path.basename(tmp_project)
+        uri = f"intent://{project_name}/README.md"
         with pytest.raises(ValueError, match="limited to AGENTS.md and CLAUDE.md"):
-            read_intent_resource(project_name, "README.md")
+            asyncio.run(MCP_SERVER._resource_manager.get_resource(uri))
 
     def test_unknown_project_rejected(self, tmp_project: str):
         with pytest.raises(ValueError, match="not found in allowed"):
-            read_intent_resource("nonexistent-project", "CLAUDE.md")
+            asyncio.run(
+                MCP_SERVER._resource_manager.get_resource(
+                    "intent://nonexistent-project/CLAUDE.md"
+                )
+            )
 
     def test_traversal_rejected(self, tmp_project: str):
         project_name = os.path.basename(tmp_project)
         with pytest.raises(ValueError, match="outside the project root"):
-            read_intent_resource(project_name, "../../etc/passwd")
+            asyncio.run(
+                MCP_SERVER._resource_manager.get_resource(
+                    f"intent://{project_name}/../../etc/passwd"
+                )
+            )
 
     def test_missing_file_rejected(self, tmp_project: str):
         project_name = os.path.basename(tmp_project)
         with pytest.raises(ValueError, match="File not found"):
-            read_intent_resource(project_name, "nonexistent/AGENTS.md")
+            asyncio.run(
+                MCP_SERVER._resource_manager.get_resource(
+                    f"intent://{project_name}/nonexistent/AGENTS.md"
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
