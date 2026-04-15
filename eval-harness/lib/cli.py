@@ -414,7 +414,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         click.echo(f"Cleared index cache at {cache_dir}")
 
     # Determine conditions to run (HUMAN is AGENTbench-only, not used here)
-    YAML_CONDITIONS = [Condition.NONE, Condition.FLAT_LLM, Condition.INTENT_LAYER]
+    YAML_CONDITIONS = [Condition.NONE, Condition.FLAT_LLM, Condition.INTENT_LAYER, Condition.TEST_AFTER_EDIT]
     if condition:
         conditions = [Condition(c) for c in condition]
     else:

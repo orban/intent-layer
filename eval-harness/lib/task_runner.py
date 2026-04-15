@@ -25,6 +25,7 @@ from lib.prompt_builder import (
     build_prompt_from_issue,
     FLAT_PREAMBLE,
     INTENT_LAYER_PREAMBLE,
+    TEST_AFTER_EDIT_PREAMBLE,
 )
 from lib.index_cache import IndexCache
 
@@ -112,6 +113,7 @@ class Condition(Enum):
     FLAT_LLM = "flat_llm"
     INTENT_LAYER = "intent_layer"
     HUMAN = "human"
+    TEST_AFTER_EDIT = "test_after_edit"
 
 
 @dataclass
@@ -987,6 +989,7 @@ class TaskRunner:
             Condition.NONE: None,
             Condition.FLAT_LLM: FLAT_PREAMBLE,
             Condition.INTENT_LAYER: INTENT_LAYER_PREAMBLE,
+            Condition.TEST_AFTER_EDIT: TEST_AFTER_EDIT_PREAMBLE,
         }[condition]
 
         if task.prompt_source == "commit_message":

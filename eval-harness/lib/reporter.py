@@ -29,6 +29,7 @@ class Reporter:
         "flat_llm": "Flat LLM",
         "intent_layer": "Intent Layer",
         "human": "Human",
+        "test_after_edit": "Test After Edit",
     }
 
     def __init__(self, output_dir: str):
