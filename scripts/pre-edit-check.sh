@@ -182,7 +182,11 @@ if [[ -d "${CLAUDE_PROJECT_DIR:-.}/.intent-layer" ]]; then
     [[ -n "$PATTERNS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Patterns,"
     [[ -n "$CONTEXT_SECTION" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Context,"
     INJECTED_SECTIONS="${INJECTED_SECTIONS%,}"  # trim trailing comma
-    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$FILE_PATH" "$NODE_PATH" "$INJECTED_SECTIONS" \
+    printf '%s\t%s\t%s\t%s\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        "$(telemetry_escape_field "$FILE_PATH")" \
+        "$(telemetry_escape_field "$NODE_PATH")" \
+        "$(telemetry_escape_field "$INJECTED_SECTIONS")" \
         >> "$LOG_DIR/injections.log" 2>/dev/null || true
     # Rotate log when it exceeds 1000 lines to stay within hook latency budget
     LOG_LINES=$(wc -l < "$LOG_DIR/injections.log" 2>/dev/null || echo 0)

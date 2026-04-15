@@ -168,7 +168,11 @@ if [[ -d "$PROJECT_ROOT/.intent-layer" ]] && \
    [[ ! -f "$PROJECT_ROOT/.intent-layer/disable-telemetry" ]]; then
     mkdir -p "$TELEMETRY_DIR"
     OUTCOME_LOG="$TELEMETRY_DIR/outcomes.log"
-    printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TOOL_NAME" "failure" "${FILE_PATH:-unknown}" \
+    printf '%s\t%s\t%s\t%s\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        "$(telemetry_escape_field "$TOOL_NAME")" \
+        "failure" \
+        "$(telemetry_escape_field "${FILE_PATH:-unknown}")" \
         >> "$OUTCOME_LOG" 2>/dev/null || true
     # Rotate log when it exceeds 1000 lines
     LOG_LINES=$(wc -l < "$OUTCOME_LOG" 2>/dev/null || echo 0)
