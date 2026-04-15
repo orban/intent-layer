@@ -47,6 +47,8 @@ Both logs auto-rotate at 1000 lines and keep the newest 500 lines. Touch `.inten
 
 ## Contracts
 
+- `hooks/hooks.json` is the config boundary and canonical slot list for the repo. Keep matcher order, command wiring, and timeouts aligned there first.
+- `lib/common.sh` is the shared payload helper for hook scripts. Use `extract_hook_tool_name`, `extract_hook_file_path`, and `infer_post_tool_use_tool_name` instead of re-implementing field extraction.
 - Hooks must complete within their timeout: SessionStart=15s, PreToolUse=10s, PostToolUse=default, PostToolUseFailure=10s, Stop=45s.
 - The `<500ms` contract in CLAUDE.md refers to typical execution, not the timeout ceiling.
 - Hook scripts read JSON on stdin (except SessionStart which reads nothing). They output JSON via `output_context()`.
@@ -54,24 +56,33 @@ Both logs auto-rotate at 1000 lines and keep the newest 500 lines. Touch `.inten
 
 ### stdin/stdout by hook type
 
-| Hook | stdin | stdout |
-|------|-------|--------|
-| SessionStart | nothing | JSON (output_context) |
-| PreToolUse | JSON (tool_name, tool_input) | JSON (output_context) |
-| PostToolUse | JSON string as CLI arg (`$1`) | plain text |
-| PostToolUseFailure | JSON (tool_name, tool_input) | JSON (output_context) |
-| Stop | JSON (session_id, transcript_path, stop_hook_active) | JSON (output_block) or nothing |
+| Hook slot | Matcher | Handler | stdin / CLI payload | stdout |
+|-----------|---------|---------|---------------------|--------|
+| SessionStart | none | `inject-learnings.sh` | nothing | JSON via `output_context("SessionStart", ...)` |
+| PreToolUse | `Edit|Write|NotebookEdit` | `pre-edit-check.sh` | stdin JSON: `tool_name`, `tool_input` | JSON via `output_context("PreToolUse", ...)` |
+| PostToolUse | `Edit|Write|NotebookEdit` | `post-edit-check.sh` | CLI arg `$1` with `tool_input` JSON only | plain text |
+| PostToolUseFailure | `Edit|Write|NotebookEdit|Bash` | `capture-tool-failure.sh` | stdin JSON: `tool_name`, `tool_input` | JSON via `output_context("PostToolUseFailure", ...)` |
+| Stop | none | `stop-learning-check.sh` | stdin JSON: `session_id`, `transcript_path`, `stop_hook_active` | JSON via `output_block(...)` or nothing |
+
+### Canonical payload fields
+
+- Hook slots are the top-level Claude events: `SessionStart`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Stop`.
+- Tool names are matcher values inside `PreToolUse`, `PostToolUse`, and `PostToolUseFailure`. They are not hook-slot names.
+- Edit-family payloads use the same file selectors across hooks:
+  - `Edit` / `Write` → `.tool_input.file_path` (or `.file_path` for the PostToolUse CLI arg)
+  - Some write-style payloads may still use `.tool_input.path` / `.path`
+  - `NotebookEdit` → `.tool_input.notebook_path` (or `.notebook_path` for PostToolUse)
+  - `Bash` → `.tool_input.command` with no file path
+- `PostToolUse` is the only transport exception. Claude passes `tool_input` as a CLI string, so the script must infer the tool from payload fields instead of reading `.tool_name`.
 
 ## Patterns
 
 ### Path extraction varies by tool
 
-Different tools put the file path in different JSON fields:
-- Edit/Write → `.tool_input.file_path`
-- NotebookEdit → `.tool_input.notebook_path`
-- Bash → `.tool_input.command` (no file_path)
-
-Always check multiple fields with fallback: `FILE_PATH=$(json_get ... 'file_path' ''); FILE_PATH=${FILE_PATH:-$(json_get ... 'notebook_path' '')}`.
+Different tools put the file path in different JSON fields, so use the shared helper instead of open-coding the fallback chain:
+- `extract_hook_file_path "$INPUT"` for stdin hook payloads
+- `extract_hook_file_path "$TOOL_INPUT"` for the PostToolUse CLI arg
+- `infer_post_tool_use_tool_name "$TOOL_INPUT"` when PostToolUse telemetry needs `Edit` vs `Write` vs `NotebookEdit`
 
 ### Section extraction from AGENTS.md
 
@@ -89,7 +100,7 @@ The script uses `set -euo pipefail` but the Haiku API call via curl can fail (ti
 
 ### hooks.json matcher is OR logic, not AND
 
-`"matcher": "Edit|Write|NotebookEdit"` means "if tool_name is Edit OR Write OR NotebookEdit". No matcher = applies to all events (SessionStart, Stop).
+`"matcher": "Edit|Write|NotebookEdit"` means "if tool_name is Edit OR Write OR NotebookEdit". Omitting `matcher` means the slot applies to that hook event unconditionally (SessionStart, Stop). Don't encode unconditional hooks as `matcher: ""`.
 
 ### output_context requires jq
 

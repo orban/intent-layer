@@ -18,8 +18,8 @@ set -euo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "${BASH_SOURCE[0]}")")}"
 source "$PLUGIN_ROOT/lib/common.sh"
 
-# Parse the file path from tool input JSON
-# Expected format: {"file_path": "/path/to/file", ...}
+# Parse the file path from the PostToolUse CLI payload.
+# Claude passes `tool_input` as a JSON string argument for PostToolUse.
 TOOL_INPUT="${1:-}"
 
 if [[ -z "$TOOL_INPUT" ]]; then
@@ -27,19 +27,7 @@ if [[ -z "$TOOL_INPUT" ]]; then
 fi
 
 TOOL_NAME=$(json_get "$TOOL_INPUT" '.tool_name' '')
-FILE_PATH=$(json_get "$TOOL_INPUT" '.file_path' '')
-FILE_PATH=${FILE_PATH:-$(json_get "$TOOL_INPUT" '.tool_input.file_path' '')}
-FILE_PATH=${FILE_PATH:-$(json_get "$TOOL_INPUT" '.path' '')}
-FILE_PATH=${FILE_PATH:-$(json_get "$TOOL_INPUT" '.tool_input.path' '')}
-FILE_PATH=${FILE_PATH:-$(json_get "$TOOL_INPUT" '.notebook_path' '')}
-FILE_PATH=${FILE_PATH:-$(json_get "$TOOL_INPUT" '.tool_input.notebook_path' '')}
-
-if [[ -z "$FILE_PATH" ]]; then
-    FILE_PATH=$(echo "$TOOL_INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || true)
-fi
-if [[ -z "$FILE_PATH" ]]; then
-    FILE_PATH=$(echo "$TOOL_INPUT" | sed -n 's/.*"notebook_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || true)
-fi
+FILE_PATH=$(extract_hook_file_path "$TOOL_INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0  # No file path found, silently exit
@@ -91,7 +79,7 @@ is_likely_relevant() {
 
     # Source files are relevant
     case "$file" in
-        *.ts|*.js|*.tsx|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.sh)
+        *.ts|*.js|*.tsx|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.sh|*.ipynb)
             return 0
             ;;
     esac

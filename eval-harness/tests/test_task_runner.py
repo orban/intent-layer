@@ -915,32 +915,14 @@ def test_intent_layer_hooks_config_written(tmp_path):
     """Intent Layer hook injection writes .claude/settings.local.json with actual plugin hooks."""
     import json
     from pathlib import Path
+    from lib.task_runner import build_intent_layer_hooks_config
 
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
     # Simulate what task_runner.run() does for intent_layer
     plugin_root = str(Path(__file__).resolve().parents[2])
-    hooks_config = {
-        "hooks": {
-            "PreToolUse": [{
-                "matcher": "Edit|Write|NotebookEdit",
-                "hooks": [{
-                    "type": "command",
-                    "command": f"{plugin_root}/scripts/pre-edit-check.sh",
-                    "timeout": 10,
-                }]
-            }],
-            "SessionStart": [{
-                "matcher": "",
-                "hooks": [{
-                    "type": "command",
-                    "command": f"{plugin_root}/scripts/inject-learnings.sh",
-                    "timeout": 15,
-                }]
-            }],
-        }
-    }
+    hooks_config = build_intent_layer_hooks_config(plugin_root=plugin_root)
     claude_dir = workspace / ".claude"
     claude_dir.mkdir(exist_ok=True)
     (claude_dir / "settings.local.json").write_text(json.dumps(hooks_config, indent=2))
@@ -960,6 +942,7 @@ def test_intent_layer_hooks_config_written(tmp_path):
 
     # Verify PreToolUse matcher only fires on writes (not reads)
     assert settings["hooks"]["PreToolUse"][0]["matcher"] == "Edit|Write|NotebookEdit"
+    assert "matcher" not in settings["hooks"]["SessionStart"][0]
 
 
 def test_intent_layer_preamble_mentions_downlinks():

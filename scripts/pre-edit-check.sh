@@ -19,7 +19,7 @@ if [[ -z "$INPUT" ]]; then
     exit 0
 fi
 
-TOOL_NAME=$(json_get "$INPUT" '.tool_name' '')
+TOOL_NAME=$(extract_hook_tool_name "$INPUT")
 
 # The matcher in hooks.json handles tool filtering, but double-check
 case "$TOOL_NAME" in
@@ -27,10 +27,7 @@ case "$TOOL_NAME" in
     *) exit 0 ;;
 esac
 
-FILE_PATH=$(json_get "$INPUT" '.tool_input.file_path' '')
-FILE_PATH=${FILE_PATH:-$(json_get "$INPUT" '.tool_input.path' '')}
-# Handle NotebookEdit which uses notebook_path
-FILE_PATH=${FILE_PATH:-$(json_get "$INPUT" '.tool_input.notebook_path' '')}
+FILE_PATH=$(extract_hook_file_path "$INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0
