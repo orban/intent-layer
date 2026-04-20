@@ -7,6 +7,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 from uuid import uuid4
@@ -43,6 +44,15 @@ class DockerResult:
     stdout: str
     stderr: str
     timed_out: bool = False
+    # Wall-clock instrumentation. invoked_at is when Popen was called on
+    # `docker run`; first_byte_at is when the container emitted its first
+    # stdout/stderr line (proxy for "container is running"); finished_at is
+    # when the subprocess returned. The gap between invoked_at and
+    # first_byte_at ≈ Docker daemon queue + image pull + container create.
+    # first_byte_at is None on the fast (non-streaming) path.
+    invoked_at: str | None = None
+    first_byte_at: str | None = None
+    finished_at: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +299,7 @@ def _exec_cmd(
 
     # Fast path: no streaming/heartbeat needed
     if stream_log is None and heartbeat_callback is None:
+        invoked_at = datetime.now(timezone.utc).isoformat()
         try:
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=timeout,
@@ -297,11 +308,15 @@ def _exec_cmd(
                 exit_code=result.returncode,
                 stdout=result.stdout,
                 stderr=result.stderr,
+                invoked_at=invoked_at,
+                finished_at=datetime.now(timezone.utc).isoformat(),
             )
         except subprocess.TimeoutExpired:
             return DockerResult(
                 exit_code=-1, stdout="",
                 stderr="Command timed out", timed_out=True,
+                invoked_at=invoked_at,
+                finished_at=datetime.now(timezone.utc).isoformat(),
             )
 
     # Streaming path with heartbeat support
@@ -314,6 +329,9 @@ def _exec_cmd(
     stdout_lines: list[str] = []
     stderr_lines: list[str] = []
     line_counts = {"stdout": 0, "stderr": 0}
+    # Single-element holder so _drain can write first_byte_at without
+    # needing nonlocal; protected by the same lock that guards line_counts.
+    first_byte_holder: list[str | None] = [None]
     lock = threading.Lock()
 
     def _drain(stream, target: list[str], key: str):
@@ -321,10 +339,13 @@ def _exec_cmd(
             target.append(line)
             with lock:
                 line_counts[key] += 1
+                if first_byte_holder[0] is None:
+                    first_byte_holder[0] = datetime.now(timezone.utc).isoformat()
             if log_file:
                 log_file.write(f"[{key}] {line}")
                 log_file.flush()
 
+    invoked_at = datetime.now(timezone.utc).isoformat()
     try:
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -370,23 +391,33 @@ def _exec_cmd(
         out_thread.join(timeout=5)
         err_thread.join(timeout=5)
 
+        finished_at = datetime.now(timezone.utc).isoformat()
+
         if timed_out:
             return DockerResult(
                 exit_code=-1,
                 stdout="".join(stdout_lines),
                 stderr="".join(stderr_lines) or "Command timed out",
                 timed_out=True,
+                invoked_at=invoked_at,
+                first_byte_at=first_byte_holder[0],
+                finished_at=finished_at,
             )
 
         return DockerResult(
             exit_code=proc.returncode,
             stdout="".join(stdout_lines),
             stderr="".join(stderr_lines),
+            invoked_at=invoked_at,
+            first_byte_at=first_byte_holder[0],
+            finished_at=finished_at,
         )
     except OSError as e:
         return DockerResult(
             exit_code=-1, stdout="",
             stderr=f"Failed to start process: {e}",
+            invoked_at=invoked_at,
+            finished_at=datetime.now(timezone.utc).isoformat(),
         )
     finally:
         if log_file:

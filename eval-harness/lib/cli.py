@@ -94,6 +94,49 @@ def _load_prior_results(json_path: str) -> tuple[set[tuple[str, str]], set[tuple
     return passed, genuine_failures, data
 
 
+def _load_durations_from_dir(results_dir: Path) -> dict[str, float]:
+    """Scan <results_dir>/trials/*.json and return median wall_clock_seconds per
+    task_id across all conditions and reps. Used by LPT scheduling to predict
+    how long each task will take on its next run.
+
+    Returns an empty dict when the directory or trials are absent. Trials with
+    non-positive or missing wall_clock_seconds are ignored — those are almost
+    always pre-validation or infra failures, so they carry no timing signal.
+    """
+    trials_dir = results_dir / "trials"
+    if not trials_dir.is_dir():
+        return {}
+    by_task: dict[str, list[float]] = {}
+    for f in trials_dir.glob("*.json"):
+        try:
+            d = json.loads(f.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        tid = d.get("task_id")
+        wall = d.get("wall_clock_seconds")
+        if tid and isinstance(wall, (int, float)) and wall > 0:
+            by_task.setdefault(tid, []).append(float(wall))
+    return {
+        tid: sorted(walls)[len(walls) // 2]
+        for tid, walls in by_task.items()
+    }
+
+
+def _sort_lpt(
+    work_queue: list, durations: dict[str, float], default: float
+) -> list:
+    """Sort work queue by predicted duration descending. Items whose task_id is
+    not in `durations` get `default` (the across-task median), so they land in
+    the middle of the queue rather than first-or-last by accident. Stable sort
+    preserves original order within same-predicted-duration groups.
+    """
+    return sorted(
+        work_queue,
+        key=lambda item: durations.get(item[1].id, default),
+        reverse=True,
+    )
+
+
 def _is_infra_error_dict(cond_data: dict) -> bool:
     """Check if a condition dict represents an infrastructure error."""
     error = cond_data.get("error")
@@ -389,7 +432,18 @@ def scan(repo, output, since, limit, docker_image, setup, test_command, branch):
               help="Prior results JSON — skip passed pairs, re-run infra errors")
 @click.option("--retry-all", is_flag=True,
               help="With --resume: also retry genuine failures, not just infra errors")
-def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model, repetitions, resume, retry_all):
+@click.option("--schedule", type=click.Choice(["fifo", "lpt"]), default="fifo",
+              help="Task ordering: fifo (default) or lpt (longest predicted "
+                   "duration first, to shorten makespan under parallelism)")
+@click.option("--prior-results-dir", default=None, type=click.Path(exists=True),
+              help="Output dir with prior trial JSONs to use for LPT duration "
+                   "estimates. Defaults to --output if it already has trials.")
+@click.option("--idle-timeout", default=0.0, type=float,
+              help="Kill a Claude subprocess if no new stream events arrive "
+                   "for this many seconds (0 disables). Useful for reclaiming "
+                   "time from stalled trials that would otherwise pin at the "
+                   "hard --timeout ceiling.")
+def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, verbose, clear_cache, no_cache, cache_dir, condition, model, repetitions, resume, retry_all, schedule, prior_results_dir, idle_timeout):
     """Run eval on task files."""
     # Validate task files exist
     for task_path in tasks:
@@ -472,6 +526,26 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
                    f"{len(work_queue)} to re-run")
         if pre_validated_tasks:
             click.echo(f"Resume: {len(pre_validated_tasks)} task(s) will skip pre-validation")
+
+    if schedule == "lpt":
+        src_dir = Path(prior_results_dir) if prior_results_dir else Path(output)
+        durations = _load_durations_from_dir(src_dir)
+        if not durations:
+            click.echo(
+                f"\u26a0 --schedule lpt requested but no prior trial JSONs in "
+                f"{src_dir}/trials/; falling back to fifo. Pass "
+                f"--prior-results-dir to point at an earlier output dir."
+            )
+        else:
+            sorted_durs = sorted(durations.values())
+            default_dur = sorted_durs[len(sorted_durs) // 2]
+            work_queue = _sort_lpt(work_queue, durations, default_dur)
+            covered = sum(1 for item in work_queue if item[1].id in durations)
+            click.echo(
+                f"Schedule: LPT — {covered}/{len(work_queue)} items have prior "
+                f"durations (median fallback {default_dur:.0f}s). Longest "
+                f"predicted task runs first."
+            )
 
     if dry_run:
         click.echo("\nDry run - would execute:")
@@ -618,6 +692,7 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
             pre_val_cache=pre_val_cache,
             claude_timeout=timeout,
             skip_pre_validation_for=pre_validated_tasks,
+            claude_idle_timeout=idle_timeout if idle_timeout > 0 else None,
         )
         result = runner.run(task, condition, model=model, rep=rep)
 

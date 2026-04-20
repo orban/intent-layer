@@ -889,7 +889,8 @@ def test_plugin_hooks_env_for_intent_layer(sample_repo, monkeypatch):
         return "fix: something"
 
     def fake_run_claude(workspace, prompt, timeout=300, model=None,
-                        extra_env=None, stderr_log=None, max_turns=50):
+                        extra_env=None, stderr_log=None, max_turns=50,
+                        idle_timeout=None):
         captured_calls.append({
             "workspace": workspace,
             "extra_env": extra_env,
@@ -976,7 +977,8 @@ def test_no_plugin_env_for_none_condition(sample_repo, monkeypatch):
         return "fix: something"
 
     def fake_run_claude(workspace, prompt, timeout=300, model=None,
-                        extra_env=None, stderr_log=None, max_turns=50):
+                        extra_env=None, stderr_log=None, max_turns=50,
+                        idle_timeout=None):
         captured_calls.append({"extra_env": extra_env})
         return type("ClaudeResult", (), {
             "exit_code": 0,
@@ -1047,7 +1049,8 @@ def test_no_plugin_hooks_for_flat_llm(sample_repo, monkeypatch):
         return "fix: something"
 
     def fake_run_claude(workspace, prompt, timeout=300, model=None,
-                        extra_env=None, stderr_log=None, max_turns=50):
+                        extra_env=None, stderr_log=None, max_turns=50,
+                        idle_timeout=None):
         # Check if .claude/settings.local.json was written
         settings_path = os.path.join(workspace, ".claude", "settings.local.json")
         if os.path.exists(settings_path):
@@ -1155,7 +1158,8 @@ def test_intent_layer_writes_hooks_to_workspace(sample_repo, monkeypatch):
         )
 
     def fake_run_claude(workspace, prompt, timeout=300, model=None,
-                        extra_env=None, stderr_log=None, max_turns=50):
+                        extra_env=None, stderr_log=None, max_turns=50,
+                        idle_timeout=None):
         # Capture the settings file at the time Claude runs
         settings_path = os.path.join(workspace, ".claude", "settings.local.json")
         if os.path.exists(settings_path):

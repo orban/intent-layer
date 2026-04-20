@@ -9,6 +9,7 @@ import shutil
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Callable
@@ -141,6 +142,41 @@ class TaskResult:
     error: str | None = None
     exit_code: int | None = None
     is_timeout: bool = False
+    # Wall-clock instrumentation. started_at/finished_at are the trial-wrapper
+    # boundary (set in run()), needed to reconstruct concurrency-by-second.
+    # cost_usd comes from ClaudeResult on paths that actually invoked Claude;
+    # zero for pre-validation/skill-gen/infra failures.
+    started_at: str | None = None
+    finished_at: str | None = None
+    cost_usd: float = 0.0
+    # Per-Docker-invocation timings from DockerResult. Each dict has
+    # phase, invoked_at, first_byte_at, finished_at, exit_code, timed_out.
+    # Gap between invoked_at and first_byte_at ≈ Docker daemon queue wait.
+    docker_invocations: list[dict] = field(default_factory=list)
+    # Per-stream-event arrival records from the Claude fix call. Each dict has
+    # t (relative seconds since claude start), type, and optionally tools and
+    # token deltas. Empty for trials that never reached the fix call.
+    stream_events: list[dict] = field(default_factory=list)
+
+
+def _record_docker(invocations: list[dict] | None, phase: str, result) -> None:
+    """Append a Docker invocation record to the per-trial accumulator.
+
+    No-op when invocations is None (e.g. callers that pre-date the patch).
+    Uses getattr with defaults so that test mocks producing a partial result
+    object (no instrumentation fields) still work — the timing fields just
+    come through as None.
+    """
+    if invocations is None:
+        return
+    invocations.append({
+        "phase": phase,
+        "invoked_at": getattr(result, "invoked_at", None),
+        "first_byte_at": getattr(result, "first_byte_at", None),
+        "finished_at": getattr(result, "finished_at", None),
+        "exit_code": getattr(result, "exit_code", None),
+        "timed_out": getattr(result, "timed_out", False),
+    })
 
 
 class PreValidationError(Exception):
@@ -166,6 +202,7 @@ class TaskRunner:
         claude_timeout: int = 300,
         skip_pre_validation_for: frozenset[str] = frozenset(),
         pre_validation_timeout: int = PRE_VALIDATION_TIMEOUT,
+        claude_idle_timeout: float | None = None,
     ):
         self.repo = repo
         self.workspaces_dir = Path(workspaces_dir)
@@ -177,6 +214,7 @@ class TaskRunner:
         self.claude_timeout = claude_timeout
         self._skip_pre_validation_for = skip_pre_validation_for
         self._pre_validation_timeout = pre_validation_timeout
+        self.claude_idle_timeout = claude_idle_timeout
 
     def _progress(self, task_id: str, condition: str, step: str, message: str = ""):
         """Report progress if callback is set."""
@@ -220,6 +258,7 @@ class TaskRunner:
         task_id: str = "pre_validate",
         condition: str = "none",
         stream_log: str | Path | None = None,
+        docker_invocations: list[dict] | None = None,
     ) -> str | None:
         """Validate that a task is runnable before spending API tokens.
 
@@ -265,6 +304,7 @@ class TaskRunner:
                     task_id, condition, "pre_validate_live"
                 ),
             )
+            _record_docker(docker_invocations, "pre_validate_setup", result)
             if result.timed_out:
                 raise PreValidationError(
                     "Docker setup timed out during pre-validation."
@@ -296,6 +336,7 @@ class TaskRunner:
                     task_id, condition, "pre_validate_live"
                 ),
             )
+            _record_docker(docker_invocations, "pre_validate_test", result)
 
             # 2. The test MUST fail at pre_fix_commit (that's the whole point)
             if task.prompt_source == "failing_test" and result.exit_code == 0:
@@ -625,8 +666,24 @@ class TaskRunner:
                 shutil.rmtree(workspace)
 
     def run(self, task: Task, condition: Condition, model: str | None = None, rep: int = 0) -> TaskResult:
+        """Execute a single task and stamp wall-clock boundaries on the result.
+
+        started_at / finished_at let downstream tooling reconstruct
+        concurrency-by-second across trials, which a relative
+        wall_clock_seconds alone cannot answer.
+        """
+        started_at = datetime.now(timezone.utc).isoformat()
+        result = self._run_inner(task, condition, model=model, rep=rep)
+        result.started_at = started_at
+        result.finished_at = datetime.now(timezone.utc).isoformat()
+        return result
+
+    def _run_inner(self, task: Task, condition: Condition, model: str | None = None, rep: int = 0) -> TaskResult:
         """Execute a single task under the given condition."""
         cond_str = condition.value
+        # Per-trial accumulator for Docker timings. Threaded into _pre_validate
+        # and _build_prompt so each docker call records its queue/exec split.
+        docker_invocations: list[dict] = []
         self._progress(task.id, cond_str, "setup", "creating workspace")
         workspace = self.setup_workspace(task, condition, rep=rep)
 
@@ -680,6 +737,7 @@ class TaskRunner:
                         task_id=task.id,
                         condition=cond_str,
                         stream_log=precheck_log,
+                        docker_invocations=docker_invocations,
                     ),
                 )
                 self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
@@ -697,6 +755,7 @@ class TaskRunner:
                     task_id=task.id,
                     condition=cond_str,
                     stream_log=precheck_log,
+                    docker_invocations=docker_invocations,
                 )
                 self._progress(task.id, cond_str, "pre_validate_done", "pre-validation passed")
 
@@ -789,7 +848,7 @@ class TaskRunner:
 
             # Build prompt with condition-appropriate preamble
             self._progress(task.id, cond_str, "prompt", "building prompt")
-            prompt = self._build_prompt(task, workspace, condition, cached_test_output=pre_validate_output)
+            prompt = self._build_prompt(task, workspace, condition, cached_test_output=pre_validate_output, docker_invocations=docker_invocations)
 
             # Run Claude on the task
             fix_log = self._build_run_log_path(task, cond_str, "fix", rep)
@@ -799,7 +858,8 @@ class TaskRunner:
                 fix_extra_env = {"CLAUDE_PLUGIN_ROOT": PLUGIN_ROOT}
             claude_result = run_claude(workspace, prompt, timeout=self.claude_timeout,
                                        model=model, stderr_log=str(fix_log),
-                                       extra_env=fix_extra_env)
+                                       extra_env=fix_extra_env,
+                                       idle_timeout=self.claude_idle_timeout)
             self._progress(task.id, cond_str, "claude_done", f"completed in {claude_result.wall_clock_seconds:.1f}s, {claude_result.tool_calls} tool calls")
 
             # Detect empty runs: Claude returned without doing any work
@@ -830,6 +890,9 @@ class TaskRunner:
                         f"prompt_bytes={prompt_size}{stderr_info})"
                     ),
                     exit_code=claude_result.exit_code,
+                    cost_usd=claude_result.cost_usd,
+                    docker_invocations=docker_invocations,
+                    stream_events=claude_result.stream_events,
                 )
 
             # Detect timeout: Claude ran out of time
@@ -852,6 +915,9 @@ class TaskRunner:
                     ),
                     exit_code=claude_result.exit_code,
                     is_timeout=True,
+                    cost_usd=claude_result.cost_usd,
+                    docker_invocations=docker_invocations,
+                    stream_events=claude_result.stream_events,
                 )
 
             # Run tests — use targeted test file when available (~150s → ~15s)
@@ -881,6 +947,7 @@ class TaskRunner:
                     task.id, cond_str, "test_live"
                 ),
             )
+            _record_docker(docker_invocations, "post_test", test_result)
             test_status = "PASSED" if test_result.exit_code == 0 else "FAILED"
             self._progress(task.id, cond_str, "test_done", f"tests {test_status}")
 
@@ -908,6 +975,9 @@ class TaskRunner:
                 skill_generation=skill_metrics,
                 agents_files_read=agents_files_read,
                 exit_code=claude_result.exit_code,
+                cost_usd=claude_result.cost_usd,
+                docker_invocations=docker_invocations,
+                stream_events=claude_result.stream_events,
             )
         except PreValidationError as e:
             logger.warning("Pre-validation failed for %s (%s): %s", task.id, cond_str, e)
@@ -923,7 +993,8 @@ class TaskRunner:
                 lines_changed=0,
                 files_touched=[],
                 rep=rep,
-                error=f"[pre-validation] {e}"
+                error=f"[pre-validation] {e}",
+                docker_invocations=docker_invocations,
             )
         except SkillGenerationError as e:
             logger.warning("Skill generation failed for %s (%s): %s", task.id, cond_str, e)
@@ -939,7 +1010,8 @@ class TaskRunner:
                 lines_changed=0,
                 files_touched=[],
                 rep=rep,
-                error=f"[skill-generation] {e}"
+                error=f"[skill-generation] {e}",
+                docker_invocations=docker_invocations,
             )
         except Exception as e:
             logger.error("Infrastructure error in task %s (%s): %s", task.id, cond_str, e, exc_info=True)
@@ -955,7 +1027,8 @@ class TaskRunner:
                 lines_changed=0,
                 files_touched=[],
                 rep=rep,
-                error=f"[infrastructure] {e}"
+                error=f"[infrastructure] {e}",
+                docker_invocations=docker_invocations,
             )
 
     def setup_workspace(self, task: Task, condition: Condition, rep: int = 0) -> str:
@@ -976,7 +1049,7 @@ class TaskRunner:
 
         return str(workspace)
 
-    def _build_prompt(self, task: Task, workspace: str, condition: Condition, cached_test_output: str | None = None) -> str:
+    def _build_prompt(self, task: Task, workspace: str, condition: Condition, cached_test_output: str | None = None, docker_invocations: list[dict] | None = None) -> str:
         """Build the appropriate prompt based on task config.
 
         Args:
@@ -1018,6 +1091,7 @@ class TaskRunner:
                 test_cmd,
                 timeout=PRE_VALIDATION_TIMEOUT
             )
+            _record_docker(docker_invocations, "prompt_build_test", result)
             return build_prompt_from_failing_test(
                 result.stdout + result.stderr, preamble=preamble
             )

@@ -1,7 +1,11 @@
 # tests/test_cli.py
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 from click.testing import CliRunner
-from lib.cli import main, scan, run
+from lib.cli import main, scan, run, _load_durations_from_dir, _sort_lpt
 
 
 @pytest.fixture
@@ -135,3 +139,51 @@ tasks: []
     # Should only have manifest, and manifest should be empty
     assert len(cache_contents) == 1
     assert cache_contents[0].name == "cache-manifest.json"
+
+
+# --- LPT scheduling helpers ---
+
+
+def _write_trial(trials_dir: Path, name: str, task_id: str, wall: float) -> None:
+    trials_dir.mkdir(parents=True, exist_ok=True)
+    (trials_dir / f"{name}.json").write_text(
+        json.dumps({"task_id": task_id, "wall_clock_seconds": wall})
+    )
+
+
+def test_load_durations_from_dir_returns_median_per_task(tmp_path):
+    """Multiple trials per task → median wall_clock_seconds; bad data ignored."""
+    trials = tmp_path / "trials"
+    _write_trial(trials, "alpha-r0", "alpha", 10.0)
+    _write_trial(trials, "alpha-r1", "alpha", 30.0)  # median pick
+    _write_trial(trials, "alpha-r2", "alpha", 50.0)
+    _write_trial(trials, "beta-r0", "beta", 100.0)
+    # Skipped: pre-validation fails recorded as wall=0
+    _write_trial(trials, "gamma-r0", "gamma", 0.0)
+    # Skipped: corrupt JSON
+    (trials / "broken.json").write_text("{not json")
+
+    durations = _load_durations_from_dir(tmp_path)
+    assert durations == {"alpha": 30.0, "beta": 100.0}
+
+
+def test_load_durations_returns_empty_when_no_trials_dir(tmp_path):
+    assert _load_durations_from_dir(tmp_path) == {}
+    (tmp_path / "trials").mkdir()
+    assert _load_durations_from_dir(tmp_path) == {}
+
+
+def test_sort_lpt_orders_by_predicted_duration_desc():
+    """Known durations sort by value desc; unknown task uses default (middle)."""
+    items = [
+        ("repo", SimpleNamespace(id="short"), "none", 0),
+        ("repo", SimpleNamespace(id="long"), "none", 0),
+        ("repo", SimpleNamespace(id="unknown"), "none", 0),
+        ("repo", SimpleNamespace(id="medium"), "none", 0),
+    ]
+    durations = {"short": 5.0, "long": 200.0, "medium": 50.0}
+    sorted_items = _sort_lpt(items, durations, default=50.0)
+    ids = [item[1].id for item in sorted_items]
+    assert ids[0] == "long"          # 200s — first
+    assert ids[-1] == "short"        # 5s — last
+    assert set(ids[1:3]) == {"medium", "unknown"}  # both 50s, stable order between them

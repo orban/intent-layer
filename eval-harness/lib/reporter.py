@@ -618,10 +618,15 @@ class Reporter:
             "condition": result.condition.value,
             "rep": result.rep,
             "success": result.success,
+            "started_at": result.started_at,
+            "finished_at": result.finished_at,
             "wall_clock_seconds": result.wall_clock_seconds,
             "input_tokens": result.input_tokens,
             "output_tokens": result.output_tokens,
             "tool_calls": result.tool_calls,
+            "cost_usd": result.cost_usd,
+            "docker_invocations": result.docker_invocations,
+            "stream_events": result.stream_events,
             "lines_changed": result.lines_changed,
         }
         if result.error:
