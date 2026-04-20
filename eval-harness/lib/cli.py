@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import shutil
+import statistics
 import sys
 import tempfile
 import threading
@@ -107,19 +108,31 @@ def _load_durations_from_dir(results_dir: Path) -> dict[str, float]:
     if not trials_dir.is_dir():
         return {}
     by_task: dict[str, list[float]] = {}
+    skipped: list[tuple[str, str]] = []
     for f in trials_dir.glob("*.json"):
         try:
             d = json.loads(f.read_text())
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            # Don't drop corrupt files silently — a partially corrupt prior
+            # results dir would bias LPT estimates onto an unrepresentative
+            # subset with no operator-visible trace.
+            skipped.append((f.name, str(e)))
             continue
         tid = d.get("task_id")
         wall = d.get("wall_clock_seconds")
         if tid and isinstance(wall, (int, float)) and wall > 0:
             by_task.setdefault(tid, []).append(float(wall))
-    return {
-        tid: sorted(walls)[len(walls) // 2]
-        for tid, walls in by_task.items()
-    }
+    if skipped:
+        click.echo(
+            f"warn: skipped {len(skipped)} unreadable trial JSON(s) in "
+            f"{trials_dir}: {', '.join(name for name, _ in skipped[:5])}"
+            f"{'…' if len(skipped) > 5 else ''}",
+            err=True,
+        )
+    # statistics.median is correct for both odd and even N; the previous
+    # `sorted(walls)[len(walls)//2]` returned the upper-middle for even N
+    # and biased predictions upward.
+    return {tid: statistics.median(walls) for tid, walls in by_task.items()}
 
 
 def _sort_lpt(
@@ -532,13 +545,12 @@ def run(tasks, parallel, category, output, keep_workspaces, dry_run, timeout, ve
         durations = _load_durations_from_dir(src_dir)
         if not durations:
             click.echo(
-                f"\u26a0 --schedule lpt requested but no prior trial JSONs in "
+                f"warn: --schedule lpt requested but no prior trial JSONs in "
                 f"{src_dir}/trials/; falling back to fifo. Pass "
                 f"--prior-results-dir to point at an earlier output dir."
             )
         else:
-            sorted_durs = sorted(durations.values())
-            default_dur = sorted_durs[len(sorted_durs) // 2]
+            default_dur = statistics.median(durations.values())
             work_queue = _sort_lpt(work_queue, durations, default_dur)
             covered = sum(1 for item in work_queue if item[1].id in durations)
             click.echo(

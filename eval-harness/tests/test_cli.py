@@ -152,19 +152,29 @@ def _write_trial(trials_dir: Path, name: str, task_id: str, wall: float) -> None
 
 
 def test_load_durations_from_dir_returns_median_per_task(tmp_path):
-    """Multiple trials per task → median wall_clock_seconds; bad data ignored."""
+    """Multiple trials per task → median wall_clock_seconds; bad data ignored.
+
+    Also exercises even-length inputs to lock in correct median behavior —
+    a previous implementation used `sorted(walls)[len(walls)//2]`, which
+    returns the upper-middle for even N and biased predictions upward.
+    """
     trials = tmp_path / "trials"
+    # Odd N=3 — true median = middle element
     _write_trial(trials, "alpha-r0", "alpha", 10.0)
-    _write_trial(trials, "alpha-r1", "alpha", 30.0)  # median pick
+    _write_trial(trials, "alpha-r1", "alpha", 30.0)
     _write_trial(trials, "alpha-r2", "alpha", 50.0)
-    _write_trial(trials, "beta-r0", "beta", 100.0)
+    # Even N=4 — true median = mean of middle two = (20 + 40) / 2 = 30.0
+    _write_trial(trials, "beta-r0", "beta", 10.0)
+    _write_trial(trials, "beta-r1", "beta", 20.0)
+    _write_trial(trials, "beta-r2", "beta", 40.0)
+    _write_trial(trials, "beta-r3", "beta", 100.0)
     # Skipped: pre-validation fails recorded as wall=0
     _write_trial(trials, "gamma-r0", "gamma", 0.0)
     # Skipped: corrupt JSON
     (trials / "broken.json").write_text("{not json")
 
     durations = _load_durations_from_dir(tmp_path)
-    assert durations == {"alpha": 30.0, "beta": 100.0}
+    assert durations == {"alpha": 30.0, "beta": 30.0}
 
 
 def test_load_durations_returns_empty_when_no_trials_dir(tmp_path):

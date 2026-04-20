@@ -1,5 +1,6 @@
 # lib/claude_runner.py
 from __future__ import annotations
+import logging
 import subprocess
 import threading
 import time
@@ -7,6 +8,8 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -226,6 +229,23 @@ def parse_stream_json_output(lines: list[str]) -> dict:
     }
 
 
+def _kill_and_reap(proc: subprocess.Popen) -> None:
+    """Kill `proc` and wait for it to exit, swallowing OSError from races
+    with a child that already terminated between our last poll and the kill.
+    Without this swallow, _wait_for_proc could leak an exception into
+    `run_claude` and skip the reader-thread joins below it, leaving stdout
+    and stderr drains stuck on closed pipes.
+    """
+    try:
+        proc.kill()
+    except OSError:
+        pass
+    try:
+        proc.wait()
+    except OSError:
+        pass
+
+
 def _wait_for_proc(
     proc: subprocess.Popen,
     start: float,
@@ -241,10 +261,14 @@ def _wait_for_proc(
     killed it for the hard wall-clock ceiling, or `"idle"` when we killed it
     because no new stream-json events arrived for `idle_timeout` seconds.
 
-    `stream_events` is read concurrently — it is appended from the stdout
-    reader thread. We only read the tail timestamp, which is safe because
-    list append and index access are atomic in CPython and the list is
-    monotonic (events are never removed).
+    Concurrency contract: `stream_events` is the same list that the stdout
+    reader thread appends to. We only read its length and the tail dict.
+    This is safe because (a) the list is append-only — nothing pops or
+    reassigns entries, and (b) each appended dict is constructed in full
+    by `_extract_stream_event` and never mutated afterwards. The safety
+    comes from the append-only-of-immutable-after-append discipline, not
+    from any general thread-safety guarantee about Python lists; if you
+    introduce a `pop()` or in-place mutation here, that breaks.
     """
     deadline = start + timeout
     while True:
@@ -252,16 +276,14 @@ def _wait_for_proc(
             return None
         now = time.time()
         if now >= deadline:
-            proc.kill()
-            proc.wait()
+            _kill_and_reap(proc)
             return "timeout"
         if idle_timeout and idle_timeout > 0:
             last_event_wall = (
                 start + stream_events[-1]["t"] if stream_events else start
             )
             if now - last_event_wall >= idle_timeout:
-                proc.kill()
-                proc.wait()
+                _kill_and_reap(proc)
                 return "idle"
         time.sleep(poll_interval)
 
@@ -435,8 +457,24 @@ def run_claude(
                 proc, start, timeout, idle_timeout, stream_events
             )
 
+            # If a reader thread hasn't drained within 5s after the process
+            # exits or is killed, warn loudly. Silent loss of stdout/stderr
+            # at exactly the diagnostic moment we'd most want it (an idle-
+            # kill or hard-timeout) is the worst kind of debug regression.
             out_reader.join(timeout=5)
+            if out_reader.is_alive():
+                logger.warning(
+                    "stdout reader did not drain within 5s "
+                    "(kill_reason=%s); partial stream_events may be missing",
+                    kill_reason,
+                )
             err_reader.join(timeout=5)
+            if err_reader.is_alive():
+                logger.warning(
+                    "stderr reader did not drain within 5s "
+                    "(kill_reason=%s); partial stderr may be missing",
+                    kill_reason,
+                )
             elapsed = time.time() - start
             metrics = parse_stream_json_output(stdout_lines)
 
