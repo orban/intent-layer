@@ -1,0 +1,23 @@
+[pinboard] fetched 5 new items
+[papers] fetched 1 new items
+[github] error: stars.map is not a function. (In 'stars.map(({ starred_at, repo }) => {
+      if (!latestStarred || starred_at > latestStarred)
+        latestStarred = starred_at;
+      const content = [
+        repo.description ?? "",
+        repo.language ? `Language: ${repo.language}` : "",
+        repo.topics.length ? `Topics: ${repo.topics.join(", ")}` : "",
+        `Stars: ${repo.stargazers_count}`
+      ].filter(Boolean).join(`
+`);
+      return {
+        source: this.source,
+        sourceId: String(repo.id),
+        title: repo.full_name,
+        url: repo.html_url,
+        content,
+        savedAt: starred_at
+      };
+    })', 'stars.map' is undefined)
+[email] fetched 43 new items
+Ingestion complete: 49 new items
