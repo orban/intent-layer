@@ -22,9 +22,9 @@
 - [Key invariant or rule 1]
 - [Key invariant or rule 2]
 
-## Pitfalls
+## Rules
 
-- [Non-obvious gotcha 1]
+- [Non-obvious gotcha or imperative from git history]
 
 ## Intent Layer
 
@@ -34,4 +34,4 @@ This project uses Intent Layer for AI-navigable documentation.
 
 | Area | Node | Description |
 |------|------|-------------|
-| Source | `src/AGENTS.md` | Source code contracts and patterns |
+| Source | `src/AGENTS.md` | Source code contracts, rules, boundaries |

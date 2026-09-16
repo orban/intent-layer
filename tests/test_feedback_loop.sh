@@ -34,12 +34,12 @@ cat > "$TEST_DIR/CLAUDE.md" << 'EOF'
 - All API calls must be authenticated
 EOF
 
-# Child node with pitfalls
+# Child node with rules
 mkdir -p "$TEST_DIR/src/api"
 cat > "$TEST_DIR/src/api/AGENTS.md" << 'EOF'
 # API Module
 
-## Pitfalls
+## Rules
 
 ### validate() silently passes on empty input
 
@@ -78,7 +78,7 @@ if [[ -f "$LOG_FILE" ]]; then
     # Expected tab-delimited format: TIMESTAMP\tFILE\tNODE\tSECTIONS
     FIELD_COUNT=$(echo "$LINE" | awk -F'\t' '{print NF}')
     LAST_FIELD=$(echo "$LINE" | awk -F'\t' '{print $NF}')
-    if [[ "$FIELD_COUNT" -eq 4 ]] && [[ "$LAST_FIELD" == "Pitfalls" ]]; then
+    if [[ "$FIELD_COUNT" -eq 4 ]] && [[ "$LAST_FIELD" == "Rules" ]]; then
         pass "Log line format: timestamp, file, node, sections"
     else
         fail "Unexpected log format: $LINE"
@@ -97,9 +97,9 @@ export CLAUDE_PROJECT_DIR="$CLEAN_DIR"
 cat > "$CLEAN_DIR/CLAUDE.md" << 'EOF'
 # Clean Project
 
-## Pitfalls
+## Rules
 
-### Some pitfall
+### Some rule
 
 Details here.
 EOF
@@ -127,7 +127,7 @@ echo "Test 4: Failure-injection correlation in skeleton report"
 
 # Write a mock injection log entry
 mkdir -p "$TEST_DIR/.intent-layer/hooks"
-printf '%s\t%s\t%s\t%s\n' "2026-02-09T10:00:00Z" "$TEST_DIR/src/api/handlers.ts" "$TEST_DIR/src/api/AGENTS.md" "Pitfalls" \
+printf '%s\t%s\t%s\t%s\n' "2026-02-09T10:00:00Z" "$TEST_DIR/src/api/handlers.ts" "$TEST_DIR/src/api/AGENTS.md" "Rules" \
     > "$TEST_DIR/.intent-layer/hooks/injections.log"
 
 # Mock a tool failure on the same file

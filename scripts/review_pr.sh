@@ -257,9 +257,9 @@ calculate_risk_score() {
         in_contracts=$(echo "$in_contracts" | tr -d '[:space:]')
         contract_count=$((contract_count + in_contracts))
 
-        # Count items in Pitfalls section
+        # Count items in Rules section
         local in_pitfalls
-        in_pitfalls=$(echo "$content" | grep -c -iE "^- .*(pitfall|silently|unexpected|surprising)" 2>/dev/null || true)
+        in_pitfalls=$(echo "$content" | grep -c -iE "^- .*(pitfall|silently|unexpected|surprising|never|always)" 2>/dev/null || true)
         in_pitfalls=${in_pitfalls:-0}
         in_pitfalls=$(echo "$in_pitfalls" | tr -d '[:space:]')
         pitfall_count=$((pitfall_count + in_pitfalls))
@@ -279,11 +279,11 @@ calculate_risk_score() {
         factors="${factors}Contracts ($contract_count): +${contract_points}\n"
     fi
 
-    # Pitfalls: 3 points each
+    # Rules: 3 points each
     if [ $pitfall_count -gt 0 ]; then
         local pitfall_points=$((pitfall_count * 3))
         score=$((score + pitfall_points))
-        factors="${factors}Pitfalls ($pitfall_count): +${pitfall_points}\n"
+        factors="${factors}Rules ($pitfall_count): +${pitfall_points}\n"
     fi
 
     # Critical items: 5 points each
@@ -409,13 +409,13 @@ run_ai_checks() {
         AI_OVERENGINEERING="${AI_OVERENGINEERING}- Multiple new interfaces: ${new_interfaces}\n  Verify these aren't premature abstractions\n"
     fi
 
-    # Pitfall proximity
+    # Rule proximity
     for node in $(get_nodes); do
         local content
         content=$(cat "$node" 2>/dev/null || echo "")
         local node_dir=$(dirname "$node")
 
-        # Extract pitfalls
+        # Extract rules
         while IFS= read -r pitfall; do
             [ -z "$pitfall" ] && continue
             AI_PITFALL_ALERTS="${AI_PITFALL_ALERTS}- ${node_dir}: ${pitfall}\n  Verify: Does new code handle this edge case?\n"
@@ -492,7 +492,7 @@ generate_output() {
     fi
 
     if [ -n "$PITFALL_ITEMS" ]; then
-        output+="### Pitfalls in affected areas\n\n"
+        output+="### Rules in affected areas\n\n"
         output+="${PITFALL_ITEMS}\n"
     fi
 
@@ -508,7 +508,7 @@ generate_output() {
         fi
 
         if [ -n "$AI_PITFALL_ALERTS" ]; then
-            output+="### Pitfall Proximity Alerts\n\n"
+            output+="### Rule Proximity Alerts\n\n"
             output+="AI modified code adjacent to known sharp edges:\n\n"
             output+="${AI_PITFALL_ALERTS}\n"
         fi
@@ -545,10 +545,10 @@ generate_output() {
             output+="${contracts}\n\n"
         fi
 
-        # Extract Pitfalls section
-        local pitfalls=$(echo "$content" | sed -n '/^#\{2,3\} Pitfalls/,/^#\{2,3\} /p' | grep -v '^#' | head -20 || echo "")
+        # Extract Rules section
+        local pitfalls=$(echo "$content" | sed -n '/^#\{2,3\} Rules/,/^#\{2,3\} /p' | grep -v '^#' | head -20 || echo "")
         if [ -n "$pitfalls" ]; then
-            output+="#### Pitfalls\n\n"
+            output+="#### Rules\n\n"
             output+="${pitfalls}\n\n"
         fi
 

@@ -72,9 +72,9 @@ This is a test project for e2e testing.
 
 A simple test project.
 
-## Pitfalls
+## Rules
 
-<!-- Pitfalls will be added here -->
+<!-- Rules will be added here -->
 
 EOF
 
@@ -83,9 +83,9 @@ cat > "$TEST_DIR/src/api/AGENTS.md" << 'EOF'
 
 Handles API requests.
 
-## Pitfalls
+## Rules
 
-<!-- API-specific pitfalls -->
+<!-- API-specific rules -->
 
 EOF
 
@@ -220,11 +220,11 @@ echo "$integration_output"
 
 # Check if pitfall was added to the covering AGENTS.md (src/api/AGENTS.md)
 COVERING_AGENTS="$TEST_DIR/src/api/AGENTS.md"
-if grep -q "Edit handlerstts to make function async\|handleRequest\|arrow function" "$COVERING_AGENTS" 2>/dev/null; then
+if grep -q "Edit handlers ts to make function async\\|handleRequest\\|arrow function" "$COVERING_AGENTS" 2>/dev/null; then
     pass "Pitfall added to covering AGENTS.md"
 else
     # Check root AGENTS.md as fallback
-    if grep -q "Edit handlerstts to make function async\|handleRequest\|arrow function" "$TEST_DIR/AGENTS.md" 2>/dev/null; then
+    if grep -q "Edit handlers ts to make function async\\|handleRequest\\|arrow function" "$TEST_DIR/AGENTS.md" 2>/dev/null; then
         pass "Pitfall added to root AGENTS.md"
     else
         fail "Pitfall not found in any AGENTS.md"
@@ -306,11 +306,11 @@ EOF
 cd "$TEST_DIR"
 integration_output=$("$PLUGIN_DIR/lib/integrate_pitfall.sh" "$CHECK_FILE" 2>&1 || true)
 
-# Verify Check section was created and entry added
-if grep -q "## Checks" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null; then
-    pass "## Checks section created for check type"
+# Verify check-type learning went into Rules section
+if grep -q "## Rules" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null && grep -q "migration" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null; then
+    pass "Check-type learning added to ## Rules"
 else
-    fail "## Checks section not created"
+    fail "Check-type learning not in ## Rules"
 fi
 
 # Test PATTERN type
@@ -333,19 +333,19 @@ EOF
 
 integration_output=$("$PLUGIN_DIR/lib/integrate_pitfall.sh" "$PATTERN_FILE" 2>&1 || true)
 
-if grep -q "## Patterns" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null; then
-    pass "## Patterns section created for pattern type"
+if grep -q "type-safe" "$TEST_DIR/src/api/AGENTS.md" 2>/dev/null; then
+    pass "Pattern-type learning added to ## Rules"
 else
-    fail "## Patterns section not created"
+    fail "Pattern-type learning not in ## Rules"
 fi
 
-# Verify all sections exist
-if grep -q "## Pitfalls" "$TEST_DIR/src/api/AGENTS.md" && \
-   grep -q "## Checks" "$TEST_DIR/src/api/AGENTS.md" && \
-   grep -q "## Patterns" "$TEST_DIR/src/api/AGENTS.md"; then
-    pass "All learning type sections created correctly"
+# Verify all learning types landed in ## Rules
+if grep -q "## Rules" "$TEST_DIR/src/api/AGENTS.md" && \
+   grep -q "migration" "$TEST_DIR/src/api/AGENTS.md" && \
+   grep -q "type-safe" "$TEST_DIR/src/api/AGENTS.md"; then
+    pass "All learning types consolidated in ## Rules"
 else
-    fail "Not all sections created"
+    fail "Not all learning types in ## Rules"
     cat "$TEST_DIR/src/api/AGENTS.md"
 fi
 

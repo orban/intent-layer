@@ -1,29 +1,15 @@
 # src/
 
-> [Brief description of what this directory contains]
-
-## Purpose
-
-[What this directory owns and why it exists]
-
-## Code Map
-
-### Find It Fast
-
-| Looking for... | Go to |
-|----------------|-------|
-| [Key concept] | `path/to/file` |
-
-## Entry Points
-
-| Task | Start Here |
-|------|------------|
-| [Common task] | `path/to/file` |
-
 ## Contracts
 
-- [Key contract 1]
+- [Invariant not enforced by types — e.g., "amounts stored as cents, never float"]
 
-## Pitfalls
+## Rules
 
-- [Non-obvious gotcha 1]
+- [Imperative sentence from git history or known failure mode]
+- Test with: [targeted test command — e.g., "pytest tests/unit/test_foo.py -k test_bar"]
+
+## Ownership
+
+- [file.py]: [responsibility — only if non-obvious from filename]
+- Start here for [common task]: `path/to/file`

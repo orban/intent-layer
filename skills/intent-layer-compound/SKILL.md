@@ -165,8 +165,8 @@ Any better approaches figured out? [y/n]: n
 [Layer 3: Direct Integration]
 Integrating 2 confirmed learnings...
 
-1. ✓ pitfall added to ## Pitfalls in src/api/AGENTS.md
-2. ✓ insight added to ## Context in CLAUDE.md
+1. ✓ pitfall added to ## Rules in src/api/AGENTS.md
+2. ✓ insight added to ## Rules in CLAUDE.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Summary
@@ -209,10 +209,10 @@ Use for:
 ### Local Scope (Covering AGENTS.md)
 
 Use for:
-- Code-specific pitfalls
+- Code-specific failure modes and gotchas
 - API behavior quirks
-- Module-specific patterns
-- Checks for particular operations
+- Module-specific constraints
+- Targeted test commands for particular operations
 
 ---
 

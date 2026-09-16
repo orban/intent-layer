@@ -23,14 +23,14 @@ OPTIONS:
     -n, --dry-run        Show what would be done without modifying files
     -f, --force          Skip deduplication check entirely
     -c, --check-only     Only check for duplicates, don't integrate
-    -s, --section NAME   Override target section (Pitfalls, Checks, Patterns, Context)
+    -s, --section NAME   Override target section (Rules, Contracts, Boundaries)
     -t, --threshold N    Word overlap threshold for duplicate detection (default: 60)
 
 LEARNING TYPES → TARGET SECTIONS:
-    pitfall  → ## Pitfalls
-    check    → ## Checks
-    pattern  → ## Patterns
-    insight  → ## Context
+    pitfall  → ## Rules
+    check    → ## Rules
+    pattern  → ## Rules
+    insight  → ## Rules
 
 DEDUPLICATION:
     Before integrating, the script searches the target section for similar entries.
@@ -139,11 +139,11 @@ if [[ -n "$OVERRIDE_SECTION" ]]; then
     TARGET_SECTION="$OVERRIDE_SECTION"
 else
     case "$LEARNING_TYPE" in
-        pitfall) TARGET_SECTION="Pitfalls" ;;
-        check)   TARGET_SECTION="Checks" ;;
-        pattern) TARGET_SECTION="Patterns" ;;
-        insight) TARGET_SECTION="Context" ;;
-        *)       TARGET_SECTION="Pitfalls" ;;
+        pitfall) TARGET_SECTION="Rules" ;;
+        check)   TARGET_SECTION="Rules" ;;
+        pattern) TARGET_SECTION="Rules" ;;
+        insight) TARGET_SECTION="Rules" ;;
+        *)       TARGET_SECTION="Rules" ;;
     esac
 fi
 
@@ -195,13 +195,13 @@ ENTRY_TITLE=""
 ENTRY_BODY=""
 
 if [[ -n "$SUGGESTED_FIX" && "$SUGGESTED_FIX" != "_Awaiting analysis_" ]]; then
-    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
+    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9]/ /g; s/  */ /g' | head -c 50)
     ENTRY_BODY="$ROOT_CAUSE"
 elif [[ -n "$ROOT_CAUSE" && "$ROOT_CAUSE" != "_Awaiting analysis_" ]]; then
-    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
+    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9]/ /g; s/  */ /g' | head -c 50)
     ENTRY_BODY="$ROOT_CAUSE"
 else
-    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9 ]//g' | head -c 50)
+    ENTRY_TITLE=$(echo "$OPERATION" | sed 's/[^a-zA-Z0-9]/ /g; s/  */ /g' | head -c 50)
     ENTRY_BODY="$WHAT_HAPPENED"
 fi
 

@@ -271,20 +271,20 @@ Spawn subagents for **code exploration, git history, AND PR mining** in parallel
 
 ```
 # Code exploration (one per subsystem)
-Task 1: "Analyze src/api/ for Intent Layer setup. Find: code map (find-it-fast
-         + key relationships), public API (exports used by others + core types),
-         external dependencies, data flow, entry points, contracts, patterns,
-         pitfalls. Return structured findings per section."
+Task 1: "Analyze src/api/ for Intent Layer setup. Find: boundaries (import
+         constraints, isolation rules), contracts (invariants not in types),
+         rules (failure modes from code, gotchas), ownership (non-obvious
+         file-to-responsibility mappings). Return structured findings per section."
 
-Task 2: "Analyze src/core/ for Intent Layer setup. Find: code map (find-it-fast
-         + key relationships), public API (exports used by others + core types),
-         external dependencies, data flow, entry points, contracts, patterns,
-         pitfalls. Return structured findings per section."
+Task 2: "Analyze src/core/ for Intent Layer setup. Find: boundaries (import
+         constraints, isolation rules), contracts (invariants not in types),
+         rules (failure modes from code, gotchas), ownership (non-obvious
+         file-to-responsibility mappings). Return structured findings per section."
 
-Task 3: "Analyze src/db/ for Intent Layer setup. Find: code map (find-it-fast
-         + key relationships), public API (exports used by others + core types),
-         external dependencies, data flow, entry points, contracts, patterns,
-         pitfalls. Return structured findings per section."
+Task 3: "Analyze src/db/ for Intent Layer setup. Find: boundaries (import
+         constraints, isolation rules), contracts (invariants not in types),
+         rules (failure modes from code, gotchas), ownership (non-obvious
+         file-to-responsibility mappings). Return structured findings per section."
 
 # Git history analysis (parallel with exploration)
 Task 4: "Run git-history analysis on src/api/. Find bug fixes, reverts,
@@ -318,18 +318,14 @@ Once all agents complete:
 1. **Merge code exploration + git history + PR mining** findings per subsystem
 2. Identify cross-cutting concerns (appear in multiple findings)
 3. Place cross-cutting items in root node
-4. Create child AGENTS.md for each subsystem with all sections:
-   - Purpose + Design Rationale (the "why")
-   - Code Map (find-it-fast + key relationships)
-   - Public API (key exports + core types)
-   - External Dependencies (services + failure modes)
-   - Data Flow (request path)
-   - Decisions (from git history + PR mining)
-   - Entry Points, Contracts, Patterns
-   - Pitfalls (from all sources)
-   - Boundaries, Pre-flight Checks
+4. Create child AGENTS.md for each subsystem with sections:
+   - Boundaries (import/dependency constraints)
+   - Contracts (invariants not in the type system)
+   - Rules (imperative sentences from git history, failure modes, targeted test commands)
+   - Ownership (non-obvious file-to-responsibility mappings, "start here for X")
+   - Downlinks (child node pointers)
 5. **Deduplicate** where multiple sources found the same insight
-6. **Prefer PR-sourced rationale** for Decisions (richer "why" context)
+6. **Prefer PR-sourced findings** for Rules (richer "why" context)
 
 ### Step 4: Parallel Validation
 
@@ -345,50 +341,51 @@ Task 3: "Run validate_node.sh on src/core/AGENTS.md, report results"
 For each subsystem, use this structured prompt:
 
 ```markdown
-Explore [DIRECTORY] for Intent Layer documentation. Return:
+Analyze [DIRECTORY] for an agent-facing AGENTS.md. Return ONLY:
 
-## Design Rationale
-[Why does this module exist? What problem does it solve? What's the core insight?]
-
-## Code Map
-### Find It Fast
-| Looking for... | Go to |
-[What common searches map to which files? Focus on non-obvious locations.]
-
-### Key Relationships
-[Import direction, layer rules, what depends on what]
-
-## Public API
-### Key Exports
-| Export | Used By | Change Impact |
-[What do OTHER modules import from here?]
-
-### Core Types
-[The 3-5 types needed to understand this area]
-
-## External Dependencies
-| Service | Used For | Failure Mode |
-[External services and what happens when down]
-
-## Data Flow
-[How requests/data move through this area - simple diagram]
-
-## Decisions
-| Decision | Why | Rejected |
-[Architectural choices with rationale]
-
-## Entry Points
-| Task | Start Here |
-[Common tasks and where to start]
+## Boundaries
+- What this module imports from (allowed dependencies)
+- What must NOT import from this module
+- Any isolation rules (e.g., "modules can only import from module_utils")
 
 ## Contracts
-[Non-type-enforced invariants]
+- Invariants not enforced by the type system
+- Pre/post conditions on key functions
+- Data format assumptions (e.g., "datetimes must be UTC-normalized")
 
-## Patterns
-[How to do common tasks - sequence and non-obvious steps]
+## Rules
+- One imperative sentence per line
+- Sourced from: git history (fix/revert commits), known failure modes
+- Format: "[WHEN condition] [ALWAYS/NEVER] [action]" or plain imperative
+- MAY include targeted test commands (e.g., "test with: pytest tests/unit/test_foo.py")
+- MUST NOT include broad commands (e.g., "make test", "pytest", "npm test")
 
-## Pitfalls
-[What looks wrong but isn't? What looks fine but breaks?]
+## Ownership
+- Map files/directories to responsibilities
+- Include "start here for [task]" entries for common operations
+- Only non-obvious mappings (skip if directory name = purpose)
+
+## Downlinks
+- Child AGENTS.md files below this directory
+- One row per child: | Area | Node | Description |
+
+Constraints:
+- Maximum 1500 tokens
+- Every line must pass: "Would an agent fixing a bug here need this?"
+
+GOOD output (include):
+- "Normalize datetimes to UTC before comparison"
+- "API responses can be list or dict — check isinstance before .get()"
+- "test with: pytest tests/unit/test_temporal.py -k test_utc"
+- "graphiti_core.utils imports from: graphiti_core.models only"
+
+BAD output (never generate):
+- "This module handles utility functions for the project" (obvious from dir name)
+- "make test" or "npm run test" (too broad, causes slow test runs)
+- "Follow PEP 8 style guidelines" (linters handle this)
+- "The architecture follows a layered pattern with..." (narrative)
+- "Be careful when modifying this code" (vague, not actionable)
+- "This is a critical component" (significance puffery)
 
 Keep findings specific to this directory. Note cross-cutting concerns separately.
 ```
@@ -544,35 +541,25 @@ Budget additional time for SME interviews—tribal knowledge takes conversation 
 
 > **TL;DR**: Ask these when documenting existing code. Focus on what agents can't infer from code itself.
 
-### Scope & Navigation
-1. What does this area own? What's explicitly out of scope?
-2. Where do developers commonly search? What's in non-obvious locations?
-3. What are the key relationships between modules? (import direction, layers)
+### Contracts (invariants)
+1. What invariants must hold that aren't enforced by types?
+2. What pre/post conditions exist that code doesn't check?
+3. What ordering constraints exist between operations?
 
-### Public Interface
-4. What exports do OTHER modules actually depend on?
-5. What 3-5 types must someone understand to work here?
-
-### External Dependencies
+### Boundaries (isolation)
+4. What import/dependency constraints exist? What must NOT depend on what?
+5. What isolation rules apply? (layers, module boundaries)
 6. What external services does this area use? What happens when they're down?
 
-### Design Rationale (the "why")
-7. What problem drove the creation of this module? What pain point does it solve?
-8. What's the core insight or philosophy? What would you lose if you removed it?
-9. What constraints shaped the design? (performance, compatibility, team size, etc.)
+### Rules (failure modes)
+7. What repeatedly confuses new engineers?
+8. What looks wrong but is correct? What looks correct but will break?
+9. What broke silently when someone made a reasonable assumption?
+10. What targeted test commands verify this area?
 
-### Understanding & Debugging
-10. How does data flow through this area? (request → response path)
-11. Why were specific technical choices made? What alternatives were rejected?
-
-### Consistency & Safety
-12. What invariants must hold that aren't enforced by types?
-13. What patterns must be followed for common tasks?
-14. What operations require verification before proceeding?
-
-### Pitfalls (highest value)
-15. What repeatedly confuses new engineers?
-16. What looks wrong but is correct? What looks correct but will break?
+### Ownership (navigation)
+11. Where do developers commonly search? What's in non-obvious locations?
+12. What are the 3-5 most common tasks and where do they start?
 
 For full protocol: `references/capture-protocol.md`
 

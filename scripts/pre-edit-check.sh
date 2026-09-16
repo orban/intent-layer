@@ -3,11 +3,10 @@
 # Input: JSON on stdin with tool_name, tool_input
 # Output: JSON with additionalContext to stdout
 #
-# Injects all 4 learning types from covering AGENTS.md:
-#   - Pitfalls: Things that went wrong / gotchas to avoid
-#   - Checks: Pre-action verifications needed
-#   - Patterns: Preferred approaches / better ways
-#   - Context: Important background knowledge
+# Injects actionable sections from covering AGENTS.md:
+#   - Rules: Imperative constraints from git history, failure modes
+#   - Contracts: Invariants not enforced by the type system
+#   - Boundaries: Import/dependency constraints, isolation rules
 
 set -euo pipefail
 
@@ -91,60 +90,36 @@ extract_section() {
     ' "$NODE_PATH"
 }
 
-# Extract all 4 learning sections from the covering node
-PITFALLS=""
-CHECKS=""
-PATTERNS=""
-CONTEXT_SECTION=""
+# Extract actionable sections from the covering node
+RULES=""
+CONTRACTS=""
+BOUNDARIES=""
 
 if [[ -n "$NODE_PATH" && -r "$NODE_PATH" ]]; then
-    PITFALLS=$(extract_section "Pitfalls")
-    CHECKS=$(extract_section "Checks")
-    PATTERNS=$(extract_section "Patterns")
-    CONTEXT_SECTION=$(extract_section "Context")
+    RULES=$(extract_section "Rules")
+    CONTRACTS=$(extract_section "Contracts")
+    BOUNDARIES=$(extract_section "Boundaries")
 fi
 
-# Exit if no learnings found
-if [[ -z "$PITFALLS" && -z "$CHECKS" && -z "$PATTERNS" && -z "$CONTEXT_SECTION" ]]; then
+# Exit if no actionable sections found
+if [[ -z "$RULES" && -z "$CONTRACTS" && -z "$BOUNDARIES" ]]; then
     exit 0
 fi
 
 # Build context message with all non-empty sections
 LEARNINGS=""
 
-if [[ -n "$CHECKS" ]]; then
-    LEARNINGS="$CHECKS"
-fi
+for section_content in "$BOUNDARIES" "$CONTRACTS" "$RULES"; do
+    if [[ -n "$section_content" ]]; then
+        if [[ -n "$LEARNINGS" ]]; then
+            LEARNINGS="$LEARNINGS
 
-if [[ -n "$PITFALLS" ]]; then
-    if [[ -n "$LEARNINGS" ]]; then
-        LEARNINGS="$LEARNINGS
-
-$PITFALLS"
-    else
-        LEARNINGS="$PITFALLS"
+$section_content"
+        else
+            LEARNINGS="$section_content"
+        fi
     fi
-fi
-
-if [[ -n "$PATTERNS" ]]; then
-    if [[ -n "$LEARNINGS" ]]; then
-        LEARNINGS="$LEARNINGS
-
-$PATTERNS"
-    else
-        LEARNINGS="$PATTERNS"
-    fi
-fi
-
-if [[ -n "$CONTEXT_SECTION" ]]; then
-    if [[ -n "$LEARNINGS" ]]; then
-        LEARNINGS="$LEARNINGS
-
-$CONTEXT_SECTION"
-    else
-        LEARNINGS="$CONTEXT_SECTION"
-    fi
-fi
+done
 
 # Build final context message
 if $HIGH_RISK; then
@@ -177,10 +152,9 @@ LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.intent-layer/hooks"
 if [[ -d "${CLAUDE_PROJECT_DIR:-.}/.intent-layer" ]]; then
     mkdir -p "$LOG_DIR"
     INJECTED_SECTIONS=""
-    [[ -n "$PITFALLS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Pitfalls,"
-    [[ -n "$CHECKS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Checks,"
-    [[ -n "$PATTERNS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Patterns,"
-    [[ -n "$CONTEXT_SECTION" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Context,"
+    [[ -n "$RULES" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Rules,"
+    [[ -n "$CONTRACTS" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Contracts,"
+    [[ -n "$BOUNDARIES" ]] && INJECTED_SECTIONS="${INJECTED_SECTIONS}Boundaries,"
     INJECTED_SECTIONS="${INJECTED_SECTIONS%,}"  # trim trailing comma
     printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$FILE_PATH" "$NODE_PATH" "$INJECTED_SECTIONS" \
         >> "$LOG_DIR/injections.log" 2>/dev/null || true

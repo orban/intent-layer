@@ -14,7 +14,7 @@ set -euo pipefail
 #
 # Options:
 #   --sections LIST   Comma-separated sections to include (default: all)
-#                     Example: --sections "Contracts,Pitfalls,Checks"
+#                     Example: --sections "Contracts,Rules,Boundaries"
 #   --compact         Omit section headers and hierarchy info, just content
 #   --with-pending    Include pending learning reports for this area
 #   -h, --help        Show this help
@@ -30,7 +30,7 @@ set -euo pipefail
 #
 # Examples:
 #   resolve_context.sh /project src/api/
-#   resolve_context.sh /project src/api/routes/users.ts --sections "Contracts,Pitfalls"
+#   resolve_context.sh /project src/api/routes/users.ts --sections "Contracts,Rules"
 #   resolve_context.sh /project src/api/ --compact
 
 show_help() {
@@ -184,7 +184,7 @@ extract_section() {
 }
 
 # Standard sections to look for
-ALL_SECTIONS="Purpose,Entry Points,Contracts,Pitfalls,Checks,Patterns,Boundaries,Design Rationale,Code Map,Public API,Downlinks,Context"
+ALL_SECTIONS="Contracts,Boundaries,Rules,Ownership,Downlinks"
 
 # Apply filter
 if [[ -n "$SECTIONS_FILTER" ]]; then

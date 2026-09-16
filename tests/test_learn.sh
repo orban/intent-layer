@@ -36,7 +36,7 @@ mkdir -p "$TEST_DIR/src/api"
 cat > "$TEST_DIR/src/api/AGENTS.md" << 'EOF'
 # API Module
 
-## Pitfalls
+## Rules
 
 ### validate() silently passes on empty input
 
@@ -50,7 +50,7 @@ mkdir -p "$TEST_DIR/src/core"
 cat > "$TEST_DIR/src/core/AGENTS.md" << 'EOF'
 # Core Module
 
-## Pitfalls
+## Rules
 
 ### Engine retry logic is not idempotent
 
@@ -108,7 +108,7 @@ else
 fi
 
 # ---- Test 3: Type routing ----
-echo "Test 3: Type routing — check→Checks, pattern→Patterns, insight→Context"
+echo "Test 3: Type routing — all types go to Rules with distinctive formatting"
 "$PLUGIN_DIR/scripts/learn.sh" \
     --project "$TEST_DIR" \
     --path "src/api/handlers.ts" \
@@ -134,15 +134,13 @@ echo "Test 3: Type routing — check→Checks, pattern→Patterns, insight→Con
     >/dev/null 2>&1
 
 format_errors=""
-grep -q "^## Checks" "$AGENTS" || format_errors="$format_errors no-Checks-section"
+grep -q "^## Rules" "$AGENTS" || format_errors="$format_errors no-Rules-section"
 grep -q "\- \[ \]" "$AGENTS" || format_errors="$format_errors no-checklist-item"
-grep -q "^## Patterns" "$AGENTS" || format_errors="$format_errors no-Patterns-section"
 grep -q "\*\*Preferred\*\*" "$AGENTS" || format_errors="$format_errors no-Preferred-prefix"
-grep -q "^## Context" "$AGENTS" || format_errors="$format_errors no-Context-section"
 grep -q "defense in depth" "$AGENTS" || format_errors="$format_errors no-insight-body"
 
 if [[ -z "$format_errors" ]]; then
-    pass "All types routed to correct sections with proper formatting"
+    pass "All types routed to Rules with proper formatting"
 else
     fail "Format errors:$format_errors"
 fi
@@ -170,9 +168,8 @@ else
     fail "Expected exit 1, got $EXIT_CODE"
 fi
 
-# ---- Test 5: Section creation ----
-echo "Test 5: Node without target section gets section created"
-# src/core/AGENTS.md only has ## Pitfalls, not ## Checks
+# ---- Test 5: Entry appended to existing section ----
+echo "Test 5: New entry appends to existing Rules section"
 "$PLUGIN_DIR/scripts/learn.sh" \
     --project "$TEST_DIR" \
     --path "src/core/engine.ts" \
@@ -184,11 +181,11 @@ echo "Test 5: Node without target section gets section created"
 CORE_AGENTS="$TEST_DIR/src/core/AGENTS.md"
 has_section=false
 has_entry=false
-grep -q "^## Checks" "$CORE_AGENTS" && has_section=true
+grep -q "^## Rules" "$CORE_AGENTS" && has_section=true
 grep -q "Verify idempotency key" "$CORE_AGENTS" && has_entry=true
 
 if $has_section && $has_entry; then
-    pass "## Checks section created and entry appended"
+    pass "Entry appended to ## Rules section"
 else
     fail "section=$has_section entry=$has_entry"
 fi
@@ -217,18 +214,18 @@ fi
 
 # ---- Test 8: Section size warning ----
 echo "Test 8: Section size warning when budget exceeded"
-# Create a fresh node with a bloated Pitfalls section (>300 words)
+# Create a fresh node with a bloated Rules section (>300 words)
 mkdir -p "$TEST_DIR/src/bloated"
 BLOATED_AGENTS="$TEST_DIR/src/bloated/AGENTS.md"
 {
     echo "# Bloated Module"
     echo ""
-    echo "## Pitfalls"
+    echo "## Rules"
     echo ""
     for i in $(seq 1 20); do
-        echo "### Synthetic pitfall entry number $i"
+        echo "### Synthetic rule entry number $i"
         echo ""
-        echo "This is synthetic content designed to pad the pitfalls section well beyond the three hundred word budget threshold. Each entry contributes approximately twenty five words to the total."
+        echo "This is synthetic content designed to pad the rules section well beyond the three hundred word budget threshold. Each entry contributes approximately twenty five words to the total."
         echo ""
     done
 } > "$BLOATED_AGENTS"

@@ -147,150 +147,58 @@ If any unchecked → stop and escalate to #releases.
 
 ## Child Node Template (Agent-Optimized)
 
-Each AGENTS.md in subdirectories. Optimized for AI agent consumption - prioritizes navigability and actionable context.
+Each AGENTS.md in subdirectories. Optimized for AI agent consumption — every line must pass: "Would an agent fixing a bug here need this?"
 
-**Token budget:** <4k tokens total (~3k target)
+**Token budget:** <1500 tokens (~1000 target)
 
 ```markdown
-# {Area Name}
+# {area_name}/
 
-## Purpose
-Owns: [what this area is responsible for]
-Does not own: [explicitly out of scope - look elsewhere for this]
-
-## Code Map
-
-### Find It Fast
-| Looking for... | Go to |
-|----------------|-------|
-| [common search] | `path/to/file.ts` |
-| [non-obvious location] | `path/file.ts` (not where you'd expect) |
-
-> This is the highest-value section. Aim for 10-20 entries mapping "what am I looking for?" to exact file + function. This saves 5-10 minutes of grepping per lookup.
-
-### Key Relationships
-- `layer1/` → `layer2/` → `layer3/` (direction matters, never skip)
-- [Module A] imports from [Module B], never reverse
-
-## Design Rationale
-
-> Skip this section for simple modules where purpose is self-evident. Include when the "why" isn't obvious from the code (e.g., non-standard algorithms, unusual constraints, historical reasons).
-
-- **Problem solved**: [What pain point or need drove creation of this]
-- **Core insight**: [The key idea that makes this work - what you'd lose if you removed it]
-- **Constraints**: [What shaped the design - performance, compatibility, team size, etc.]
-
-## Public API
-
-### Key Exports
-| Export | Used By | Change Impact |
-|--------|---------|---------------|
-| `functionName` | `consumer-module` | Breaking if signature changes |
-| `TypeName` | Multiple modules | Widely depended on |
-
-### Core Types
-```typescript
-// The 3-5 types you need to understand to work here
-interface KeyType { ... }
-type ImportantEnum = 'A' | 'B' | 'C'
-```
-
-## External Dependencies
-| Service | Used For | Failure Mode |
-|---------|----------|--------------|
-| [Service name] | [Purpose] | [What happens when down] |
-
-## Data Flow
-```
-Request → [validation] → [business logic] → [data access] → Response
-                ↓ on error
-           [error handler] → [logging] → Error Response
-```
-
-## Decisions
-| Decision | Why | Rejected |
-|----------|-----|----------|
-| [Architectural choice] | [Rationale] | [Alternative and why not] |
-
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| [Common task 1] | `path/to/start.ts` |
-| [Common task 2] | `path/to/other.ts` |
+## Boundaries
+- Imports from: [allowed dependencies]
+- Does not import from: [prohibited dependencies]
+- [Any isolation rules]
 
 ## Contracts
 - [Invariant not enforced by types but must hold]
-- [Non-obvious rule] (reason: inline rationale)
+- [Data format assumption — e.g., "datetimes must be UTC-normalized"]
+- [Pre/post condition on key function]
 
-## Patterns
+## Rules
+- [Imperative sentence from git history or known failure mode]
+- [WHEN condition] [ALWAYS/NEVER] [action]
+- Test with: [targeted test command with specific file + flag]
 
-### Adding a [common thing]
-1. [Step with non-obvious detail]
-2. [Step]
-3. [Step - often-missed part]
-
-### Handling Errors
-- Use `[ErrorType]` from `types/errors.ts`
-- [How errors flow up]
-
-## Pre-flight Checks
-
-<!-- Only for genuinely risky operations. Must be verifiable. -->
-
-### Before [risky operation]
-- [ ] [Verification - file exists, command passes, content matches]
-- [ ] [Verification]
-
-If any unchecked → [stop / fix first / ask user]
-
-## Boundaries
-
-### Always
-- [Required practice - with brief why if non-obvious]
-
-### Never
-- [Hard prohibition - consequence if violated]
-
-### Verify First
-- [Risky operation] → confirm with user before proceeding
-
-## Pitfalls
-- `looks-wrong` is actually correct because [reason]
-- `looks-fine` will break [what] if you [action]
-- [Config/flag] is misleading - it actually controls [real behavior]
+## Ownership
+- [file.py]: [responsibility — only if non-obvious from filename]
+- Start here for [common task]: `path/to/file`
 
 ## Downlinks
-| Area | Node | What's There |
-|------|------|--------------|
+| Area | Node | Description |
+|------|------|-------------|
 | [Child area] | `./child/AGENTS.md` | [Brief description] |
 ```
 
-### Section Guidance
+### Section guidance
 
-When populating sections, focus on **what agents can't infer from code**:
+Focus on **what agents can't infer from code**:
 
-| Section | What to Include | What to Skip |
+| Section | What to include | What to skip |
 |---------|-----------------|--------------|
-| Code Map | **Highest-value section.** "Find It Fast" table mapping questions to files/functions. Non-obvious locations, semantic groupings | Obvious mappings (routes.ts → routes) |
-| Design Rationale | Why this exists, core insight, constraints. Best when the "why" isn't obvious from the code | Implementation details. Skip for simple modules where purpose is self-evident |
-| Public API | Exports used by OTHER modules | Internal-only exports |
-| Decisions | Choices someone might question | Obvious decisions |
-| Entry Points | Common tasks with specific file paths. Must reference specific file path | Self-evident starting points |
-| Contracts | Non-type-enforced invariants. **Must cite the bug, migration, or incident that proved them.** A contract without a failure story is just a guess | Type-enforced rules, hypothetical invariants |
-| Patterns | Multi-file change sequences (2+ files touched). The value is showing the non-obvious order and cross-file dependencies | Single-file patterns ("edit this function"). If it's one file, an Entry Point suffices |
-| Pitfalls | Looks wrong but right, or vice versa. **Git-mined real bugs >> code-reading guesses.** Should cite source (commit, PR, or incident) | Hypothetical gotchas, obvious warnings |
+| Boundaries | Import/dependency constraints, module isolation rules | Obvious dependencies (same-package imports) |
+| Contracts | Non-type-enforced invariants. Should cite the bug or incident that proved them | Type-enforced rules, hypothetical invariants |
+| Rules | Imperative sentences from fix/revert commits, targeted test commands. Git-mined real bugs >> code-reading guesses | Broad test commands (`make test`, `pytest`), style rules (linters handle this), vague warnings ("be careful") |
+| Ownership | File-to-responsibility mapping, "start here for X" entries. Only non-obvious mappings | Obvious mappings (routes.ts → routes, config.ts → configuration) |
+| Downlinks | All child AGENTS.md nodes with descriptions | Bare links without descriptions |
 
-### Generation Order
+### Generation order
 
-Populate sections in this order (easier → harder):
+Populate in this order (easier → harder):
 
-1. **Purpose, Code Map** (file system + imports). Code Map's "Find It Fast" table is the single highest-ROI section — prioritize it
-2. Public API, External Dependencies, Entry Points, Downlinks (config + imports)
-3. Data Flow, Contracts (code reading). Data flow diagrams work best for pipeline architectures
-4. Patterns, Boundaries (existing examples + CI). Only include patterns that span 2+ files
-5. **Pitfalls, Decisions** (git/PR mining - needs judgment). Mine git history first, then supplement with code reading. Real bugs > hypothetical gotchas
-6. Design Rationale (requires understanding the "why" - often from interviews or deep history). Skip for simple modules
-7. Pre-flight Checks (add over time from mistakes)
+1. **Boundaries** (imports + module structure — mechanical analysis)
+2. **Contracts** (code reading — invariants not in the type system)
+3. **Ownership, Downlinks** (file structure — "start here for X")
+4. **Rules** (git/PR mining — needs judgment). Mine git history first, then supplement with code reading. Real bugs > hypothetical gotchas
 
 ## Spec Templates (Greenfield)
 
@@ -392,9 +300,9 @@ For AI scaffolding:
 ## Maintenance Discipline
 
 - **Quarterly review**: Review each node; keep only 2-5 highest-value items per section.
-- **Mistake-driven growth**: New Pitfalls/Contracts entries must come from real failures, not speculation. Git-mined bugs and PR discussions are the best sources. A contract without a failure story is just a guess.
-- **Prune aggressively**: Remove items that are no longer relevant or have been fixed. Remove Design Rationale sections that state the obvious. Remove single-file Patterns (an Entry Point suffices).
-- **Evidence required**: Each Pitfall and Contract entry should reference a commit, PR, migration, or incident that justifies it. Entries without evidence are candidates for pruning.
+- **Mistake-driven growth**: New Rules/Contracts entries must come from real failures, not speculation. Git-mined bugs and PR discussions are the best sources. A contract without a failure story is just a guess.
+- **Prune aggressively**: Remove items that are no longer relevant or have been fixed. Remove Rules that linters now enforce. Remove Ownership entries where filename = responsibility.
+- **Evidence required**: Each Rule and Contract entry should reference a commit, PR, migration, or incident that justifies it. Entries without evidence are candidates for pruning.
 - **Node quality > node count**: Don't create nodes for low-complexity directories (<5 source files, <2k tokens). A 54-line AGENTS.md for 4 markdown files is filler, not documentation.
 
 ## Scaffolding Protocol
@@ -444,91 +352,6 @@ Thresholds:
 - <20k tokens → No node needed
 - 20-64k tokens → 2-3k token node
 - >64k tokens → Split into child nodes
-
-## Three-Tier Boundaries Pattern
-
-Use this pattern instead of narrative anti-patterns. It's clearer and prevents destructive mistakes.
-
-```markdown
-## Boundaries
-
-### Always
-[Actions that must happen every time - validation, testing, logging]
-- Run tests before committing
-- Use the approved linter config
-- Document public APIs
-
-### Ask First
-[Actions requiring coordination or approval before proceeding]
-- Schema migrations
-- Breaking API changes
-- Adding new dependencies
-- Modifying shared infrastructure
-
-### Never
-[Prohibited actions that cause damage or violate policy]
-- Commit credentials or secrets
-- Force push to protected branches
-- Delete production data
-- Bypass code review
-```
-
-**Why three tiers?**
-- **Always**: Builds habits, catches issues early
-- **Ask First**: Prevents conflicts without blocking work
-- **Never**: Hard stops for truly dangerous actions
-
-**Migration from Anti-patterns**: Move "Never do X" items to the `Never` section. Move "Be careful when Y" items to `Ask First`. This is more scannable than prose.
-
-## Writing Pre-flight Checks
-
-Pre-flight checks catch "I thought I understood" mistakes before they happen.
-
-### When to Add a Check
-
-| Signal | Add Check For |
-|--------|---------------|
-| Agent made a mistake | What verification would have caught it? |
-| PR reviewer caught missing step | What should agent have verified? |
-| New person got confused | What confirmation would have helped? |
-| Incident occurred | What validation would have prevented it? |
-
-### Check Quality Criteria
-
-Before adding a check, verify:
-- [ ] **Verifiable**: Agent can confirm pass/fail without human help
-- [ ] **Specific**: Clear what passes vs. fails (no "code is clean")
-- [ ] **Scoped**: Tied to specific operation, not "always do X"
-- [ ] **Actionable**: Clear what to do when check fails
-
-### Check vs. Pitfall
-
-| Use **Pitfall** | Use **Pre-flight Check** |
-|-----------------|--------------------------|
-| Awareness is enough | Verification is needed |
-| No specific trigger | Clear trigger operation |
-| Can't be mechanically verified | Can be verified by command/inspection |
-
-**Example**:
-- Pitfall: "Legacy config looks deprecated but enterprise clients use it"
-- Check: "Before modifying config schema → grep for enterprise references"
-
-## Pre-flight Check Patterns
-
-Use these patterns when writing checks:
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| **File exists** | `[path] exists` | `config/routes.yaml exists` |
-| **Content match** | `grep -q "[pattern]" [file]` | `grep -q "rate_limit" config.yaml` |
-| **Command succeeds** | `[command] passes` | `make lint passes` |
-| **Comprehension** | State the N [items] from [section] | State the 3 invariants from Contracts |
-| **Human gate** | Confirm with [person/channel] | Confirm with #platform before proceeding |
-
-**Failure actions** (pick one per check group):
-- `ask before proceeding` - Uncertainty, need guidance
-- `fix first` - Known remediation, agent can resolve
-- `stop and escalate` - Critical/irreversible, requires human
 
 ## Cross-Tool Compatibility
 

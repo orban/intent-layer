@@ -141,63 +141,63 @@ Collect:
 
 ---
 
-### 4. Entry Point Queries
+### 4. Navigation Queries
 
 **"How do I [task]?"** - Find starting point for common tasks.
 
 **Process:**
-1. Search Entry Points sections across all nodes
-2. Match task description to documented entry points
+1. Search Ownership sections across all nodes
+2. Match task description to documented file-to-responsibility mappings
 3. Return the most specific match with context
 
 **Example:**
 ```
 Q: "How do I add a new API endpoint?"
 
-Search Entry Points for: "API", "endpoint", "route"
-Match: src/api/AGENTS.md → Entry Points → "Add endpoint: start at routes/"
+Search Ownership for: "API", "endpoint", "route"
+Match: src/api/AGENTS.md → Ownership → "Add endpoint: start at routes/"
 ```
 
 **Output format:**
 ```markdown
-## Entry Point: [task]
+## Navigation: [task]
 
 **Start here:** `path/to/file.ts`
 **From:** `path/to/AGENTS.md`
 
 **Steps:**
-1. [Step from Entry Points section]
+1. [Step from Ownership section]
 2. [Additional context if available]
 
 **Watch out for:**
-- [Relevant pitfalls from same node]
+- [Relevant rules from same node]
 ```
 
 ---
 
-### 5. Pitfall Queries
+### 5. Risk Queries
 
 **"What can go wrong with X?"** - Gather warnings for an area.
 
 **Process:**
 1. Find nodes covering X
-2. Collect all Pitfalls sections
-3. Include parent pitfalls that apply
+2. Collect all Rules sections
+3. Include parent rules that apply
 4. Return consolidated warnings
 
 **Output format:**
 ```markdown
-## Pitfalls: [area]
+## Risks: [area]
 
 ### Critical (from nearest node)
-- [Pitfall 1]
-- [Pitfall 2]
+- [Rule 1]
+- [Rule 2]
 
 ### Inherited (from ancestors)
-- [Global pitfall that applies]
+- [Global rule that applies]
 
-### Related anti-patterns
-- [Things to avoid]
+### Boundary violations to avoid
+- [Things that break isolation]
 ```
 
 ---
@@ -235,8 +235,8 @@ Classify the query:
 - Ownership → "What owns..."
 - Placement → "Where should..."
 - Constraints → "What rules..."
-- Entry Point → "How do I..."
-- Pitfalls → "What can go wrong..."
+- Navigation → "How do I..."
+- Risks → "What can go wrong..."
 - Architecture → "Why is..."
 
 ### Step 2: Gather Context
@@ -444,13 +444,13 @@ Task 3: "Find all global constraints in CLAUDE.md that mention checkout, payment
 
 | Question Pattern | Query Type | Key Sections to Check |
 |-----------------|------------|----------------------|
-| "What handles X?" | Ownership | TL;DR, Subsystem Boundaries |
-| "Where does X live?" | Ownership | Subsystem Boundaries, Downlinks |
-| "Where should I add X?" | Placement | Ownership + Out of Scope |
-| "Can I do X here?" | Constraints | Contracts, Anti-patterns |
-| "What rules apply to X?" | Constraints | Contracts (all ancestors) |
-| "How do I X?" | Entry Point | Entry Points section |
-| "What's dangerous about X?" | Pitfalls | Pitfalls, Anti-patterns |
+| "What handles X?" | Ownership | Ownership, Boundaries |
+| "Where does X live?" | Ownership | Ownership, Downlinks |
+| "Where should I add X?" | Placement | Ownership + Boundaries |
+| "Can I do X here?" | Constraints | Contracts, Boundaries |
+| "What rules apply to X?" | Constraints | Contracts, Rules (all ancestors) |
+| "How do I X?" | Navigation | Ownership section |
+| "What's dangerous about X?" | Risks | Rules, Boundaries |
 | "Why X instead of Y?" | Architecture | Architecture Decisions |
 
 ---
@@ -517,5 +517,5 @@ All paths: `${CLAUDE_PLUGIN_ROOT}/scripts/`
 - All middleware must log to structured logger
 
 **Confidence:** Inferred (no explicit mention, derived from ownership)
-**Recommendation:** Add rate limiting to src/api/AGENTS.md Entry Points
+**Recommendation:** Add rate limiting to src/api/AGENTS.md Ownership
 ```

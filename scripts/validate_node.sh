@@ -27,12 +27,13 @@ OPTIONS:
     -q, --quiet   Only output errors (exit code indicates pass/fail)
 
 CHECKS:
-    ✓ Token count < 4k (warning at 3k)
-    ✓ Required sections present (Intent Layer for root, Purpose for child)
+    ✓ Token count (child: <1500, root: <4k)
+    ✓ Required sections present (child: Contracts; root: Contracts + Downlinks)
     ✓ No absolute paths in internal links
     ✓ No TODO/FIXME markers
     ✓ Contains code examples
     ✓ No verbose boilerplate language
+    ✓ No broad test commands in Rules
     ✓ Reasonable line lengths
 
 EXIT CODES:
@@ -164,18 +165,31 @@ if ! [[ "$BYTES" =~ ^[0-9]+$ ]]; then
 else
     TOKENS=$((BYTES / 4))
 
-    if [ "$TOKENS" -gt 4000 ]; then
-        ERRORS+=("Token count ~$TOKENS exceeds 4k limit (compress further or split)")
-    elif [ "$TOKENS" -gt 3000 ]; then
-        WARNINGS+=("Token count ~$TOKENS approaching 4k limit")
+    if [ "$IS_ROOT" = true ]; then
+        # Root CLAUDE.md has higher budget (human-facing sections)
+        if [ "$TOKENS" -gt 4000 ]; then
+            ERRORS+=("Token count ~$TOKENS exceeds 4k limit (compress further or split)")
+        elif [ "$TOKENS" -gt 3000 ]; then
+            WARNINGS+=("Token count ~$TOKENS approaching 4k limit")
+        else
+            PASSED+=("Token count ~$TOKENS within budget")
+        fi
     else
-        PASSED+=("Token count ~$TOKENS within budget")
+        # Child AGENTS.md: agent-optimized, tighter budget
+        if [ "$TOKENS" -gt 1500 ]; then
+            ERRORS+=("Token count ~$TOKENS exceeds 1500 limit (compress further or split)")
+        elif [ "$TOKENS" -gt 1000 ]; then
+            WARNINGS+=("Token count ~$TOKENS approaching 1500 limit")
+        else
+            PASSED+=("Token count ~$TOKENS within budget")
+        fi
     fi
 fi
 
-# Check 2: Required sections for child nodes (schema)
+# Check 2: Required sections (schema)
 if [ "$IS_ROOT" = false ]; then
-    REQUIRED_SECTIONS=("Purpose" "Code Map" "Entry Points" "Contracts" "Pitfalls")
+    # Child nodes: Contracts mandatory, others conditional
+    REQUIRED_SECTIONS=("Contracts")
     for section in "${REQUIRED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
@@ -183,7 +197,7 @@ if [ "$IS_ROOT" = false ]; then
             ERRORS+=("Missing required section: '$section'")
         fi
     done
-    RECOMMENDED_SECTIONS=("Patterns" "Boundaries" "Design Rationale" "Public API")
+    RECOMMENDED_SECTIONS=("Rules" "Boundaries" "Ownership")
     for section in "${RECOMMENDED_SECTIONS[@]}"; do
         if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
             PASSED+=("Has '$section' section")
@@ -198,20 +212,10 @@ else
     else
         ERRORS+=("Missing '## Intent Layer' section in root node")
     fi
-    if grep -qiE "^##+ *(Entry Points|Subsystems)" "$NODE_PATH" 2>/dev/null; then
-        PASSED+=("Has Entry Points or Subsystems section")
-    else
-        ERRORS+=("Missing required section: 'Entry Points' or 'Subsystems'")
-    fi
     if grep -qiE "^##+ *(Contracts|Global Contracts|Global Invariants)" "$NODE_PATH" 2>/dev/null; then
         PASSED+=("Has Contracts section")
     else
         ERRORS+=("Missing required section: 'Contracts' (or 'Global Contracts'/'Global Invariants')")
-    fi
-    if grep -qiE "^##+ *(Pitfalls|Global Pitfalls)" "$NODE_PATH" 2>/dev/null; then
-        PASSED+=("Has Pitfalls section")
-    else
-        ERRORS+=("Missing required section: 'Pitfalls' (or 'Global Pitfalls')")
     fi
     if grep -qiE "^##+ *Downlinks" "$NODE_PATH" 2>/dev/null; then
         PASSED+=("Has Downlinks section")
@@ -263,40 +267,13 @@ if grep -qi "see also\|refer to\|please see" "$NODE_PATH" 2>/dev/null; then
     WARNINGS+=("Passive references found - use direct links instead")
 fi
 
-# Check 9a: "Find It Fast" table in Code Map (highest-value subsection)
-if [ "$IS_ROOT" = false ]; then
-    if grep -qi "Find It Fast" "$NODE_PATH" 2>/dev/null; then
-        # Count table rows (lines starting with |, excluding header/separator)
-        FIF_ROWS=$(awk '
-            BEGIN { in_section=0; rows=0 }
-            tolower($0) ~ /find it fast/ { in_section=1; next }
-            /^##/ { if (in_section) exit }
-            {
-                if (!in_section) next
-                if (!/^\|/) next
-                if (/^\|[[:space:]]*[-]+/) next
-                if (tolower($0) ~ /looking/) next
-                rows++
-            }
-            END { print rows+0 }
-        ' "$NODE_PATH")
-        if [ "$FIF_ROWS" -ge 8 ]; then
-            PASSED+=("'Find It Fast' table has $FIF_ROWS entries (good coverage)")
-        elif [ "$FIF_ROWS" -ge 1 ]; then
-            WARNINGS+=("'Find It Fast' table has only $FIF_ROWS entries - aim for 10-20 for good coverage")
-        else
-            WARNINGS+=("Code Map exists but missing 'Find It Fast' table - this is the highest-value subsection")
-        fi
-    elif grep -qiE "^##+ *Code Map" "$NODE_PATH" 2>/dev/null; then
-        WARNINGS+=("Code Map exists but missing 'Find It Fast' table - this is the highest-value subsection")
+# Check 9: Broad test command detection in Rules section
+if grep -qiE "^##+ *Rules" "$NODE_PATH" 2>/dev/null; then
+    if grep -qiE '^\s*[-*]\s*(make test|npm test|pytest|npm run test)\s*$' "$NODE_PATH" 2>/dev/null; then
+        WARNINGS+=("Rules section contains broad test commands (use targeted commands like 'pytest tests/unit/test_foo.py -k test_bar')")
+    else
+        PASSED+=("No broad test commands in Rules")
     fi
-fi
-
-# Check 9b: Boundaries section (recommended for child nodes)
-if grep -qi "## Boundaries\|### Always\|### Never" "$NODE_PATH" 2>/dev/null; then
-    PASSED+=("Has Boundaries section (three-tier pattern)")
-elif [ "$IS_ROOT" = false ]; then
-    WARNINGS+=("Consider adding Boundaries section (Always/Ask First/Never)")
 fi
 
 # Check 10: Line length (very long lines are hard to read)
@@ -310,11 +287,11 @@ else
     PASSED+=("Line lengths reasonable")
 fi
 
-# Check 11: Warn if any required section has >5 list items
+# Check 11: Warn if any section has >5 list items
 if [ "$IS_ROOT" = true ]; then
-    CHECK11_SECTIONS=("Entry Points" "Subsystems" "Contracts" "Global Contracts" "Global Invariants" "Pitfalls" "Global Pitfalls" "Downlinks")
+    CHECK11_SECTIONS=("Contracts" "Global Contracts" "Global Invariants" "Downlinks")
 else
-    CHECK11_SECTIONS=("Purpose" "Entry Points" "Contracts" "Pitfalls")
+    CHECK11_SECTIONS=("Contracts" "Rules" "Boundaries" "Ownership")
 fi
 for section in "${CHECK11_SECTIONS[@]}"; do
     if grep -qiE "^##+ *$section|^##+ .*$section" "$NODE_PATH" 2>/dev/null; then
@@ -334,31 +311,29 @@ for section in "${CHECK11_SECTIONS[@]}"; do
     fi
 done
 
-# Check 12: Entry Points table rows should have backtick-quoted paths
-if grep -qiE "^##+ *(Entry Points)" "$NODE_PATH" 2>/dev/null; then
-    entry_rows_without_path=$(awk '
+# Check 12: Ownership entries should have backtick-quoted paths
+if grep -qiE "^##+ *(Ownership)" "$NODE_PATH" 2>/dev/null; then
+    ownership_without_path=$(awk '
         BEGIN { IGNORECASE=1; in_section=0; bad=0 }
         /^##/ {
             if (in_section) exit
-            if (tolower($0) ~ /entry points/) { in_section=1; next }
+            if (tolower($0) ~ /ownership/) { in_section=1; next }
         }
-        in_section && /^\|/ && !/^\|[[:space:]]*[-]+/ && !/^\|[[:space:]]*[A-Z].*\|[[:space:]]*[A-Z].*\|[[:space:]]*$/ {
-            # Skip header separator rows (|---|---|) and the header row itself
-            if (/^[|][-| ]+[|]$/) next
-            # Count table data rows missing backtick-quoted paths
+        in_section && /^[[:space:]]*[-*] / {
+            # Count list items missing backtick-quoted paths
             if (!/`[^`]+`/) bad++
         }
         END { print bad+0 }
     ' "$NODE_PATH")
-    if [ "$entry_rows_without_path" -gt 0 ]; then
-        WARNINGS+=("Entry Points table has $entry_rows_without_path row(s) without backtick-quoted file paths")
+    if [ "$ownership_without_path" -gt 0 ]; then
+        WARNINGS+=("Ownership section has $ownership_without_path entries without backtick-quoted file paths")
     else
-        PASSED+=("Entry Points table rows have file path references")
+        PASSED+=("Ownership entries have file path references")
     fi
 fi
 
-# Check 13: Evidence check — Pitfalls/Contracts entries should have source references
-for section in "Pitfalls" "Contracts"; do
+# Check 13: Evidence check — Rules/Contracts entries should have source references
+for section in "Rules" "Contracts"; do
     if grep -qiE "^##+ .*$section|^##+ *$section" "$NODE_PATH" 2>/dev/null; then
         # Extract section content and count list items lacking evidence markers
         items_without_evidence=$(awk -v sec="$section" '

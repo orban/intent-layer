@@ -30,7 +30,7 @@ cat > "$TEST_DIR/CLAUDE.md" << 'EOF'
 - All API calls must be authenticated
 - Never log PII
 
-## Pitfalls
+## Rules
 
 - Config values are case-sensitive
 EOF
@@ -40,33 +40,23 @@ mkdir -p "$TEST_DIR/src/api"
 cat > "$TEST_DIR/src/api/AGENTS.md" << 'EOF'
 # API Module
 
-## Purpose
 Owns: REST endpoints and request validation.
-Does not own: Business logic (see `src/core/`).
-
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| Add endpoint | `routes/` |
-| Debug request | `middleware/debug.ts` |
 
 ## Contracts
 - All endpoints return JSON
 - Rate limiting via Redis
 
-## Pitfalls
+## Rules
 - `validate()` silently passes on empty input
 - Route order matters — first match wins
+- Run `make test-api` before modifying routes
 
-## Checks
-### Before modifying routes
-- [ ] Run `make test-api`
+## Boundaries
+- Do not import from `../core` directly — use the service layer
 
-## Patterns
-### Adding a new endpoint
-1. Create route in `routes/`
-2. Add validation middleware
-3. Register in `index.ts`
+## Ownership
+- `routes/` — endpoint definitions
+- `middleware/debug.ts` — request debugging
 EOF
 
 # Test 1: resolve_context.sh exists and is executable
@@ -89,18 +79,18 @@ fi
 # Test 3: Includes local node content
 echo "Test 3: Includes local node sections"
 if echo "$output" | grep -q "validate().*silently passes"; then
-    pass "Includes local pitfall"
+    pass "Includes local rule"
 else
-    fail "Missing local pitfall"
+    fail "Missing local rule"
 fi
 
 # Test 4: Includes all section types
-echo "Test 4: Includes Contracts, Pitfalls, Checks, Patterns"
+echo "Test 4: Includes Contracts, Rules, Boundaries, Ownership"
 missing=""
 echo "$output" | grep -q "## Contracts" || missing="$missing Contracts"
-echo "$output" | grep -q "## Pitfalls" || missing="$missing Pitfalls"
-echo "$output" | grep -q "## Checks" || missing="$missing Checks"
-echo "$output" | grep -q "## Patterns" || missing="$missing Patterns"
+echo "$output" | grep -q "## Rules" || missing="$missing Rules"
+echo "$output" | grep -q "## Boundaries" || missing="$missing Boundaries"
+echo "$output" | grep -q "## Ownership" || missing="$missing Ownership"
 if [[ -z "$missing" ]]; then
     pass "All section types present"
 else
@@ -127,14 +117,14 @@ fi
 
 # Test 7: --sections flag filters output
 echo "Test 7: --sections flag filters to specific sections"
-output=$("$PLUGIN_DIR/scripts/resolve_context.sh" "$TEST_DIR" "src/api/" --sections "Contracts,Pitfalls" 2>/dev/null)
-if echo "$output" | grep -q "## Contracts" && echo "$output" | grep -q "## Pitfalls"; then
+output=$("$PLUGIN_DIR/scripts/resolve_context.sh" "$TEST_DIR" "src/api/" --sections "Contracts,Rules" 2>/dev/null)
+if echo "$output" | grep -q "## Contracts" && echo "$output" | grep -q "## Rules"; then
     pass "--sections includes requested sections"
 else
     fail "--sections filter failed"
 fi
-# Should NOT include Patterns when only Contracts,Pitfalls requested
-if echo "$output" | grep -q "## Patterns"; then
+# Should NOT include Boundaries when only Contracts,Rules requested
+if echo "$output" | grep -q "## Boundaries"; then
     fail "--sections should exclude unrequested sections"
 else
     pass "--sections excludes unrequested sections"

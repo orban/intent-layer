@@ -4,9 +4,9 @@ description: >
   Use after creating/updating nodes or as part of PR review.
 capabilities:
   - Compare documented contracts against actual code enforcement
-  - Verify entry points exist and are accurate
-  - Check documented patterns are actually followed
-  - Flag undocumented patterns that appear frequently
+  - Verify ownership mappings exist and are accurate
+  - Check documented rules still apply
+  - Flag undocumented constraints that appear frequently
   - Generate validation reports with PASS/WARN/FAIL status
 ---
 
@@ -47,41 +47,41 @@ For each documented contract:
 - WARN: Contract mentioned but enforcement unclear
 - FAIL: Contract violated in code, or no enforcement exists
 
-#### Entry Points Validation
+#### Rules Validation
 
-For each documented entry point:
-1. Verify file/function exists
-2. Check if it's actually used as an entry point (imported/called)
-3. Look for undocumented entry points
-
-**Validation criteria:**
-- PASS: Entry point exists and is actively used
-- WARN: Entry point exists but usage unclear
-- FAIL: Entry point doesn't exist or is deprecated
-
-#### Pitfalls Validation
-
-For each documented pitfall:
-1. Check if the pitfall condition still exists in code
+For each documented rule:
+1. Check if the rule condition still exists in code
 2. Look for recent fixes that might have resolved it
-3. Search for new pitfalls from recent commits
+3. Search for new failure modes from recent commits
 
 **Validation criteria:**
-- PASS: Pitfall is current and relevant
-- WARN: Pitfall may be outdated (related code changed)
-- FAIL: Pitfall no longer applies (condition removed)
+- PASS: Rule is current and relevant
+- WARN: Rule may be outdated (related code changed)
+- FAIL: Rule no longer applies (condition removed)
 
-#### Patterns Validation
+#### Boundaries Validation
 
-For each documented pattern:
-1. Search for pattern usage across covered files
-2. Count adherence vs. violations
-3. Identify undocumented patterns with high usage
+For each documented boundary:
+1. Search for import/dependency violations across covered files
+2. Verify isolation rules are respected
+3. Identify undocumented constraints
 
 **Validation criteria:**
-- PASS: Pattern followed consistently (>80% adherence)
-- WARN: Pattern followed inconsistently (50-80%)
-- FAIL: Pattern not followed (<50%) or contradicted
+- PASS: Boundary respected consistently
+- WARN: Boundary violated in some places
+- FAIL: Boundary widely violated or no longer meaningful
+
+#### Ownership Validation
+
+For each documented file-to-responsibility mapping:
+1. Verify file/function exists
+2. Check if mapping is accurate (file still handles that responsibility)
+3. Look for undocumented ownership gaps
+
+**Validation criteria:**
+- PASS: Mapping exists and is accurate
+- WARN: File exists but responsibility shifted
+- FAIL: File doesn't exist or is deprecated
 
 ### 3. Generate Validation Report
 
@@ -101,16 +101,16 @@ For each documented pattern:
 | "Auth required for /api/*" | PASS | Middleware at api/auth.ts:15 |
 | "Rate limit 100/min" | WARN | Config exists but no enforcement found |
 
-#### Entry Points [STATUS]
-| Entry Point | Status | Notes |
-|-------------|--------|-------|
-| src/api/index.ts | PASS | Main API router |
-| src/utils/deprecated.ts | FAIL | File deleted in commit abc123 |
+#### Rules [STATUS]
+| Rule | Status | Notes |
+|------|--------|-------|
+| "Auth token must be validated before..." | PASS | Guard at api/auth.ts:15 |
+| "Never call X without locking" | WARN | Related code changed in commit abc123 |
 
-#### Pitfalls [STATUS]
+#### Boundaries [STATUS]
 ...
 
-#### Patterns [STATUS]
+#### Ownership [STATUS]
 ...
 
 ### Recommendations

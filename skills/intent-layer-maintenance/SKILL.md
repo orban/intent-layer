@@ -91,7 +91,7 @@ scripts/capture_pain_points.sh pain_points.md
 
 These questions surface tribal knowledge that should be documented:
 
-### Recent Pitfalls (distinct from Anti-patterns)
+### Rules (failure modes, gotchas)
 - "What surprised you in the last 3 months?"
 - "What looked deprecated/unused but actually wasn't?"
 - "What broke silently when someone made a reasonable assumption?"
@@ -102,28 +102,25 @@ These questions surface tribal knowledge that should be documented:
 - "Did external consumers break because of API changes?"
 - "Are there new 'must never happen' rules?"
 
-### Architecture Changes
-- "Were any significant technical decisions made?"
-- "Should we link to new ADRs or design docs?"
+### Boundary Changes
 - "Did subsystem boundaries shift?"
+- "Are there new import/dependency constraints?"
+- "Did isolation rules change?"
 
-### Entry Point Changes
-- "Are there new common tasks that need routing?"
-- "Did any entry points move or get renamed?"
+### Ownership Changes
+- "Are there new common tasks that need file-to-responsibility mapping?"
+- "Did any key files move or get renamed?"
 
 ## Step 4: Map Findings to Sections
 
 | Finding Type | Target Section |
 |--------------|----------------|
-| Surprising behavior | Pitfalls |
-| "Never do X" rule | Anti-patterns |
-| Must-be-true constraint | Contracts & Invariants |
-| Technical decision rationale | Architecture Decisions |
-| New common task | Entry Points |
-| New subsystem | Subsystem Boundaries |
-| Relationship to external | Related Context |
+| Surprising behavior, gotcha | Rules |
+| "Never do X" constraint | Rules |
+| Must-be-true invariant | Contracts |
+| Import/dependency constraint | Boundaries |
+| Non-obvious file responsibility | Ownership |
 | New/moved child node | Downlinks |
-| Changed parent/sibling | Navigation |
 
 ## Step 5: Present Update Proposal
 
@@ -132,7 +129,7 @@ Show user exactly what will change:
 ```markdown
 ## Proposed Updates to CLAUDE.md
 
-### Pitfalls (adding 2)
+### Rules (adding 2)
 + `config/legacy.json` looks unused but controls feature flags for enterprise clients
 + Running `make clean` deletes cached auth tokens - must re-authenticate
 
@@ -140,9 +137,8 @@ Show user exactly what will change:
 + API v2 endpoints require `X-Request-ID` header (enforced by gateway, not code)
 
 ### No changes needed
-- Anti-patterns
-- Architecture Decisions
-- Entry Points
+- Boundaries
+- Ownership
 ```
 
 ## Step 6: Apply Updates (if approved)
@@ -161,15 +157,15 @@ Edit the CLAUDE.md file to add new items to appropriate sections.
 | Audit Type | Focus |
 |------------|-------|
 | Quarterly review | Full: tokens + all question categories |
-| Post-incident | Pitfalls + Contracts that were violated |
-| After refactor | Entry Points + Subsystem Boundaries |
-| After new feature | Architecture Decisions + Patterns |
+| Post-incident | Rules + Contracts that were violated |
+| After refactor | Ownership + Boundaries |
+| After new feature | Rules + Contracts |
 
 ## Common Mistakes
 
 | Mistake | Fix |
 |---------|-----|
-| Conflating Pitfalls with Anti-patterns | Pitfalls = surprising truth. Anti-patterns = things to avoid. |
+| Conflating Rules with Contracts | Rules = imperative gotchas from git history. Contracts = invariants not in the type system. |
 | Adding every small finding | Only add if it would confuse future agents/engineers |
 | Not measuring before asking | Always measure first - growth data informs questions |
 | Updating without proposal | Show changes, get approval, then apply |
@@ -204,16 +200,16 @@ Validate all nodes simultaneously with multiple Task calls in a single message:
 
 ```
 Task 1 (Explore): "Validate CLAUDE.md against the codebase. Check:
-                   - Are Entry Points still accurate?
                    - Are Contracts still enforced?
-                   - Are Pitfalls still relevant?
-                   - Any new patterns not documented?
+                   - Are Rules still relevant?
+                   - Are Boundaries accurate?
+                   - Any new constraints not documented?
                    Return: list of stale items + missing items"
 
 Task 2 (Explore): "Validate src/api/AGENTS.md against src/api/. Check:
-                   - Are Entry Points still accurate?
                    - Are Contracts still enforced?
-                   - Are Pitfalls still relevant?
+                   - Are Rules still relevant?
+                   - Are Ownership mappings accurate?
                    Return: list of stale items + missing items"
 
 Task 3 (Explore): "Validate src/core/AGENTS.md against src/core/. Check:
@@ -227,7 +223,7 @@ Find undocumented areas across the codebase:
 ```
 Task 1 (Explore): "Search for error handling patterns in src/. Find:
                    - try/catch patterns that aren't documented
-                   - Silent failures that should be Pitfalls
+                   - Silent failures that should be Rules
                    - Error contracts not in any AGENTS.md"
 
 Task 2 (Explore): "Search for API contracts in src/. Find:
@@ -250,7 +246,7 @@ After an incident, audit relevant nodes in parallel:
 Task 1 (Explore): "Review [incident area] for Pitfalls. Find:
                    - What assumption was violated?
                    - What would have prevented this?
-                   - What should be added to Pitfalls?"
+                   - What should be added to Rules?"
 
 Task 2 (Explore): "Review [incident area] for Contract gaps. Find:
                    - What invariant was broken?
@@ -264,7 +260,7 @@ After parallel agents complete:
 
 1. **Collect all findings** into a unified list
 2. **Deduplicate** items found by multiple agents
-3. **Categorize** by target section (Pitfalls, Contracts, Entry Points)
+3. **Categorize** by target section (Rules, Contracts, Boundaries, Ownership)
 4. **Prioritize** by impact (incident-related > gaps > stale items)
 5. **Present proposal** to user for approval
 

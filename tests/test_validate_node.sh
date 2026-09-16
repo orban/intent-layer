@@ -29,51 +29,34 @@ cat > "$TEMP_PROJECT/CLAUDE.md" << 'MD'
 
 > TL;DR: Test project.
 
-### Entry Points
-
-| Task | Start Here |
-|------|------------|
-| Test | `src/api/index.ts` |
-
 ### Contracts
 - All responses must be JSON.
 
-### Pitfalls
-- Token estimation uses bytes/4 approximation.
+### Rules
+- Token estimation uses bytes/4 approximation. Source: `lib/tokens.ts`
 
 ### Downlinks
 - `src/api/AGENTS.md` - API
 MD
 
-# Child node (valid - includes Pitfalls as required)
+# Child node (valid - includes Contracts as required)
 mkdir -p "$TEMP_PROJECT/src/api"
 cat > "$TEMP_PROJECT/src/api/AGENTS.md" << 'MD'
 # API
 
-## Purpose
 Owns: API handlers.
-
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| Add endpoint | `handlers.ts` |
 
 ## Contracts
 - Requests must be authenticated.
 
-## Pitfalls
-- Rate limiting applies to all endpoints.
+## Rules
+- Rate limiting applies to all endpoints. Source: `config/rate_limit.ts`
 
-## Patterns
-### Adding a handler
-1. Add route.
-2. Add handler.
+## Boundaries
+- Do not import from `../auth` directly.
 
-## Code Map
-### Find It Fast
-| Looking for... | Go to |
-|---|---|
-| Handler | `handlers.ts` |
+## Ownership
+- `handlers.ts` — request handlers
 MD
 
 # Test 1: Child node detection with relative path
@@ -88,29 +71,26 @@ else
     fail "Child node misclassified or failed (status=$status): $output"
 fi
 
-# Test 2: Root missing Entry Points should error
+# Test 2: Root missing Downlinks should error
 cat > "$TEMP_PROJECT/CLAUDE.md" << 'MD'
 ## Intent Layer
 
-> TL;DR: Missing entry points.
+> TL;DR: Missing downlinks.
 
 ### Contracts
 - All responses must be JSON.
 
-### Pitfalls
-- Watch out.
-
-### Downlinks
-- `src/api/AGENTS.md` - API
+### Rules
+- Watch out. Source: `foo.ts`
 MD
 
 status=0
 output=$(run_validate "$TEMP_PROJECT/CLAUDE.md") || status=$?
 
-if [[ $status -ne 0 ]] && echo "$output" | grep -q "Entry Points\|Subsystems"; then
-    pass "Root schema enforcement catches missing Entry Points/Subsystems"
+if [[ $status -ne 0 ]] && echo "$output" | grep -qi "Downlinks"; then
+    pass "Root missing Downlinks is an error"
 else
-    fail "Root schema enforcement failed (status=$status): $output"
+    fail "Root missing Downlinks not caught (status=$status): $output"
 fi
 
 # Test 3: Root missing Contracts should error
@@ -119,14 +99,8 @@ cat > "$TEMP_PROJECT/CLAUDE.md" << 'MD'
 
 > TL;DR: Missing contracts.
 
-### Entry Points
-
-| Task | Start Here |
-|------|------------|
-| Test | `src/api/index.ts` |
-
-### Pitfalls
-- Watch out.
+### Rules
+- Watch out. Source: `foo.ts`
 
 ### Downlinks
 - `src/api/AGENTS.md` - API
@@ -141,52 +115,39 @@ else
     fail "Root missing Contracts not caught (status=$status): $output"
 fi
 
-# Test 4: Root missing Pitfalls should error
+# Test 4: Root missing Intent Layer section should error
 cat > "$TEMP_PROJECT/CLAUDE.md" << 'MD'
-## Intent Layer
+# Project
 
-> TL;DR: Missing pitfalls.
+> TL;DR: Missing Intent Layer section.
 
-### Entry Points
-
-| Task | Start Here |
-|------|------------|
-| Test | `src/api/index.ts` |
-
-### Contracts
+## Contracts
 - All responses must be JSON.
 
-### Downlinks
+## Downlinks
 - `src/api/AGENTS.md` - API
 MD
 
 status=0
 output=$(run_validate "$TEMP_PROJECT/CLAUDE.md") || status=$?
 
-if [[ $status -ne 0 ]] && echo "$output" | grep -qi "Pitfalls"; then
-    pass "Root missing Pitfalls is an error"
+if [[ $status -ne 0 ]] && echo "$output" | grep -qi "Intent Layer"; then
+    pass "Root missing Intent Layer section is an error"
 else
-    fail "Root missing Pitfalls not caught (status=$status): $output"
+    fail "Root missing Intent Layer section not caught (status=$status): $output"
 fi
 
-# Test 5: Child missing Pitfalls should error
+# Test 5: Child missing Contracts should error
 cat > "$TEMP_PROJECT/src/api/AGENTS.md" << 'MD'
 # API
 
-## Purpose
 Owns: API handlers.
 
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| Add endpoint | `handlers.ts` |
+## Rules
+- Rate limiting applies to all endpoints. Source: `config/rate_limit.ts`
 
-## Contracts
-- Requests must be authenticated.
-
-## Patterns
-### Adding a handler
-1. Add route.
+## Boundaries
+- Do not import from `../auth` directly.
 MD
 
 # Restore valid root for child tests
@@ -195,17 +156,11 @@ cat > "$TEMP_PROJECT/CLAUDE.md" << 'MD'
 
 > TL;DR: Test project.
 
-### Entry Points
-
-| Task | Start Here |
-|------|------------|
-| Test | `src/api/index.ts` |
-
 ### Contracts
 - All responses must be JSON.
 
-### Pitfalls
-- Token estimation uses bytes/4 approximation.
+### Rules
+- Token estimation uses bytes/4 approximation. Source: `lib/tokens.ts`
 
 ### Downlinks
 - `src/api/AGENTS.md` - API
@@ -214,31 +169,43 @@ MD
 status=0
 output=$(run_validate "$TEMP_PROJECT/src/api/AGENTS.md") || status=$?
 
-if [[ $status -ne 0 ]] && echo "$output" | grep -qi "Pitfalls"; then
-    pass "Child missing Pitfalls is an error"
+if [[ $status -ne 0 ]] && echo "$output" | grep -qi "Contracts"; then
+    pass "Child missing Contracts is an error"
 else
-    fail "Child missing Pitfalls not caught (status=$status): $output"
+    fail "Child missing Contracts not caught (status=$status): $output"
 fi
 
-# Test 6: Child with Patterns but no Pitfalls should error
-# (Same fixture as Test 5 - has Patterns but not Pitfalls)
-if [[ $status -ne 0 ]] && echo "$output" | grep -qi "Missing required section.*Pitfalls"; then
-    pass "Child with Patterns but no Pitfalls is an error"
+# Test 6: Child with only Contracts should pass (Rules/Boundaries/Ownership are recommended, not required)
+cat > "$TEMP_PROJECT/src/api/AGENTS.md" << 'MD'
+# API
+
+Owns: API handlers.
+
+## Contracts
+- Requests must be authenticated.
+MD
+
+status=0
+output=$(run_validate "$TEMP_PROJECT/src/api/AGENTS.md") || status=$?
+
+if [[ $status -eq 0 ]]; then
+    pass "Child with only Contracts passes (other sections are recommended)"
 else
-    fail "Child with Patterns but no Pitfalls not caught (status=$status): $output"
+    fail "Child with only Contracts should pass (status=$status): $output"
+fi
+
+# Verify it warns about missing recommended sections
+if echo "$output" | grep -qi "Missing recommended section.*Rules"; then
+    pass "Child without Rules gets recommendation warning"
+else
+    fail "Child without Rules should get recommendation warning: $output"
 fi
 
 # Test 7: List exceeding 5 items should warn (exit 0)
 cat > "$TEMP_PROJECT/src/api/AGENTS.md" << 'MD'
 # API
 
-## Purpose
 Owns: API handlers.
-
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| Add endpoint | `handlers.ts` |
 
 ## Contracts
 - Rule one.
@@ -248,8 +215,8 @@ Owns: API handlers.
 - Rule five.
 - Rule six.
 
-## Pitfalls
-- Watch out.
+## Rules
+- Watch out. Source: `foo.ts`
 MD
 
 status=0
@@ -261,50 +228,38 @@ else
     fail "List exceeding 5 items check failed (status=$status): $output"
 fi
 
-# Test 8: Pitfall without source reference should produce warning (exit 0)
+# Test 8: Rule without source reference should produce warning (exit 0)
 cat > "$TEMP_PROJECT/src/api/AGENTS.md" << 'MD'
 # API
 
-## Purpose
 Owns: API handlers.
-
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| Add endpoint | `handlers.ts` |
 
 ## Contracts
 - Requests must be authenticated. Source: security policy
 
-## Pitfalls
+## Rules
 - Something vague without any evidence.
 MD
 
 status=0
 output=$(run_validate "$TEMP_PROJECT/src/api/AGENTS.md") || status=$?
 
-if [[ $status -eq 0 ]] && echo "$output" | grep -qi "Pitfalls entries lack source references"; then
-    pass "Pitfall without source reference produces warning (exit 0)"
+if [[ $status -eq 0 ]] && echo "$output" | grep -qi "Rules entries lack source references"; then
+    pass "Rule without source reference produces warning (exit 0)"
 else
-    fail "Pitfall without source reference not warned (status=$status): $output"
+    fail "Rule without source reference not warned (status=$status): $output"
 fi
 
-# Test 9: Pitfall WITH source reference should not warn for that entry
+# Test 9: Rule WITH source reference should not warn for that entry
 cat > "$TEMP_PROJECT/src/api/AGENTS.md" << 'MD'
 # API
 
-## Purpose
 Owns: API handlers.
-
-## Entry Points
-| Task | Start Here |
-|------|------------|
-| Add endpoint | `handlers.ts` |
 
 ## Contracts
 - Requests must be authenticated. Source: security policy
 
-## Pitfalls
+## Rules
 - Rate limiting applies per `config/rate_limit.ts`.
 - See PR #42 for details on the timeout bug.
 MD
@@ -312,10 +267,32 @@ MD
 status=0
 output=$(run_validate "$TEMP_PROJECT/src/api/AGENTS.md") || status=$?
 
-if [[ $status -eq 0 ]] && ! echo "$output" | grep -qi "Pitfalls entries lack source references"; then
-    pass "Pitfall with source references produces no evidence warning"
+if [[ $status -eq 0 ]] && ! echo "$output" | grep -qi "Rules entries lack source references"; then
+    pass "Rule with source references produces no evidence warning"
 else
-    fail "Pitfall with source references incorrectly warned (status=$status): $output"
+    fail "Rule with source references incorrectly warned (status=$status): $output"
+fi
+
+# Test 10: Child token budget enforcement (>1500 tokens should error)
+# 1500 tokens ≈ 6000 bytes. Generate a file just over that.
+{
+    echo "# API"
+    echo ""
+    echo "Owns: API handlers."
+    echo ""
+    echo "## Contracts"
+    for i in $(seq 1 200); do
+        echo "- Contract rule number $i must be followed at all times for safety."
+    done
+} > "$TEMP_PROJECT/src/api/AGENTS.md"
+
+status=0
+output=$(run_validate "$TEMP_PROJECT/src/api/AGENTS.md") || status=$?
+
+if [[ $status -ne 0 ]] && echo "$output" | grep -qi "exceeds 1500 limit"; then
+    pass "Child node exceeding 1500 token budget is an error"
+else
+    fail "Child node token budget not enforced (status=$status): $output"
 fi
 
 # Summary

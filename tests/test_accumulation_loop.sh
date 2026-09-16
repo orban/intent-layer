@@ -41,7 +41,7 @@ cat > "$TEST_DIR/CLAUDE.md" << 'EOF'
 - All API calls must be authenticated
 - Never log PII
 
-## Pitfalls
+## Rules
 
 ### Config values are case-sensitive
 
@@ -53,7 +53,7 @@ mkdir -p "$TEST_DIR/src/api"
 cat > "$TEST_DIR/src/api/AGENTS.md" << 'EOF'
 # API Module
 
-## Pitfalls
+## Rules
 
 ### validate() silently passes on empty input
 
@@ -67,7 +67,7 @@ mkdir -p "$TEST_DIR/src/core"
 cat > "$TEST_DIR/src/core/AGENTS.md" << 'EOF'
 # Core Module
 
-## Pitfalls
+## Rules
 
 ### Engine retry logic is not idempotent
 
@@ -255,16 +255,16 @@ INSIGHT_REPORT=$(find_latest_report "INSIGHT")
 AGENTS="$TEST_DIR/src/api/AGENTS.md"
 format_errors=""
 
+# All types should land in ## Rules with distinctive formatting
+grep -q "^## Rules" "$AGENTS" || format_errors="$format_errors no-Rules-section"
+
 # Check: should have checklist format (- [ ] ...)
-grep -q "^## Checks" "$AGENTS" || format_errors="$format_errors no-Checks-section"
 grep -q "\- \[ \]" "$AGENTS" || format_errors="$format_errors no-checklist-item"
 
 # Pattern: should have **Preferred**: prefix
-grep -q "^## Patterns" "$AGENTS" || format_errors="$format_errors no-Patterns-section"
 grep -q "\*\*Preferred\*\*" "$AGENTS" || format_errors="$format_errors no-Preferred-prefix"
 
-# Insight: should land in ## Context with body content
-grep -q "^## Context" "$AGENTS" || format_errors="$format_errors no-Context-section"
+# Insight: body content should be present
 grep -q "defense in depth" "$AGENTS" || format_errors="$format_errors no-insight-body"
 
 if [[ -z "$format_errors" ]]; then

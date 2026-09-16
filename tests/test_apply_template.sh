@@ -81,7 +81,7 @@ else
 fi
 
 # Verify content matches template (spot check)
-if grep -q "Intent Layer" "$APPLY_DIR/CLAUDE.md" && grep -q "## Purpose" "$APPLY_DIR/src/AGENTS.md"; then
+if grep -q "Intent Layer" "$APPLY_DIR/CLAUDE.md" && grep -q "## Contracts" "$APPLY_DIR/src/AGENTS.md"; then
     pass "Created files have expected content"
 else
     fail "Created files have unexpected content"

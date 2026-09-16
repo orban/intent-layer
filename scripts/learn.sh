@@ -105,10 +105,10 @@ fi
 
 # Map type → section
 case "$LEARNING_TYPE" in
-    pitfall) TARGET_SECTION="Pitfalls" ;;
-    check)   TARGET_SECTION="Checks" ;;
-    pattern) TARGET_SECTION="Patterns" ;;
-    insight) TARGET_SECTION="Context" ;;
+    pitfall) TARGET_SECTION="Rules" ;;
+    check)   TARGET_SECTION="Rules" ;;
+    pattern) TARGET_SECTION="Rules" ;;
+    insight) TARGET_SECTION="Rules" ;;
 esac
 
 # Format entry (matches integrate_pitfall.sh formatting)
