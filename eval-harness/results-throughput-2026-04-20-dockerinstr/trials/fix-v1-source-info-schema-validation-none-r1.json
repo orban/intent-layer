@@ -1,0 +1,24 @@
+{
+  "task_id": "fix-v1-source-info-schema-validation",
+  "condition": "none",
+  "rep": 1,
+  "success": true,
+  "started_at": "2026-04-20T22:28:58.046911+00:00",
+  "finished_at": "2026-04-20T22:36:22.931160+00:00",
+  "wall_clock_seconds": 384.08928513526917,
+  "input_tokens": 1193271,
+  "output_tokens": 27759,
+  "tool_calls": 24,
+  "cost_usd": 1.0437511499999998,
+  "docker_invocations": [
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:36:03.909396+00:00",
+      "first_byte_at": "2026-04-20T22:36:04.497395+00:00",
+      "finished_at": "2026-04-20T22:36:22.806775+00:00",
+      "exit_code": 0,
+      "timed_out": false
+    }
+  ],
+  "lines_changed": 5
+}

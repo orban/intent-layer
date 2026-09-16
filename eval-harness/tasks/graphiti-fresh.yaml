@@ -1,0 +1,161 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/getzep/graphiti
+# Tasks found: 15
+
+repo:
+  url: https://github.com/getzep/graphiti
+  default_branch: main
+  docker:
+    image: python:3.12-slim
+    setup:
+    - pip install uv && uv sync --frozen --extra dev
+    test_command: uv run pytest tests -x -q
+tasks:
+- id: fix-use-prompt-instead-of-direct_prompt-in-al
+  category: targeted_refactor
+  pre_fix_commit: 92b12a8a919343bdb6ccbe36549fbde38e141b3d
+  fix_commit: c0a633a1eb0c7705d18b7d1df7a2881c04752aea
+  prompt_source: commit_message
+  _commit_message: 'fix: use `prompt` instead of `direct_prompt` in all workflows
+    (#1370)'
+  _lines_changed: 8
+  _files_changed: 3
+  issue_number: 1370
+- id: refresh-readme-content-and-fix-image-refs-1313
+  category: complex_fix
+  pre_fix_commit: 5a334ec58cfd1d43a1f68e28629a8178753cc1d7
+  fix_commit: a9065fa9c9ddb2f17d28795dcc9f1705fcec92f6
+  prompt_source: commit_message
+  _commit_message: Refresh README content and fix image refs (#1313)
+  _lines_changed: 334
+  _files_changed: 2
+  issue_number: 1313
+- id: fix-replace-edge-name-with-uuid-in-debug-log-12
+  category: targeted_refactor
+  pre_fix_commit: 510bd50d5408477bc172b63b5567b753b50b9d11
+  fix_commit: 98f5b5ff0ca59b57554bac674f187b0914aeb0a4
+  prompt_source: commit_message
+  _commit_message: 'fix: replace edge name with uuid in debug log (#1261)'
+  _lines_changed: 14
+  _files_changed: 5
+  issue_number: 1261
+- id: fix-replace-diskcache-with-sqlite-based-cache-to
+  category: complex_fix
+  pre_fix_commit: c1afd8bc2746f74d3061d5c4b374ccae019bf901
+  fix_commit: bde2f7974b019826703ef4edf28d47cc7071df4d
+  prompt_source: failing_test
+  _commit_message: 'fix: replace diskcache with sqlite-based cache to resolve CVE
+    (#1238)'
+  _lines_changed: 247
+  _files_changed: 7
+  test_file: tests/llm_client/test_cache.py
+  issue_number: 1238
+- id: fix-extract-custom-edge-attributes-on-first-episo
+  category: simple_fix
+  pre_fix_commit: 798599774a6e58fb8ae12f1166ab3c935a5b2fab
+  fix_commit: c1afd8bc2746f74d3061d5c4b374ccae019bf901
+  prompt_source: commit_message
+  _commit_message: 'fix: extract custom edge attributes on first episode ingestion
+    (#1242)'
+  _lines_changed: 18
+  _files_changed: 1
+  issue_number: 1242
+- id: fix-remove-pii-from-log-messages-1237
+  category: targeted_refactor
+  pre_fix_commit: d3a31105aef55d467984e18ecb3539e351a7f0e9
+  fix_commit: 798599774a6e58fb8ae12f1166ab3c935a5b2fab
+  prompt_source: commit_message
+  _commit_message: 'fix: remove PII from log messages (#1237)'
+  _lines_changed: 65
+  _files_changed: 3
+  issue_number: 1237
+- id: choredeps-update-dependencies-to-fix-dependabot
+  category: complex_fix
+  pre_fix_commit: a200ff2b00a9616e29f17c6fc3da06aeb02b2fe4
+  fix_commit: 4cbc79b5f65a625a47badff255c9d689b59aade3
+  prompt_source: commit_message
+  _commit_message: 'chore(deps): update dependencies to fix dependabot alerts (#1225)'
+  _lines_changed: 850
+  _files_changed: 2
+  issue_number: 1225
+- id: fixsummary-exclude-duplicate-edges-from-node-su
+  category: targeted_refactor
+  pre_fix_commit: 6e90bc6ebe84ff86b0bd67d488ce196f42a95f0a
+  fix_commit: fe19482e445eff4b9cd7f8cff073469fc095da77
+  prompt_source: failing_test
+  _commit_message: 'fix(summary): exclude duplicate edges from node summary generation
+    (#1223)'
+  _lines_changed: 58
+  _files_changed: 4
+  test_file: tests/utils/maintenance/test_edge_operations.py
+  issue_number: 1223
+- id: fixgraphiti-prevent-add_triplet-from-overwritin
+  category: complex_fix
+  pre_fix_commit: 45a3d920349411e7e303dd2466fe3268128e733d
+  fix_commit: 6773dd210766212f54080516df965236730c54d0
+  prompt_source: failing_test
+  _commit_message: 'fix(graphiti): prevent add_triplet from overwriting edges with
+    different src/dst (#1212)'
+  _lines_changed: 880
+  _files_changed: 3
+  test_file: tests/helpers_test.py
+  issue_number: 1212
+- id: fixedges-preserve-all-signatures-when-edge-type
+  category: targeted_refactor
+  pre_fix_commit: 37ec7b43c60e69f0aa554243fcf5e473ba925af9
+  fix_commit: 45a3d920349411e7e303dd2466fe3268128e733d
+  prompt_source: failing_test
+  _commit_message: 'fix(edges): preserve all signatures when edge type is reused across
+    node pairs (#1197)'
+  _lines_changed: 164
+  _files_changed: 3
+  test_file: tests/utils/maintenance/test_edge_operations.py
+  issue_number: 1197
+- id: fix-azure-openai-integration-for-v1-api-compatibil
+  category: complex_fix
+  pre_fix_commit: 05645d230486edaad761e92037ac45f2c6e51fd8
+  fix_commit: 37ec7b43c60e69f0aa554243fcf5e473ba925af9
+  prompt_source: failing_test
+  _commit_message: Fix Azure OpenAI integration for v1 API compatibility (#1192)
+  _lines_changed: 284
+  _files_changed: 6
+  test_file: tests/llm_client/test_azure_openai_client.py
+  issue_number: 1192
+- id: fixfalkordb-escape-group_ids-in-redisearch-full
+  category: simple_fix
+  pre_fix_commit: 894b71ff011adedf14864a643009908f40d36ab4
+  fix_commit: 45882dd56dd6209ae76ca7e5241f92b2f5921610
+  prompt_source: commit_message
+  _commit_message: 'fix(falkordb): escape group_ids in RediSearch fulltext queries
+    (#1175)'
+  _lines_changed: 5
+  _files_changed: 1
+  issue_number: 1175
+- id: fixfalkordb-sanitize-pipe-and-slash-chars-in-fu
+  category: simple_fix
+  pre_fix_commit: 930663d7f760986eb9cc20c7deea90f4c811cc1e
+  fix_commit: ec108559c7acc603dd7ec013d06728f0dbe54675
+  prompt_source: commit_message
+  _commit_message: 'fix(falkordb): sanitize pipe and slash chars in fulltext queries
+    (#1183)'
+  _lines_changed: 7
+  _files_changed: 1
+  issue_number: 1183
+- id: revert-fix-dependabot-security-vulnerabilities
+  category: complex_fix
+  pre_fix_commit: 30cd907dcca84113ac8277f81c02dfbf2f6c12bf
+  fix_commit: 6847fa4afc343c87bdc83238e4d469bba7b8dfeb
+  prompt_source: commit_message
+  _commit_message: Revert "Fix dependabot security vulnerabilities" (#1185)
+  _lines_changed: 1750
+  _files_changed: 3
+  issue_number: 1185
+- id: fix-dependabot-security-vulnerabilities-1184
+  category: complex_fix
+  pre_fix_commit: d9aae867c1949949ef404c2d18be6480519578df
+  fix_commit: 30cd907dcca84113ac8277f81c02dfbf2f6c12bf
+  prompt_source: commit_message
+  _commit_message: Fix dependabot security vulnerabilities (#1184)
+  _lines_changed: 1750
+  _files_changed: 3
+  issue_number: 1184

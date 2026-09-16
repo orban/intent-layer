@@ -1,0 +1,141 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/opshin/opshin
+# Tasks found: 15
+
+repo:
+  url: https://github.com/opshin/opshin
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install uv && uv sync --frozen --dev
+    test_command: uv run pytest tests
+tasks:
+- id: fix-binary-size-workflow-yaml
+  category: targeted_refactor
+  pre_fix_commit: e98e396f3e9472963cf29a308abd4be4f277fd5c
+  fix_commit: 2981e489c11ff78fec65797c797c8e431650a01a
+  prompt_source: commit_message
+  _commit_message: Fix binary size workflow yaml
+  _lines_changed: 55
+  _files_changed: 1
+- id: merge-pull-request-609-from-opshinfixrecursive_
+  category: complex_fix
+  pre_fix_commit: 62c5089cd07ef6978fb37e2ec609ebab2787d268
+  fix_commit: 99b83c07c6bd71b4f891fdd2c3d20388bf469b4c
+  prompt_source: failing_test
+  _commit_message: 'Merge pull request #609 from OpShin/fix/recursive_self'
+  _lines_changed: 480
+  _files_changed: 5
+  test_file: tests/test_class_methods.py
+  issue_number: 609
+- id: fix-nested-dict-any-and-union-casts
+  category: targeted_refactor
+  pre_fix_commit: 8c350faf8b119c532ee32bf953160f775107a028
+  fix_commit: fd3abb33ef2977d07daabc12d2beaff46b22d7f1
+  prompt_source: failing_test
+  _commit_message: Fix nested dict Any and Union casts
+  _lines_changed: 92
+  _files_changed: 2
+  test_file: tests/test_Unions.py
+- id: fix-nested-any-and-union-list-casts
+  category: targeted_refactor
+  pre_fix_commit: 032e24f8396b47a9e34aef9f352680dd92650733
+  fix_commit: 8c350faf8b119c532ee32bf953160f775107a028
+  prompt_source: failing_test
+  _commit_message: Fix nested Any and Union list casts
+  _lines_changed: 160
+  _files_changed: 3
+  test_file: tests/test_Unions.py
+- id: fix-python-39-optional-type-annotation
+  category: simple_fix
+  pre_fix_commit: 2f12dbc26e6bc0ccbe0e08726260b413d0d378c7
+  fix_commit: 11a743295550e88eba08f5644a1874c158188775
+  prompt_source: commit_message
+  _commit_message: Fix Python 3.9 optional type annotation
+  _lines_changed: 5
+  _files_changed: 1
+- id: fix-function-type-resolution-for-recursive-closure
+  category: targeted_refactor
+  pre_fix_commit: 8012b0753ca4b10fbdd9bae4ede9a5b7e17fc656
+  fix_commit: 7ea5c83e18900e1d7ad66670d49e51920534ef34
+  prompt_source: commit_message
+  _commit_message: Fix function type resolution for recursive closure rewrites
+  _lines_changed: 171
+  _files_changed: 2
+- id: fix-dead-condition-folding-for-union-expansion
+  category: simple_fix
+  pre_fix_commit: 17dc4274d3f1f601992fb153c4a1373070d99616
+  fix_commit: 3cee085e8071451318ec829f6a23088536979e19
+  prompt_source: commit_message
+  _commit_message: Fix dead condition folding for union expansion
+  _lines_changed: 26
+  _files_changed: 2
+- id: fix-dead-condition-bool-short-circuit-folding
+  category: targeted_refactor
+  pre_fix_commit: 40d4281aa0ad5ea0fb941ecb750d662fa900861e
+  fix_commit: 17dc4274d3f1f601992fb153c4a1373070d99616
+  prompt_source: failing_test
+  _commit_message: Fix dead condition bool short-circuit folding
+  _lines_changed: 77
+  _files_changed: 2
+  test_file: tests/test_optimize/test_remove_deadconds.py
+- id: fix-retyping-for-local-seq
+  category: simple_fix
+  pre_fix_commit: b14e2ce79ea66b4cfbee45dac4780e554691ad55
+  fix_commit: fc4585458795c0c26f622f8f93be942fc2406c06
+  prompt_source: commit_message
+  _commit_message: Fix retyping for local seq
+  _lines_changed: 8
+  _files_changed: 1
+- id: fix-mutual-recursion-closure-binding
+  category: targeted_refactor
+  pre_fix_commit: 1a06e3e8d4aae6e6b0a7fbc111808d7821e274b9
+  fix_commit: 371b6964d2f4ec701db825543690463b2b403c33
+  prompt_source: commit_message
+  _commit_message: Fix mutual recursion closure binding
+  _lines_changed: 77
+  _files_changed: 1
+- id: fix
+  category: simple_fix
+  pre_fix_commit: 961e00bb5fbb6854c025eae3bb74937e3262f781
+  fix_commit: 2fe6c72c67d8b766262fa2330b7b4d88c85e3bf6
+  prompt_source: commit_message
+  _commit_message: Fix
+  _lines_changed: 15
+  _files_changed: 1
+- id: fix-union-expansion-properly
+  category: complex_fix
+  pre_fix_commit: eb305aa0d4c44784d43f3a66fa08dd093b64e623
+  fix_commit: 6bd6ea56378bdbb3c4ff7686c63410ca0fad6ef2
+  prompt_source: failing_test
+  _commit_message: Fix union expansion properly
+  _lines_changed: 362
+  _files_changed: 5
+  test_file: tests/test_optimize/test_union_expansion.py
+- id: fix-testcase-to-expose-actual-compiler-bug
+  category: targeted_refactor
+  pre_fix_commit: 6b5e42150656d0e0c6513296f3002b2c8a30d274
+  fix_commit: d346064ff722696258df533b28cddeaff6fd0c26
+  prompt_source: failing_test
+  _commit_message: Fix testcase to expose actual compiler bug
+  _lines_changed: 137
+  _files_changed: 1
+  test_file: tests/test_optimize/test_union_expansion.py
+- id: fix
+  category: simple_fix
+  pre_fix_commit: 237ef83736fd5320ca357acb64a084fe0901878a
+  fix_commit: 8c963e2ba80aa8ff7861b41abf2722979b365f6d
+  prompt_source: commit_message
+  _commit_message: Fix
+  _lines_changed: 48
+  _files_changed: 1
+- id: fix-union-expansion-call-rewriting-for-mutual-recu
+  category: targeted_refactor
+  pre_fix_commit: 6e584e8f5d61ab80067b3d5bdaa80194cb075967
+  fix_commit: 8c3bfd0670a301c2ddc8ffc8e0af4878d8ce62be
+  prompt_source: failing_test
+  _commit_message: Fix union-expansion call rewriting for mutual recursion
+  _lines_changed: 85
+  _files_changed: 2
+  test_file: tests/test_optimize/test_union_expansion.py

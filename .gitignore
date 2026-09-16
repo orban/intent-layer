@@ -21,3 +21,6 @@ CODEX_REVIEW.md
 # Nightshift plan artifacts (keep out of version control)
 .nightshift-plan
 .dmux/
+
+# Daily knowledge-ingest run logs
+.knowledge-ingest-*.log

@@ -305,3 +305,14 @@
 2026-02-18T03:30:17Z	/Users/ryo/dev/intent-layer/eval-harness/tasks/pdm.yaml	/Users/ryo/dev/intent-layer/eval-harness/AGENTS.md	Pitfalls,Checks,Patterns,Context
 2026-02-18T04:01:26Z	/Users/ryo/dev/intent-layer/eval-harness/tasks/pdm.yaml	/Users/ryo/dev/intent-layer/eval-harness/AGENTS.md	Pitfalls,Checks,Patterns,Context
 2026-02-18T06:04:18Z	/Users/ryo/dev/intent-layer/eval-harness/results/2026-02-16-consolidated.md	/Users/ryo/dev/intent-layer/eval-harness/AGENTS.md	Pitfalls,Checks,Patterns,Context
+2026-04-04T06:48:34Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmp5hi3uepc/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmp5hi3uepc/AGENTS.md	Pitfalls
+2026-04-04T06:57:32Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmps4nocoag/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmps4nocoag/AGENTS.md	Pitfalls
+2026-04-04T06:57:41Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmptsct59v9/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmptsct59v9/AGENTS.md	Pitfalls
+2026-04-04T06:58:23Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpgpurvlxs/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpgpurvlxs/AGENTS.md	Pitfalls
+2026-04-04T07:03:04Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpl15hs2c7/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpl15hs2c7/AGENTS.md	Pitfalls
+2026-04-04T07:09:25Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpee3oomya/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpee3oomya/AGENTS.md	Pitfalls
+2026-04-04T07:20:04Z	Edit	nonexistent/file.py	uncovered	None	none
+2026-04-04T07:26:33Z	Edit	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpgjfiu9os/main.py	covered	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpgjfiu9os/AGENTS.md	Pitfalls
+2026-04-04T07:26:34Z	Edit	nonexistent/file.py	uncovered	None	none
+2026-04-04T07:28:18Z	Edit	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpnx37x874/main.py	covered	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpnx37x874/AGENTS.md	Pitfalls
+2026-04-04T07:30:55Z	/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpss83auim/main.py	/private/var/folders/30/rgkwpbzx2jgffphp6js07r9h0000gn/T/tmpss83auim/AGENTS.md	Pitfalls

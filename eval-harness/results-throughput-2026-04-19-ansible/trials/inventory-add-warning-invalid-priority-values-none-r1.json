@@ -1,0 +1,14 @@
+{
+  "task_id": "inventory-add-warning-invalid-priority-values",
+  "condition": "none",
+  "rep": 1,
+  "success": true,
+  "started_at": "2026-04-20T04:08:04.107103+00:00",
+  "finished_at": "2026-04-20T04:09:07.255471+00:00",
+  "wall_clock_seconds": 15.901687860488892,
+  "input_tokens": 90907,
+  "output_tokens": 525,
+  "tool_calls": 4,
+  "cost_usd": 0.11367845000000001,
+  "lines_changed": 2
+}

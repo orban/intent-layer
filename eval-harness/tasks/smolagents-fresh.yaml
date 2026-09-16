@@ -1,0 +1,163 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/huggingface/smolagents
+# Tasks found: 15
+
+repo:
+  url: https://github.com/huggingface/smolagents
+  default_branch: main
+  docker:
+    image: python:3.11-slim
+    setup:
+    - pip install -e '.[dev]'
+    test_command: pytest tests -x -q
+tasks:
+- id: fix-log_error-rendering-brackets-as-rich-markup
+  category: targeted_refactor
+  pre_fix_commit: 92e078311d3283dbab375b417a9ae7aa4a4e9de3
+  fix_commit: a347057939d1ef6b55121eaa1e1997f0287406bb
+  prompt_source: failing_test
+  _commit_message: Fix log_error rendering brackets as Rich markup (#2077)
+  _lines_changed: 8
+  _files_changed: 3
+  test_file: tests/test_agents.py
+  issue_number: 2077
+- id: fix-rich-markuperror-in-agentloggerlog_task-by-re
+  category: targeted_refactor
+  pre_fix_commit: f29f772d647315930639130e51375ec4a930dc1e
+  fix_commit: 5c684c18df01895832ed0e0caecb6896f72890da
+  prompt_source: failing_test
+  _commit_message: Fix Rich MarkupError in AgentLogger.log_task by rendering untrusted
+    text safely (#1894)
+  _lines_changed: 88
+  _files_changed: 3
+  test_file: tests/test_monitoring.py
+  issue_number: 1894
+- id: fix-evaluate_with-by-suppressing-exception-if-trut
+  category: targeted_refactor
+  pre_fix_commit: 563dae88db4a5dd682c152a8ab22794b978935c9
+  fix_commit: 6ff5bfe7c1ba981e22288a8b0d4319ae2a21bd2d
+  prompt_source: failing_test
+  _commit_message: Fix evaluate_with by suppressing exception if truthy __exit__ (#2033)
+  _lines_changed: 130
+  _files_changed: 2
+  test_file: tests/test_local_python_executor.py
+  issue_number: 2033
+- id: fix-evaluate_with-calling-__exit__-on-wrong-obje
+  category: targeted_refactor
+  pre_fix_commit: 87f69c30778113c59f4658af187a8f3f55bd1d6f
+  fix_commit: 563dae88db4a5dd682c152a8ab22794b978935c9
+  prompt_source: failing_test
+  _commit_message: Fix evaluate_with() calling __exit__ on wrong object (#2029)
+  _lines_changed: 55
+  _files_changed: 2
+  test_file: tests/test_local_python_executor.py
+  issue_number: 2029
+- id: fix-remotepythonexecutor_deserialize_final_answer
+  category: simple_fix
+  pre_fix_commit: b48889204ad50b6dce7546ae364eedc6ceb87d46
+  fix_commit: 7f21b7480e9510cbee57ec5cae8969646a1f17ed
+  prompt_source: failing_test
+  _commit_message: Fix RemotePythonExecutor._deserialize_final_answer for legacy no-prefix
+    pickle (#1984)
+  _lines_changed: 16
+  _files_changed: 2
+  test_file: tests/test_remote_executors.py
+  issue_number: 1984
+- id: fix-safeserializerget_deserializer_code-1983
+  category: targeted_refactor
+  pre_fix_commit: 41a3b005fadc6edd587a3ac6f6812987da405e26
+  fix_commit: b48889204ad50b6dce7546ae364eedc6ceb87d46
+  prompt_source: failing_test
+  _commit_message: Fix SafeSerializer.get_deserializer_code (#1983)
+  _lines_changed: 122
+  _files_changed: 3
+  test_file: tests/test_remote_executors.py
+  issue_number: 1983
+- id: fix-high-impact-vulnerability-on-remote-executors
+  category: complex_fix
+  pre_fix_commit: d977b068ff0f71a6ac1fcc6cd1a22b3480e160cd
+  fix_commit: 41a3b005fadc6edd587a3ac6f6812987da405e26
+  prompt_source: failing_test
+  _commit_message: Fix High impact vulnerability on remote executors (#1637)
+  _lines_changed: 1651
+  _files_changed: 4
+  test_file: tests/test_serialization.py
+  issue_number: 1637
+- id: fix-import-of-tokenusage-1943
+  category: targeted_refactor
+  pre_fix_commit: 52558552ad9d300ff522182ab50fc29825739849
+  fix_commit: bf817f02714244edc6de81fe172ef73f8259db63
+  prompt_source: failing_test
+  _commit_message: Fix import of TokenUsage (#1943)
+  _lines_changed: 7
+  _files_changed: 3
+  test_file: tests/test_models.py
+  issue_number: 1943
+- id: fix-prevent-finalanswerexception-from-being-caugh
+  category: targeted_refactor
+  pre_fix_commit: bae54fd37431c67c6704870cf6e8e5865b72930e
+  fix_commit: 1af07997acf5ac5539581e8faeb79a61f7513030
+  prompt_source: failing_test
+  _commit_message: 'fix: prevent FinalAnswerException from being caught by except
+    Exception (#1914)'
+  _lines_changed: 28
+  _files_changed: 3
+  test_file: tests/test_local_python_executor.py
+  issue_number: 1914
+- id: fixgradio_ui-gradio-6-compatibility-1903
+  category: complex_fix
+  pre_fix_commit: 7feebb1e1d310ee0b991652e624496b8d0a25783
+  fix_commit: d97fa2c8452520040a663f723a0b5f20e8b1155a
+  prompt_source: commit_message
+  _commit_message: 'fix(gradio_ui): Gradio 6 compatibility (#1903)'
+  _lines_changed: 247
+  _files_changed: 1
+  issue_number: 1903
+- id: fix-run_gaiapy-token_counts-when-managed-agent-is
+  category: simple_fix
+  pre_fix_commit: 0e7c4142376f4d5399493f2d4c038ef1fae5d718
+  fix_commit: ab7c9ec5218da1d8181a001d9362054b71753977
+  prompt_source: commit_message
+  _commit_message: Fix run_gaia.py token_counts when managed agent is called more
+    than once (#1878)
+  _lines_changed: 23
+  _files_changed: 1
+  issue_number: 1878
+- id: fix-typo-in-secure_code_executionmd-1892
+  category: simple_fix
+  pre_fix_commit: 2ae00fb092d1b0e7d74de06e738dd48d04a8b2c2
+  fix_commit: 83090a963409b01ca06d34846d49347ecc5e432e
+  prompt_source: commit_message
+  _commit_message: Fix typo in secure_code_execution.md (#1892)
+  _lines_changed: 2
+  _files_changed: 1
+  issue_number: 1892
+- id: fix-add-backward-compatibility-for-deprecated-hfa
+  category: simple_fix
+  pre_fix_commit: bf94940b1a78d4acbc4905c5bc78ee131f35a9ba
+  fix_commit: 2ae00fb092d1b0e7d74de06e738dd48d04a8b2c2
+  prompt_source: commit_message
+  _commit_message: 'Fix: Add backward compatibility for deprecated HfApiModel (#1863)'
+  _lines_changed: 7
+  _files_changed: 1
+  issue_number: 1863
+- id: fix-cli-toolfrom_space-call-by-auto-generating
+  category: simple_fix
+  pre_fix_commit: 4dbafef429bf64350f4226cdf2833ba30352ef65
+  fix_commit: 2e66fa009e85db72bd787b9d33956f88f883e09a
+  prompt_source: commit_message
+  _commit_message: Fix CLI Tool.from_space() call by auto-generating name and description
+    (#1535) (#1859)
+  _lines_changed: 6
+  _files_changed: 1
+  issue_number: 1535
+- id: bug-role-not-converted-back-to-enum-1833
+  category: simple_fix
+  pre_fix_commit: d8c921d526514ab15ef88c7defa1df7f71209251
+  fix_commit: 4dbafef429bf64350f4226cdf2833ba30352ef65
+  prompt_source: failing_test
+  _commit_message: 'bug: role not converted back to enum (#1833)'
+  _lines_changed: 18
+  _files_changed: 2
+  test_file: tests/test_models.py
+  issue_number: 1833

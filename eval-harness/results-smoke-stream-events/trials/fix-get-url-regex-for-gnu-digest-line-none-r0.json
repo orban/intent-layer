@@ -1,0 +1,174 @@
+{
+  "task_id": "fix-get-url-regex-for-gnu-digest-line",
+  "condition": "none",
+  "rep": 0,
+  "success": true,
+  "started_at": "2026-04-20T22:55:53.769616+00:00",
+  "finished_at": "2026-04-20T22:57:38.493943+00:00",
+  "wall_clock_seconds": 61.25030279159546,
+  "input_tokens": 210031,
+  "output_tokens": 4557,
+  "tool_calls": 7,
+  "cost_usd": 0.25404569999999993,
+  "docker_invocations": [
+    {
+      "phase": "pre_validate_test",
+      "invoked_at": "2026-04-20T22:55:54.551768+00:00",
+      "first_byte_at": "2026-04-20T22:55:56.043679+00:00",
+      "finished_at": "2026-04-20T22:56:17.353036+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:57:19.290725+00:00",
+      "first_byte_at": "2026-04-20T22:57:20.002417+00:00",
+      "finished_at": "2026-04-20T22:57:38.393063+00:00",
+      "exit_code": 0,
+      "timed_out": false
+    }
+  ],
+  "stream_events": [
+    {
+      "t": 0.732,
+      "type": "system"
+    },
+    {
+      "t": 1.858,
+      "type": "rate_limit_event"
+    },
+    {
+      "t": 3.371,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 19120
+    },
+    {
+      "t": 4.18,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 19120
+    },
+    {
+      "t": 5.115,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 19120,
+      "tools": [
+        "Read"
+      ]
+    },
+    {
+      "t": 5.509,
+      "type": "user"
+    },
+    {
+      "t": 5.911,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 19120,
+      "tools": [
+        "Grep"
+      ]
+    },
+    {
+      "t": 6.089,
+      "type": "user"
+    },
+    {
+      "t": 8.467,
+      "type": "assistant",
+      "inp": 1,
+      "out": 62,
+      "cache_read": 30885,
+      "cache_create": 1607,
+      "tools": [
+        "Grep"
+      ]
+    },
+    {
+      "t": 8.498,
+      "type": "user"
+    },
+    {
+      "t": 50.389,
+      "type": "assistant",
+      "inp": 1,
+      "out": 9,
+      "cache_read": 30885,
+      "cache_create": 2845
+    },
+    {
+      "t": 50.923,
+      "type": "assistant",
+      "inp": 1,
+      "out": 9,
+      "cache_read": 30885,
+      "cache_create": 2845
+    },
+    {
+      "t": 51.87,
+      "type": "assistant",
+      "inp": 1,
+      "out": 9,
+      "cache_read": 30885,
+      "cache_create": 2845,
+      "tools": [
+        "Edit"
+      ]
+    },
+    {
+      "t": 51.921,
+      "type": "user"
+    },
+    {
+      "t": 53.877,
+      "type": "assistant",
+      "inp": 1,
+      "out": 69,
+      "cache_read": 33730,
+      "cache_create": 3623,
+      "tools": [
+        "Read"
+      ]
+    },
+    {
+      "t": 53.906,
+      "type": "user"
+    },
+    {
+      "t": 56.389,
+      "type": "assistant",
+      "inp": 1,
+      "out": 72,
+      "cache_read": 33730,
+      "cache_create": 3894,
+      "tools": [
+        "Edit"
+      ]
+    },
+    {
+      "t": 56.44,
+      "type": "user"
+    },
+    {
+      "t": 61.001,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 37624,
+      "cache_create": 315
+    },
+    {
+      "t": 61.063,
+      "type": "result",
+      "cost_usd": 0.25404569999999993,
+      "num_turns": 7
+    }
+  ],
+  "lines_changed": 2
+}

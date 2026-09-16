@@ -1,0 +1,15 @@
+{
+  "eval_id": "2026-04-20-152355",
+  "timestamp": "2026-04-20T15:24:59.445789",
+  "uptime_seconds": 64.11060786247253,
+  "workers": 1,
+  "paused": false,
+  "batch_total": 1,
+  "completed": 1,
+  "passes": 0,
+  "genuine_failures": 1,
+  "infra_failures": 0,
+  "remaining": 0,
+  "pass_rate": 0.0,
+  "infra_rate": 0.0
+}

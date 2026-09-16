@@ -1,0 +1,14 @@
+{
+  "task_id": "fix-ansiblemodule-human-to-bytes",
+  "condition": "none",
+  "rep": 1,
+  "success": false,
+  "started_at": "2026-04-20T04:06:04.968791+00:00",
+  "finished_at": "2026-04-20T04:07:25.426869+00:00",
+  "wall_clock_seconds": 22.553574800491333,
+  "input_tokens": 125239,
+  "output_tokens": 829,
+  "tool_calls": 5,
+  "cost_usd": 0.13430615,
+  "lines_changed": 3
+}

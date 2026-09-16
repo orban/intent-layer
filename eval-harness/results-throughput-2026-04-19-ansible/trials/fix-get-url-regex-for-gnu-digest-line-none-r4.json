@@ -1,0 +1,14 @@
+{
+  "task_id": "fix-get-url-regex-for-gnu-digest-line",
+  "condition": "none",
+  "rep": 4,
+  "success": true,
+  "started_at": "2026-04-20T04:06:04.961685+00:00",
+  "finished_at": "2026-04-20T04:09:03.975179+00:00",
+  "wall_clock_seconds": 100.3913140296936,
+  "input_tokens": 215343,
+  "output_tokens": 5996,
+  "tool_calls": 7,
+  "cost_usd": 0.27072224999999994,
+  "lines_changed": 4
+}

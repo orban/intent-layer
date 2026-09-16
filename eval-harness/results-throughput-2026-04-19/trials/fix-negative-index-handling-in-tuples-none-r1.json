@@ -1,0 +1,14 @@
+{
+  "task_id": "fix-negative-index-handling-in-tuples",
+  "condition": "none",
+  "rep": 1,
+  "success": false,
+  "started_at": "2026-04-20T04:02:04.012863+00:00",
+  "finished_at": "2026-04-20T04:02:50.009695+00:00",
+  "wall_clock_seconds": 37.81367301940918,
+  "input_tokens": 140344,
+  "output_tokens": 2247,
+  "tool_calls": 9,
+  "cost_usd": 0.11224429999999999,
+  "lines_changed": 3259
+}

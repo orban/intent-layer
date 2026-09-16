@@ -1,0 +1,32 @@
+{
+  "task_id": "fix-get-url-regex-for-gnu-digest-line",
+  "condition": "none",
+  "rep": 3,
+  "success": true,
+  "started_at": "2026-04-20T22:26:33.761880+00:00",
+  "finished_at": "2026-04-20T22:29:01.648539+00:00",
+  "wall_clock_seconds": 89.51446771621704,
+  "input_tokens": 252709,
+  "output_tokens": 5328,
+  "tool_calls": 8,
+  "cost_usd": 0.2651224,
+  "docker_invocations": [
+    {
+      "phase": "pre_validate_test",
+      "invoked_at": "2026-04-20T22:26:39.514154+00:00",
+      "first_byte_at": "2026-04-20T22:26:40.351179+00:00",
+      "finished_at": "2026-04-20T22:27:03.244241+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:28:33.718367+00:00",
+      "first_byte_at": "2026-04-20T22:28:34.170896+00:00",
+      "finished_at": "2026-04-20T22:29:01.515702+00:00",
+      "exit_code": 0,
+      "timed_out": false
+    }
+  ],
+  "lines_changed": 4
+}

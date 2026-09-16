@@ -15,14 +15,23 @@ Subagent definitions for Intent Layer analysis. Each is a markdown file that Cla
 | `auditor.md` | Quarterly maintenance, post-merge | Discovers all nodes, checks staleness, spawns validator per node |
 | `change-tracker.md` | Before PR merge, after git pull | Maps changed files to covering nodes, classifies severity |
 
-### Agent pipeline
+## Agent pipeline
 
 ```
 Explorer -> Validator -> (user approves) -> write AGENTS.md
 Auditor -> ChangeTracker -> Validator (targeted)
 ```
 
-Explorer creates drafts. Validator checks accuracy. Auditor orchestrates full audits. ChangeTracker narrows scope so Validator doesn't re-check everything.
+## Code Map
+
+| Path | Covered by | Context Type |
+|------|------------|--------------|
+| `agents/` | `agents/AGENTS.md` | Agent definitions & registry |
+| `scripts/` | `scripts/AGENTS.md` | CLI tools & hook logic |
+| `lib/` | `lib/AGENTS.md` | Shared library functions |
+| `hooks/` | `hooks/AGENTS.md` | Lifecycle hooks & data flow |
+
+## Entry Points
 
 ## Entry Points
 
@@ -32,23 +41,21 @@ Explorer creates drafts. Validator checks accuracy. Auditor orchestrates full au
 | Understand agent invocation | Agents are contextual -- Claude reads them when tasks match their `description` field |
 | Modify audit behavior | Edit `auditor.md` (orchestration) or `validator.md` (per-node checks) |
 
+## Patterns
+
+| Pattern | Usage | Note |
+|---------|-------|------|
+| Contextual Invocation | Claude's internal router | Driven by agent description matches |
+| Sequential Pipeline | Agent orchestration | Explorer -> Validator -> Human Review -> Commit |
+
+## Boundaries
+
+| Permission | Scope | Action |
+|------------|-------|--------|
+| **Always** | Read-only | Inspecting `AGENTS.md` and `CLAUDE.md` for context |
+| **Ask First** | Writing/Editing | Modifying any `.md` files in the repository |
+| **Never** | Destructive Actions | Deleting directories or uncommitted file changes |
+
 ## Contracts
 
 - YAML frontmatter must include `description` (string) and `capabilities` (list). Source: `CLAUDE.md` root contracts.
-- Agents reference scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/` and `${CLAUDE_PLUGIN_ROOT}/lib/`.
-- Agents produce markdown output, not JSON. Reports use the table/heading format shown in each agent file.
-- `change-tracker.md` also has a `triggers` frontmatter field listing when it fires.
-
-## Pitfalls
-
-### Agents aren't guaranteed to run
-
-Claude decides whether to use an agent based on context. There's no hook or trigger that forces invocation. The `description` field is what Claude matches against, so vague descriptions mean the agent gets skipped.
-
-### Validator does structural AND semantic checks
-
-`validate_node.sh` (the script) does structural validation only (token count, required sections, paths). The Validator agent does deeper semantic checks (are contracts actually enforced in code? do entry points exist?). Don't confuse the two.
-
-### ChangeTracker severity depends on node content
-
-Severity classification (HIGH/MEDIUM/LOW) reads the node's Entry Points section to determine if a changed file is "important". If Entry Points are stale, severity assessment is wrong too.

@@ -1,0 +1,14 @@
+{
+  "task_id": "fix-negative-access-to-pairs",
+  "condition": "none",
+  "rep": 1,
+  "success": false,
+  "started_at": "2026-04-20T04:02:04.014915+00:00",
+  "finished_at": "2026-04-20T04:03:44.650559+00:00",
+  "wall_clock_seconds": 92.2417380809784,
+  "input_tokens": 253269,
+  "output_tokens": 4399,
+  "tool_calls": 11,
+  "cost_usd": 0.26699444999999994,
+  "lines_changed": 3275
+}

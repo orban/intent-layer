@@ -1,0 +1,61 @@
+{
+  "eval_id": "2026-04-19-210204",
+  "timestamp": "2026-04-19T21:02:50Z",
+  "results": [
+    {
+      "task_id": "fix-negative-index-handling-in-tuples",
+      "none": {
+        "success": false,
+        "rep": 1,
+        "test_output": "Collecting uv\n  Using cached uv-0.11.7-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\nUsing cached uv-0.11.7-py3-none-manylinux_2_28_aarch64.whl (23.7 MB)\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.7\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n   Building opshin @ file:///work\nDownloading pydantic-core (1.9MiB)\nDownloading cryptography (4.1MiB)\n Downloaded pydantic-core\n Downloaded cryptography\n      Built opshin @ file:///work\nPrepared 29 packages in 598ms\nwarning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.\n         If the cache and target directories are on different filesystems, hardlinking may not be supported.\n         If",
+        "wall_clock_seconds": 37.81367301940918,
+        "input_tokens": 140344,
+        "output_tokens": 2247,
+        "tool_calls": 9,
+        "lines_changed": 3259,
+        "files_touched": [
+          "pyproject.toml",
+          "uv.lock"
+        ],
+        "exit_code": 0
+      },
+      "deltas": {}
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0.0,
+    "none_itt_rate": 0.0,
+    "none_median_tokens": 142591,
+    "mcnemar": {}
+  },
+  "budget": {
+    "total_tokens_consumed": 142591
+  },
+  "run_config": {
+    "task_ids": [
+      "catch-errors-importing-invalid-modules",
+      "derive-type-for-empty-literal-lists-and-dicts",
+      "fix-annotation-handling-py39-blueprint",
+      "fix-blueprint-schema-conversion-plutusdata",
+      "fix-error-messages-list-dict-without-import",
+      "fix-negative-access-to-pairs",
+      "fix-negative-index-handling-in-tuples",
+      "fix-order-of-optimization-config-applications",
+      "fixes-constant-folding-default-tests",
+      "loosen-typing-imports-unify-self"
+    ],
+    "conditions": [
+      "none"
+    ],
+    "repetitions": 2,
+    "timeout": 3600,
+    "model": "sonnet",
+    "task_files": [
+      "/Users/ryo/dev/intent-layer/eval-harness/tasks/opshin.yaml"
+    ]
+  },
+  "checkpoint": true,
+  "completed_runs": 1
+}

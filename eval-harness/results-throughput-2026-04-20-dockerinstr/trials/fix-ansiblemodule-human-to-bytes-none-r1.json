@@ -1,0 +1,24 @@
+{
+  "task_id": "fix-ansiblemodule-human-to-bytes",
+  "condition": "none",
+  "rep": 1,
+  "success": false,
+  "started_at": "2026-04-20T22:26:33.753706+00:00",
+  "finished_at": "2026-04-20T22:27:44.532245+00:00",
+  "wall_clock_seconds": 16.898266792297363,
+  "input_tokens": 126320,
+  "output_tokens": 998,
+  "tool_calls": 5,
+  "cost_usd": 0.13789274999999998,
+  "docker_invocations": [
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:27:20.063762+00:00",
+      "first_byte_at": "2026-04-20T22:27:20.966232+00:00",
+      "finished_at": "2026-04-20T22:27:44.403223+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    }
+  ],
+  "lines_changed": 3
+}

@@ -1,0 +1,14 @@
+{
+  "task_id": "fix-v1-source-info-schema-validation",
+  "condition": "none",
+  "rep": 1,
+  "success": true,
+  "started_at": "2026-04-20T04:08:50.738242+00:00",
+  "finished_at": "2026-04-20T04:12:08.989467+00:00",
+  "wall_clock_seconds": 144.44827389717102,
+  "input_tokens": 705622,
+  "output_tokens": 9315,
+  "tool_calls": 20,
+  "cost_usd": 0.5000534000000001,
+  "lines_changed": 5
+}

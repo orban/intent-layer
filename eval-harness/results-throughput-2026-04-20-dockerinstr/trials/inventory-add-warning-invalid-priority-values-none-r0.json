@@ -1,0 +1,32 @@
+{
+  "task_id": "inventory-add-warning-invalid-priority-values",
+  "condition": "none",
+  "rep": 0,
+  "success": true,
+  "started_at": "2026-04-20T22:27:45.261383+00:00",
+  "finished_at": "2026-04-20T22:28:49.522824+00:00",
+  "wall_clock_seconds": 18.96861982345581,
+  "input_tokens": 121733,
+  "output_tokens": 773,
+  "tool_calls": 5,
+  "cost_usd": 0.12746159999999998,
+  "docker_invocations": [
+    {
+      "phase": "pre_validate_test",
+      "invoked_at": "2026-04-20T22:27:46.464613+00:00",
+      "first_byte_at": "2026-04-20T22:27:47.119116+00:00",
+      "finished_at": "2026-04-20T22:28:05.978447+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:28:25.431062+00:00",
+      "first_byte_at": "2026-04-20T22:28:26.366876+00:00",
+      "finished_at": "2026-04-20T22:28:49.395104+00:00",
+      "exit_code": 0,
+      "timed_out": false
+    }
+  ],
+  "lines_changed": 2
+}

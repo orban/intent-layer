@@ -1,0 +1,121 @@
+{
+  "task_id": "inventory-add-warning-invalid-priority-values",
+  "condition": "none",
+  "rep": 0,
+  "success": true,
+  "started_at": "2026-04-20T22:58:36.005080+00:00",
+  "finished_at": "2026-04-20T22:59:25.102992+00:00",
+  "wall_clock_seconds": 10.6566321849823,
+  "input_tokens": 90834,
+  "output_tokens": 521,
+  "tool_calls": 4,
+  "cost_usd": 0.1756064,
+  "docker_invocations": [
+    {
+      "phase": "pre_validate_test",
+      "invoked_at": "2026-04-20T22:58:36.863498+00:00",
+      "first_byte_at": "2026-04-20T22:58:37.401357+00:00",
+      "finished_at": "2026-04-20T22:58:55.356889+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:59:06.700727+00:00",
+      "first_byte_at": "2026-04-20T22:59:07.271314+00:00",
+      "finished_at": "2026-04-20T22:59:24.976261+00:00",
+      "exit_code": 0,
+      "timed_out": false
+    }
+  ],
+  "stream_events": [
+    {
+      "t": 0.473,
+      "type": "system"
+    },
+    {
+      "t": 1.95,
+      "type": "rate_limit_event"
+    },
+    {
+      "t": 2.669,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 17988
+    },
+    {
+      "t": 3.035,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 17988
+    },
+    {
+      "t": 4.575,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 17988,
+      "tools": [
+        "Read"
+      ]
+    },
+    {
+      "t": 4.588,
+      "type": "user"
+    },
+    {
+      "t": 5.367,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 17988,
+      "tools": [
+        "Read"
+      ]
+    },
+    {
+      "t": 5.391,
+      "type": "user"
+    },
+    {
+      "t": 7.815,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 11765,
+      "cache_create": 18628
+    },
+    {
+      "t": 8.357,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 11765,
+      "cache_create": 18628,
+      "tools": [
+        "Edit"
+      ]
+    },
+    {
+      "t": 8.384,
+      "type": "user"
+    },
+    {
+      "t": 10.33,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 30393,
+      "cache_create": 290
+    },
+    {
+      "t": 10.39,
+      "type": "result",
+      "cost_usd": 0.1756064,
+      "num_turns": 4
+    }
+  ],
+  "lines_changed": 2
+}

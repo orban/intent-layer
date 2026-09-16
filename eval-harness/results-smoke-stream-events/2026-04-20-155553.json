@@ -1,0 +1,108 @@
+{
+  "eval_id": "2026-04-20-155553",
+  "timestamp": "2026-04-20T16:03:04Z",
+  "results": [
+    {
+      "task_id": "fix-get-url-regex-for-gnu-digest-line",
+      "none": {
+        "success": true,
+        "rep": 0,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [124 kB]\nFetched 9827 kB in 1s (10.6 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 61.25030279159546,
+        "input_tokens": 210031,
+        "output_tokens": 4557,
+        "tool_calls": 7,
+        "lines_changed": 2,
+        "files_touched": [
+          "lib/ansible/modules/get_url.py"
+        ],
+        "exit_code": 0
+      },
+      "deltas": {}
+    },
+    {
+      "task_id": "fix-ansiblemodule-human-to-bytes",
+      "none": {
+        "success": false,
+        "rep": 0,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [124 kB]\nFetched 9827 kB in 1s (11.4 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 19.1774320602417,
+        "input_tokens": 126431,
+        "output_tokens": 998,
+        "tool_calls": 5,
+        "lines_changed": 3,
+        "files_touched": [
+          "lib/ansible/module_utils/basic.py"
+        ],
+        "exit_code": 0
+      },
+      "deltas": {}
+    },
+    {
+      "task_id": "inventory-add-warning-invalid-priority-values",
+      "none": {
+        "success": true,
+        "rep": 0,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [124 kB]\nFetched 9827 kB in 1s (11.4 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 10.6566321849823,
+        "input_tokens": 90834,
+        "output_tokens": 521,
+        "tool_calls": 4,
+        "lines_changed": 2,
+        "files_touched": [
+          "lib/ansible/inventory/group.py"
+        ],
+        "exit_code": 0
+      },
+      "deltas": {}
+    },
+    {
+      "task_id": "fix-v1-source-info-schema-validation",
+      "none": {
+        "success": true,
+        "rep": 0,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [124 kB]\nFetched 9827 kB in 1s (8257 kB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 177.50722217559814,
+        "input_tokens": 850051,
+        "output_tokens": 9718,
+        "tool_calls": 22,
+        "lines_changed": 13,
+        "files_touched": [
+          "lib/ansible/galaxy/dependency_resolution/dataclasses.py"
+        ],
+        "exit_code": 0
+      },
+      "deltas": {}
+    }
+  ],
+  "summary": {
+    "total_tasks": 4,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0.75,
+    "none_itt_rate": 0.75,
+    "none_median_tokens": 171008,
+    "mcnemar": {}
+  },
+  "budget": {
+    "total_tokens_consumed": 1293141,
+    "nightshift_remaining_before": 245000,
+    "nightshift_remaining_after": 245000
+  },
+  "run_config": {
+    "task_ids": [
+      "fix-ansiblemodule-human-to-bytes",
+      "fix-get-url-regex-for-gnu-digest-line",
+      "fix-v1-source-info-schema-validation",
+      "inventory-add-warning-invalid-priority-values"
+    ],
+    "conditions": [
+      "none"
+    ],
+    "repetitions": 1,
+    "timeout": 600,
+    "model": "sonnet",
+    "task_files": [
+      "/Users/ryo/dev/intent-layer/eval-harness/tasks/ansible.yaml"
+    ]
+  }
+}

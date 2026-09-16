@@ -1,0 +1,144 @@
+{
+  "task_id": "fix-ansiblemodule-human-to-bytes",
+  "condition": "none",
+  "rep": 0,
+  "success": false,
+  "started_at": "2026-04-20T22:57:38.496093+00:00",
+  "finished_at": "2026-04-20T22:58:36.003621+00:00",
+  "wall_clock_seconds": 19.1774320602417,
+  "input_tokens": 126431,
+  "output_tokens": 998,
+  "tool_calls": 5,
+  "cost_usd": 0.1382677,
+  "docker_invocations": [
+    {
+      "phase": "pre_validate_test",
+      "invoked_at": "2026-04-20T22:57:39.393181+00:00",
+      "first_byte_at": "2026-04-20T22:57:39.916362+00:00",
+      "finished_at": "2026-04-20T22:57:58.473771+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "phase": "post_test",
+      "invoked_at": "2026-04-20T22:58:17.993790+00:00",
+      "first_byte_at": "2026-04-20T22:58:18.566923+00:00",
+      "finished_at": "2026-04-20T22:58:35.884377+00:00",
+      "exit_code": 1,
+      "timed_out": false
+    }
+  ],
+  "stream_events": [
+    {
+      "t": 0.463,
+      "type": "system"
+    },
+    {
+      "t": 1.662,
+      "type": "rate_limit_event"
+    },
+    {
+      "t": 3.149,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 18747
+    },
+    {
+      "t": 3.666,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 18747
+    },
+    {
+      "t": 5.525,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 18747,
+      "tools": [
+        "Read"
+      ]
+    },
+    {
+      "t": 5.551,
+      "type": "user"
+    },
+    {
+      "t": 5.732,
+      "type": "assistant",
+      "inp": 3,
+      "cache_read": 11765,
+      "cache_create": 18747,
+      "tools": [
+        "Grep"
+      ]
+    },
+    {
+      "t": 6.013,
+      "type": "user"
+    },
+    {
+      "t": 11.736,
+      "type": "assistant",
+      "inp": 1,
+      "out": 38,
+      "cache_read": 30512,
+      "cache_create": 875
+    },
+    {
+      "t": 11.79,
+      "type": "assistant",
+      "inp": 1,
+      "out": 38,
+      "cache_read": 30512,
+      "cache_create": 875,
+      "tools": [
+        "Read"
+      ]
+    },
+    {
+      "t": 11.801,
+      "type": "user"
+    },
+    {
+      "t": 14.328,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 31387,
+      "cache_create": 678
+    },
+    {
+      "t": 15.72,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 31387,
+      "cache_create": 678,
+      "tools": [
+        "Edit"
+      ]
+    },
+    {
+      "t": 15.743,
+      "type": "user"
+    },
+    {
+      "t": 18.947,
+      "type": "assistant",
+      "inp": 1,
+      "out": 1,
+      "cache_read": 32065,
+      "cache_create": 396
+    },
+    {
+      "t": 18.992,
+      "type": "result",
+      "cost_usd": 0.1382677,
+      "num_turns": 5
+    }
+  ],
+  "lines_changed": 3
+}

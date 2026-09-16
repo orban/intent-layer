@@ -1,0 +1,149 @@
+# DRAFT - Review and curate before use
+# Generated from: https://github.com/wagtail/wagtail
+# Tasks found: 15
+
+repo:
+  url: https://github.com/wagtail/wagtail
+  default_branch: main
+  docker:
+    image: python:3.13-slim
+    setup:
+    - apt-get update && apt-get install -y --no-install-recommends gcc libjpeg-dev
+      zlib1g-dev libffi-dev && pip install -e '.[testing]' --config-settings editable_mode=strict
+      && pip install 'Django>=5.2,<5.3'
+    test_command: DJANGO_SETTINGS_MODULE=wagtail.test.settings DATABASE_ENGINE=django.db.backends.sqlite3
+      python runtests.py
+tasks:
+- id: fix-extra-space-in-status-label
+  category: simple_fix
+  pre_fix_commit: 52d92ea84d59afd143745cad1a4632092119f637
+  fix_commit: f1abd48a0218cab088a90907c720ba37d25c4353
+  prompt_source: commit_message
+  _commit_message: Fix extra space in status label
+  _lines_changed: 2
+  _files_changed: 1
+- id: docs-clarify-form-accessibility-ticket-references
+  category: targeted_refactor
+  pre_fix_commit: b5e953cd2fcb930549e7b59eac7da67eb6bc651e
+  fix_commit: 52d92ea84d59afd143745cad1a4632092119f637
+  prompt_source: commit_message
+  _commit_message: 'Docs: clarify form accessibility ticket references. Fix #12009
+    (#14091)'
+  _lines_changed: 7
+  _files_changed: 4
+  issue_number: 12009
+- id: fix-image-renditions-sections-14074
+  category: targeted_refactor
+  pre_fix_commit: b618e824510e76dd5d79c4627616440e956d32f1
+  fix_commit: 99b1c77ccb2cf71420693a51a6c6f7db8d903364
+  prompt_source: commit_message
+  _commit_message: Fix image renditions sections (#14074)
+  _lines_changed: 14
+  _files_changed: 3
+  issue_number: 14074
+- id: fix-choiceblock-to-preserve-original-choice-value
+  category: targeted_refactor
+  pre_fix_commit: 638600aface1a4c75fdc51f1f390b6f0d3da6aa1
+  fix_commit: 23935d582ba38785aab176f8ad455a39865e4bea
+  prompt_source: failing_test
+  _commit_message: Fix ChoiceBlock to preserve original choice value types (#13658)
+  _lines_changed: 141
+  _files_changed: 5
+  test_file: wagtail/tests/test_blocks.py
+  issue_number: 13658
+- id: move-13974-to-bug-release-notes-for-backporting
+  category: targeted_refactor
+  pre_fix_commit: a5fa1693a84e1fb731d0378781f172b54f642f99
+  fix_commit: ac9a84bd32f146c835536a2b14a4fa44908bfc89
+  prompt_source: commit_message
+  _commit_message: 'Move #13974 to bug release notes for backporting'
+  _lines_changed: 4
+  _files_changed: 3
+  issue_number: 13974
+- id: fix-oembed-when-some-response-fields-are-null-14
+  category: targeted_refactor
+  pre_fix_commit: 90deedc3a73d5dc0ec2e3d7d3f0fec9a18a8fdba
+  fix_commit: efaf2a477b2cde9b76d9ded5f57287ded0ee5ccc
+  prompt_source: failing_test
+  _commit_message: Fix oEmbed when some response fields are null (#14012)
+  _lines_changed: 45
+  _files_changed: 5
+  test_file: wagtail/embeds/tests/test_embeds.py
+  issue_number: 14012
+- id: improve-tutorial-fix-terminology-add-powershell
+  category: targeted_refactor
+  pre_fix_commit: 537caefc11c26b504f9e56f51d2a5d1a6f7344e4
+  fix_commit: 90deedc3a73d5dc0ec2e3d7d3f0fec9a18a8fdba
+  prompt_source: commit_message
+  _commit_message: 'Improve tutorial: fix terminology, add PowerShell instructions,
+    and correct grammar (#13714)'
+  _lines_changed: 19
+  _files_changed: 3
+  issue_number: 13714
+- id: fix-documentchooserblock-validation-error-display
+  category: targeted_refactor
+  pre_fix_commit: 864c69b436c8d0098e3eed0e07daebb636abee1a
+  fix_commit: 7dba3a5d3121abaa59d1fb447f1f18b87bef5220
+  prompt_source: failing_test
+  _commit_message: Fix DocumentChooserBlock validation error display (#13926)
+  _lines_changed: 61
+  _files_changed: 5
+  test_file: wagtail/admin/tests/test_chooser.py
+  issue_number: 13926
+- id: fix-webpavifheic-image-preview-placeholder-136
+  category: targeted_refactor
+  pre_fix_commit: 12168f381e108a3f918e093a753678a097b4b119
+  fix_commit: 6f60188ded17470b0110e3aa6163e95659a714f0
+  prompt_source: commit_message
+  _commit_message: Fix WebP/AVIF/HEIC image preview placeholder (#13690)
+  _lines_changed: 11
+  _files_changed: 4
+  issue_number: 13690
+- id: fix-deprecated-sass-if-function
+  category: simple_fix
+  pre_fix_commit: 25a6907b4b9d0ce51c145fcfc282b3db1b86838f
+  fix_commit: 00fa0560b2ac6708607030434b6aa8a4db0919bb
+  prompt_source: commit_message
+  _commit_message: Fix deprecated sass if() function
+  _lines_changed: 11
+  _files_changed: 1
+- id: fix-import-xno-cycle-in-sidebar-menu-code
+  category: complex_fix
+  pre_fix_commit: c7a303f1b594f57861936dc63318c3dd970a529f
+  fix_commit: e8d86ac83fa8e5f9a59bc802e4973de7d60d17d0
+  prompt_source: commit_message
+  _commit_message: Fix import-x/no-cycle in Sidebar menu code
+  _lines_changed: 88
+  _files_changed: 7
+- id: add-typessortablejs-and-fix-resulting-lint-issue
+  category: targeted_refactor
+  pre_fix_commit: 263d135a2597287e893e23fd5f53bfb8f6b3326d
+  fix_commit: c7a303f1b594f57861936dc63318c3dd970a529f
+  prompt_source: commit_message
+  _commit_message: Add @types/sortablejs and fix resulting lint issues
+  _lines_changed: 29
+  _files_changed: 3
+- id: fixignore-remaining-eslint-react-issues
+  category: targeted_refactor
+  pre_fix_commit: 02788bdaab62e4d0a162f8242aee352fd48de786
+  fix_commit: 263d135a2597287e893e23fd5f53bfb8f6b3326d
+  prompt_source: commit_message
+  _commit_message: Fix/ignore remaining ESLint react issues
+  _lines_changed: 8
+  _files_changed: 3
+- id: fix-reactuse-state-pairs
+  category: simple_fix
+  pre_fix_commit: 7cbd081af140cd2a861b0ecccfad8c099e275140
+  fix_commit: 1bb7d30734933dac3e5b2492500bd27f25a645ad
+  prompt_source: commit_message
+  _commit_message: Fix react/use-state pairs
+  _lines_changed: 8
+  _files_changed: 2
+- id: fix-prefer-for-of
+  category: simple_fix
+  pre_fix_commit: ae0f72b6229894ae341865cfd888b799c089d869
+  fix_commit: 7cbd081af140cd2a861b0ecccfad8c099e275140
+  prompt_source: commit_message
+  _commit_message: Fix prefer-for-of
+  _lines_changed: 33
+  _files_changed: 2

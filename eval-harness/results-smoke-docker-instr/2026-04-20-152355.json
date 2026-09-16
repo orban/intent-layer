@@ -1,0 +1,51 @@
+{
+  "eval_id": "2026-04-20-152355",
+  "timestamp": "2026-04-20T15:24:59Z",
+  "results": [
+    {
+      "task_id": "fix-ansiblemodule-human-to-bytes",
+      "none": {
+        "success": false,
+        "rep": 0,
+        "test_output": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [124 kB]\nFetched 9827 kB in 1s (11.4 MB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  git-man krb5-locales less libbrotli1 libcbor0.10 libcom-err2\n  libcurl3t64-gnutls libedit2 liberror-perl libexpat1 libfido2-1\n  libgdbm-compat4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0 libk5crypto3\n  libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2 libnghttp2-14\n  libnghttp3-9 libngtcp2-16 libngtcp2-crypto-gnutls8 libp11-kit0 libperl5.40\n  li",
+        "wall_clock_seconds": 22.56936502456665,
+        "input_tokens": 126287,
+        "output_tokens": 947,
+        "tool_calls": 5,
+        "lines_changed": 3,
+        "files_touched": [
+          "lib/ansible/module_utils/basic.py"
+        ],
+        "exit_code": 0
+      },
+      "deltas": {}
+    }
+  ],
+  "summary": {
+    "total_tasks": 1,
+    "infrastructure_errors": 0,
+    "none_success_rate": 0.0,
+    "none_itt_rate": 0.0,
+    "none_median_tokens": 127234,
+    "mcnemar": {}
+  },
+  "budget": {
+    "total_tokens_consumed": 127234,
+    "nightshift_remaining_before": 245000,
+    "nightshift_remaining_after": 245000
+  },
+  "run_config": {
+    "task_ids": [
+      "fix-ansiblemodule-human-to-bytes"
+    ],
+    "conditions": [
+      "none"
+    ],
+    "repetitions": 1,
+    "timeout": 3600,
+    "model": "sonnet",
+    "task_files": [
+      "/Users/ryo/dev/intent-layer/eval-harness/tasks/smoke-test.yaml"
+    ]
+  }
+}
